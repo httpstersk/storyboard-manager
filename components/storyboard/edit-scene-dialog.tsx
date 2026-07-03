@@ -15,12 +15,19 @@ import { Dialog } from "@/components/ui/dialog"
 import { IconButton } from "@/components/ui/icon-button"
 import { SegmentedControl } from "@/components/ui/segmented-control"
 import { Slider } from "@/components/ui/slider"
+import { useMountEffect } from "@/hooks/use-mount-effect"
 import { formatSeconds, type Scene, type ValueLimits } from "@/lib/storyboard"
 import { cn } from "@/lib/utils"
 import { IMAGE_UPLOAD_RULES, validateImageFile } from "@/lib/validation"
 
 /** Allowed range for the drawing brush size. */
 const BRUSH_SIZE_LIMITS: ValueLimits = { max: 10, min: 1 }
+
+/**
+ * Brush strokes render this many times wider than the pencil at the same
+ * size, giving the brush its heavier, softer mark.
+ */
+const BRUSH_WIDTH_SCALE = 2.5
 
 /** Named swatches offered by the drawing colour picker. */
 const DRAW_COLORS = [
@@ -206,10 +213,13 @@ function EditSceneDialog({
         </div>
         <div className="flex w-full px-5 pb-1">
           <SceneCanvas
+            brushSize={brushSize}
+            color={color}
             fileInputRef={fileInputRef}
             image={previewImage}
             onFile={handleFile}
             sceneNumber={sceneNumber}
+            tool={tool}
           />
         </div>
         <Dialog.Footer>
@@ -273,18 +283,27 @@ function DrawColorPicker({ color, onColorChange }: DrawColorPickerProps) {
 }
 
 interface SceneCanvasProps {
+  brushSize: number
+  color: string
   fileInputRef: React.RefObject<HTMLInputElement | null>
   image: string | undefined | null
   onFile: (file: File) => void
   sceneNumber: string
+  tool: DrawTool
 }
 
-/** Canvas area with the scene numeral and the image drop target. */
+/**
+ * Canvas area with the scene numeral, freehand drawing surface, and image
+ * drop target.
+ */
 function SceneCanvas({
+  brushSize,
+  color,
   fileInputRef,
   image,
   onFile,
   sceneNumber,
+  tool,
 }: SceneCanvasProps) {
   const handleDrop = (event: React.DragEvent) => {
     event.preventDefault()
@@ -302,11 +321,12 @@ function SceneCanvas({
       onDrop={handleDrop}
     >
       {!image && (
-        <span className="text-canvas leading-none font-extralight tracking-display text-ink-on-media select-none sm:text-canvas-lg">
+        <span className="text-canvas leading-none font-extralight tracking-display text-ink-on-media select-none dark:text-emphasis-foreground/80 sm:text-canvas-lg">
           {sceneNumber}
         </span>
       )}
       <CanvasImage image={image} />
+      <DrawingCanvas brushSize={brushSize} color={color} tool={tool} />
       <input
         accept={IMAGE_UPLOAD_RULES.acceptedTypes.join(",")}
         aria-label="Upload scene image"
@@ -342,6 +362,198 @@ function CanvasImage({ image }: { image: string | undefined | null }) {
       alt="Uploaded scene reference"
       className="absolute inset-0 z-10 size-full object-cover"
       src={image}
+    />
+  )
+}
+
+/** A pointer position in CSS pixels, relative to the canvas top-left. */
+interface Point {
+  x: number
+  y: number
+}
+
+/** Returns the pointer position within the canvas, in CSS pixels. */
+function getCanvasPoint(
+  canvas: HTMLCanvasElement,
+  event: React.PointerEvent<HTMLCanvasElement>
+): Point {
+  const rect = canvas.getBoundingClientRect()
+
+  return { x: event.clientX - rect.left, y: event.clientY - rect.top }
+}
+
+/**
+ * Matches the canvas backing store to its rendered size scaled by the
+ * device pixel ratio (so strokes stay crisp) and scales the context so
+ * drawing code can work in CSS-pixel coordinates. Any existing drawing is
+ * preserved across the resize.
+ *
+ * The layout size (`clientWidth`/`clientHeight`) is used rather than
+ * `getBoundingClientRect`, so the open/close zoom transform on the dialog
+ * can't make the backing store settle at the wrong size.
+ */
+function syncCanvasSize(canvas: HTMLCanvasElement): void {
+  const context = canvas.getContext("2d")
+
+  if (context === null) {
+    return
+  }
+
+  const ratio = window.devicePixelRatio || 1
+  const cssWidth = canvas.clientWidth
+  const cssHeight = canvas.clientHeight
+  const width = Math.round(cssWidth * ratio)
+  const height = Math.round(cssHeight * ratio)
+
+  if (width === 0 || height === 0) {
+    return
+  }
+
+  if (canvas.width === width && canvas.height === height) {
+    return
+  }
+
+  // Resizing the backing store clears it, so copy the current drawing out
+  // first and scale it back in afterwards.
+  let previous: HTMLCanvasElement | null = null
+
+  if (canvas.width > 0 && canvas.height > 0) {
+    previous = document.createElement("canvas")
+    previous.width = canvas.width
+    previous.height = canvas.height
+    previous.getContext("2d")?.drawImage(canvas, 0, 0)
+  }
+
+  canvas.width = width
+  canvas.height = height
+  context.setTransform(ratio, 0, 0, ratio, 0, 0)
+
+  if (previous !== null) {
+    context.drawImage(previous, 0, 0, cssWidth, cssHeight)
+  }
+}
+
+/** Applies the stroke settings for the active tool to the context. */
+function configureStroke(
+  context: CanvasRenderingContext2D,
+  tool: DrawTool,
+  color: string,
+  brushSize: number
+): void {
+  context.lineCap = "round"
+  context.lineJoin = "round"
+
+  if (tool === "eraser") {
+    context.globalCompositeOperation = "destination-out"
+    context.strokeStyle = "#000000"
+    context.lineWidth = brushSize * BRUSH_WIDTH_SCALE
+
+    return
+  }
+
+  context.globalCompositeOperation = "source-over"
+  context.strokeStyle = color
+  context.lineWidth =
+    tool === "brush" ? brushSize * BRUSH_WIDTH_SCALE : brushSize
+}
+
+/** Strokes a line between two points; a zero-length line draws a dot. */
+function drawSegment(
+  context: CanvasRenderingContext2D,
+  from: Point,
+  to: Point
+): void {
+  context.beginPath()
+  context.moveTo(from.x, from.y)
+  context.lineTo(to.x, to.y)
+  context.stroke()
+}
+
+interface DrawingCanvasProps {
+  brushSize: number
+  color: string
+  tool: DrawTool
+}
+
+/**
+ * Transparent overlay that captures pointer input and renders freehand
+ * strokes for the active tool. Sits above the reference image so drawings
+ * annotate it, and keeps the in-progress stroke in refs to avoid
+ * re-rendering on every pointer move.
+ */
+function DrawingCanvas({ brushSize, color, tool }: DrawingCanvasProps) {
+  const canvasRef = React.useRef<HTMLCanvasElement>(null)
+  const drawingRef = React.useRef(false)
+  const lastPointRef = React.useRef<Point | null>(null)
+
+  useMountEffect(() => {
+    const canvas = canvasRef.current
+
+    if (canvas === null) {
+      return
+    }
+
+    syncCanvasSize(canvas)
+
+    const observer = new ResizeObserver(() => syncCanvasSize(canvas))
+    observer.observe(canvas)
+
+    return () => observer.disconnect()
+  })
+
+  const handlePointerDown = (event: React.PointerEvent<HTMLCanvasElement>) => {
+    const canvas = canvasRef.current
+    const context = canvas?.getContext("2d")
+
+    if (!canvas || !context) {
+      return
+    }
+
+    canvas.setPointerCapture(event.pointerId)
+    drawingRef.current = true
+
+    const point = getCanvasPoint(canvas, event)
+    lastPointRef.current = point
+    configureStroke(context, tool, color, brushSize)
+    drawSegment(context, point, point)
+  }
+
+  const handlePointerMove = (event: React.PointerEvent<HTMLCanvasElement>) => {
+    const canvas = canvasRef.current
+    const context = canvas?.getContext("2d")
+
+    if (!drawingRef.current || !canvas || !context) {
+      return
+    }
+
+    const point = getCanvasPoint(canvas, event)
+    drawSegment(context, lastPointRef.current ?? point, point)
+    lastPointRef.current = point
+  }
+
+  const handlePointerUp = (event: React.PointerEvent<HTMLCanvasElement>) => {
+    const canvas = canvasRef.current
+
+    if (!drawingRef.current) {
+      return
+    }
+
+    drawingRef.current = false
+    lastPointRef.current = null
+
+    if (canvas?.hasPointerCapture(event.pointerId)) {
+      canvas.releasePointerCapture(event.pointerId)
+    }
+  }
+
+  return (
+    <canvas
+      className="absolute inset-0 z-10 size-full cursor-crosshair touch-none"
+      onPointerCancel={handlePointerUp}
+      onPointerDown={handlePointerDown}
+      onPointerMove={handlePointerMove}
+      onPointerUp={handlePointerUp}
+      ref={canvasRef}
     />
   )
 }
