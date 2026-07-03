@@ -29,6 +29,8 @@ interface SceneGridProps {
   onEditScene: (sceneId: string) => void
   /** Called with a partial update for the given scene. */
   onUpdateScene: (sceneId: string, patch: Partial<Scene>) => void
+  /** Ref to the grid element, used for PNG capture. */
+  ref?: React.Ref<HTMLElement>
   /** Number of grid rows; scenes beyond rows x columns are hidden. */
   rows: number
   /** All scenes of the current board, in order. */
@@ -45,6 +47,7 @@ function SceneGrid({
   columns,
   onEditScene,
   onUpdateScene,
+  ref,
   rows,
   scenes,
   showParameters,
@@ -54,6 +57,7 @@ function SceneGrid({
   return (
     <section
       aria-label="Scenes"
+      ref={ref}
       className="grid flex-1 content-start gap-px overflow-clip rounded-2xl bg-grid-line"
       style={{ gridTemplateColumns: `repeat(${columns}, minmax(0, 1fr))` }}
     >

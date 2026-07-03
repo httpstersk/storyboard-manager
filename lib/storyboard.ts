@@ -5,18 +5,16 @@
  * limits, and so on) live here so components never hardcode them.
  */
 
-/** Summary of a storyboard shown in the sidebar board list. */
-export interface BoardSummary {
-  /** Human-readable relative edit time, for example "2d ago". */
-  editedAt: string
+/** A storyboard: an ordered list of scenes with a title. */
+export interface Board {
   /** Stable identifier for the board. */
   id: string
-  /** Total runtime of the board in seconds. */
-  runtimeSeconds: number
-  /** Number of scenes in the board. */
-  sceneCount: number
+  /** Scenes of the board, in order. */
+  scenes: Scene[]
   /** Display title of the board. */
   title: string
+  /** Epoch milliseconds of the last edit. */
+  updatedAt: number
 }
 
 /** A single storyboard scene and all of its editable parameters. */
@@ -29,7 +27,7 @@ export interface Scene {
   dialogue: string
   /** Stable identifier for the scene. */
   id: string
-  /** Object URL of an uploaded reference image, if any. */
+  /** Data URL of an uploaded reference image, if any. */
   image?: string
   /** Lens mounted for the scene. */
   lens: string
@@ -127,45 +125,6 @@ export const MOVEMENT_OPTIONS: SelectOption[] = [
   { label: "Steadicam", value: "Steadicam" },
 ]
 
-/** Boards listed in the sidebar, most recently edited first. */
-export const RECENT_BOARDS: BoardSummary[] = [
-  {
-    editedAt: "edited now",
-    id: "the-phone-booth",
-    runtimeSeconds: 42,
-    sceneCount: 8,
-    title: "The Phone Booth",
-  },
-  {
-    editedAt: "2d ago",
-    id: "night-market-chase",
-    runtimeSeconds: 64,
-    sceneCount: 12,
-    title: "Night Market Chase",
-  },
-  {
-    editedAt: "5d ago",
-    id: "rooftop-finale",
-    runtimeSeconds: 31,
-    sceneCount: 6,
-    title: "Rooftop Finale",
-  },
-  {
-    editedAt: "1w ago",
-    id: "desert-opening",
-    runtimeSeconds: 58,
-    sceneCount: 9,
-    title: "Desert Opening",
-  },
-  {
-    editedAt: "2w ago",
-    id: "client-cut-v2",
-    runtimeSeconds: 82,
-    sceneCount: 14,
-    title: "Client Cut v2",
-  },
-]
-
 /** Allowed range for the grid row stepper. */
 export const ROW_LIMITS: ValueLimits = { max: 2, min: 1 }
 
@@ -187,153 +146,144 @@ const SHADER_PRESET_DEFAULTS = {
   twist: 0.35,
 } satisfies Partial<SceneShaderPreset>
 
-/** Seed scenes for "The Phone Booth" storyboard. */
-export const PHONE_BOOTH_SCENES: Scene[] = [
+/** Shader palettes cycled through the scenes of a blank board. */
+const BLANK_SCENE_SHADERS: Pick<
+  SceneShaderPreset,
+  "colors" | "offsetX" | "offsetY"
+>[] = [
+  { colors: ["#ff3d9a", "#ffd93d", "#f72585"], offsetX: 0.4, offsetY: -0.3 },
   {
-    action: "Mara crosses the empty parking lot",
-    camera: "Alexa 35",
-    dialogue: "",
-    id: "scene-01",
-    lens: "Signature 21mm",
-    lighting: "Golden hour",
-    movement: "Static",
-    music: "Low synth drone",
-    shader: {
-      ...SHADER_PRESET_DEFAULTS,
-      colors: ["#ff3d9a", "#ffd93d", "#f72585"],
-      offsetX: 0.4,
-      offsetY: -0.3,
-    },
-    shot: "WS",
-    timeSeconds: 4,
+    colors: ["#5edf3c", "#7636ff", "#f2ff05", "#0037ff"],
+    offsetX: 0.1,
+    offsetY: -0.35,
   },
   {
-    action: "She stops at the phone booth",
-    camera: "Alexa 35",
-    dialogue: "",
-    id: "scene-02",
-    lens: "Signature 40mm",
-    lighting: "Golden hour",
-    movement: "Dolly in",
-    music: "Drone swells",
-    shader: {
-      ...SHADER_PRESET_DEFAULTS,
-      colors: ["#5edf3c", "#7636ff", "#f2ff05", "#0037ff"],
-      offsetX: 0.1,
-      offsetY: -0.35,
-    },
-    shot: "MS",
-    timeSeconds: 3,
+    colors: ["#90c8cf", "#3d3a6b", "#012afc", "#1b6dd9"],
+    offsetX: 0.2,
+    offsetY: 0.8,
   },
   {
-    action: "Coin drops, she dials",
-    camera: "Sony Venice 2",
-    dialogue: "\u201CPick up. Please.\u201D",
-    id: "scene-03",
-    lens: "Cooke S7 50mm",
-    lighting: "Practical neon",
-    movement: "Handheld",
-    music: "Silence",
-    shader: {
-      ...SHADER_PRESET_DEFAULTS,
-      colors: ["#90c8cf", "#3d3a6b", "#012afc", "#1b6dd9"],
-      offsetX: 0.2,
-      offsetY: 0.8,
-    },
-    shot: "MCU",
-    timeSeconds: 6,
+    colors: ["#4e0149", "#058d92", "#7657f0", "#79eb0b"],
+    offsetX: -0.05,
+    offsetY: -0.9,
   },
   {
-    action: "Finger hovers over the hook",
-    camera: "Sony Venice 2",
-    dialogue: "",
-    id: "scene-04",
-    lens: "Cooke S7 75mm",
-    lighting: "Practical neon",
-    movement: "Static",
-    music: "Single piano note",
-    shader: {
-      ...SHADER_PRESET_DEFAULTS,
-      colors: ["#4e0149", "#058d92", "#7657f0", "#79eb0b"],
-      offsetX: -0.05,
-      offsetY: -0.9,
-    },
-    shot: "CU",
-    timeSeconds: 2,
+    colors: ["#e63412", "#ffb703", "#ff4400", "#8b0045"],
+    offsetX: 0.4,
+    offsetY: 0.15,
   },
   {
-    action: "Wide reveal of the overpass",
-    camera: "RED Komodo-X",
-    dialogue: "",
-    id: "scene-05",
-    lens: "Zeiss Supreme 29mm",
-    lighting: "Blue hour",
-    movement: "Crane up",
-    music: "Strings enter",
-    shader: {
-      ...SHADER_PRESET_DEFAULTS,
-      colors: ["#e63412", "#ffb703", "#ff4400", "#8b0045"],
-      offsetX: 0.4,
-      offsetY: 0.15,
-    },
-    shot: "WS",
-    timeSeconds: 8,
+    colors: ["#76d3f5", "#b569ff", "#7dd3fc", "#e0aaff"],
+    offsetX: 0.4,
+    offsetY: 0.25,
   },
   {
-    action: "Dan walks toward camera",
-    camera: "RED Komodo-X",
-    dialogue: "\u201CYou came back.\u201D",
-    id: "scene-06",
-    lens: "Zeiss Supreme 50mm",
-    lighting: "Sodium vapor",
-    movement: "Steadicam",
-    music: "Strings hold",
-    shader: {
-      ...SHADER_PRESET_DEFAULTS,
-      colors: ["#76d3f5", "#b569ff", "#7dd3fc", "#e0aaff"],
-      offsetX: 0.4,
-      offsetY: 0.25,
-    },
-    shot: "MS",
-    timeSeconds: 5,
+    colors: ["#e3408a", "#edbd55", "#d4876e", "#a34d7a"],
+    offsetX: 0.4,
+    offsetY: 0.05,
   },
   {
-    action: "Mara turns, eyes wet",
-    camera: "Alexa 35",
-    dialogue: "\u201CI never left.\u201D",
-    id: "scene-07",
-    lens: "Signature 75mm",
-    lighting: "Sodium vapor",
-    movement: "Static",
-    music: "Strings fade",
-    shader: {
-      ...SHADER_PRESET_DEFAULTS,
-      colors: ["#e3408a", "#edbd55", "#d4876e", "#a34d7a"],
-      offsetX: 0.4,
-      offsetY: 0.05,
-    },
-    shot: "CU",
-    timeSeconds: 4,
-  },
-  {
-    action: "Two figures shrink into the skyline",
-    camera: "Alexa 35",
-    dialogue: "",
-    id: "scene-08",
-    lens: "Signature 18mm",
-    lighting: "Night, moonlit",
-    movement: "Drone pull-back",
-    music: "Full theme",
-    shader: {
-      ...SHADER_PRESET_DEFAULTS,
-      colors: ["#ff0040", "#00ff88", "#ffe600", "#ff00d5"],
-      offsetX: 0.4,
-      offsetY: -0.9,
-    },
-    shot: "WS",
-    timeSeconds: 10,
+    colors: ["#ff0040", "#00ff88", "#ffe600", "#ff00d5"],
+    offsetX: 0.4,
+    offsetY: -0.9,
   },
 ]
+
+/** Number of blank scenes a new board starts with (a full grid). */
+export const NEW_BOARD_SCENE_COUNT = COLUMN_LIMITS.max * ROW_LIMITS.max
+
+/** Title given to boards created without an explicit name. */
+export const UNTITLED_BOARD_TITLE = "Untitled board"
+
+/**
+ * Creates a blank scene with neutral defaults and a shader preset
+ * cycled by scene index.
+ */
+export function createBlankScene(index: number): Scene {
+  return {
+    action: "",
+    camera: CAMERA_OPTIONS[0].value,
+    dialogue: "",
+    id: `scene-${formatSceneNumber(index)}`,
+    lens: LENS_OPTIONS[0].value,
+    lighting: "Overcast soft",
+    movement: "Static",
+    music: "",
+    shader: {
+      ...SHADER_PRESET_DEFAULTS,
+      ...BLANK_SCENE_SHADERS[index % BLANK_SCENE_SHADERS.length],
+    },
+    shot: "WS",
+    timeSeconds: 3,
+  }
+}
+
+/**
+ * Creates a board pre-filled with {@link NEW_BOARD_SCENE_COUNT} blank
+ * scenes.
+ */
+export function createBlankBoard(id: string, title: string): Board {
+  return {
+    id,
+    scenes: Array.from({ length: NEW_BOARD_SCENE_COUNT }, (unused, index) =>
+      createBlankScene(index)
+    ),
+    title,
+    updatedAt: Date.now(),
+  }
+}
+
+/**
+ * Picks the next free "Untitled board" title, counting up from the
+ * existing board titles: "Untitled board", "Untitled board 2", ...
+ */
+export function nextUntitledBoardTitle(boards: Board[]): string {
+  const titles = new Set(boards.map((board) => board.title))
+
+  if (!titles.has(UNTITLED_BOARD_TITLE)) {
+    return UNTITLED_BOARD_TITLE
+  }
+
+  let counter = 2
+
+  while (titles.has(`${UNTITLED_BOARD_TITLE} ${counter}`)) {
+    counter += 1
+  }
+
+  return `${UNTITLED_BOARD_TITLE} ${counter}`
+}
+
+/**
+ * Formats the time since the given epoch-milliseconds edit as a short
+ * relative label, for example "edited now" or "2d ago".
+ */
+export function formatEditedAt(updatedAt: number, now: number): string {
+  const seconds = Math.max(0, Math.floor((now - updatedAt) / 1000))
+
+  if (seconds < 60) {
+    return "edited now"
+  }
+
+  const minutes = Math.floor(seconds / 60)
+
+  if (minutes < 60) {
+    return `${minutes}m ago`
+  }
+
+  const hours = Math.floor(minutes / 60)
+
+  if (hours < 24) {
+    return `${hours}h ago`
+  }
+
+  const days = Math.floor(hours / 24)
+
+  if (days < 7) {
+    return `${days}d ago`
+  }
+
+  return `${Math.floor(days / 7)}w ago`
+}
 
 /**
  * Formats a zero-based scene index as a two-digit label, for example "01".

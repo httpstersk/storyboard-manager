@@ -120,7 +120,7 @@ function SceneCardReferenceImage({ image }: { image?: string }) {
   }
 
   return (
-    // eslint-disable-next-line @next/next/no-img-element -- object URLs from local uploads cannot go through next/image
+    // eslint-disable-next-line @next/next/no-img-element -- data URLs from local uploads cannot go through next/image
     <img
       alt=""
       className="absolute inset-0 z-10 size-full object-cover"

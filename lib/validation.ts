@@ -5,7 +5,15 @@
  * through this module before it reaches component state.
  */
 
-import type { ValueLimits } from "@/lib/storyboard"
+import {
+  type Board,
+  type Scene,
+  SCENE_TIME_LIMITS,
+  type SceneShaderPreset,
+  SHOT_SIZE_OPTIONS,
+  type ShotSize,
+  type ValueLimits,
+} from "@/lib/storyboard"
 
 /** Result of validating an uploaded file. */
 export interface FileValidationResult {
@@ -44,6 +52,144 @@ export function clampInteger(value: number, limits: ValueLimits): number {
  */
 export function sanitizeNote(value: string): string {
   return value.replace(/[\u0000-\u001f\u007f]/g, "").slice(0, MAX_NOTE_LENGTH)
+}
+
+/** Maximum length of a board title. */
+export const MAX_TITLE_LENGTH = 60
+
+/**
+ * Normalises a board title: strips control characters and enforces
+ * {@link MAX_TITLE_LENGTH}.
+ */
+export function sanitizeTitle(value: string): string {
+  return value
+    .replace(/[\u0000-\u001f\u007f]/g, "")
+    .slice(0, MAX_TITLE_LENGTH)
+    .trim()
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value)
+}
+
+function coerceNumber(value: unknown, fallback: number): number {
+  return typeof value === "number" && Number.isFinite(value)
+    ? value
+    : fallback
+}
+
+function coerceShader(value: unknown): SceneShaderPreset | null {
+  if (!isRecord(value)) {
+    return null
+  }
+
+  const colors = Array.isArray(value.colors)
+    ? value.colors.filter(
+        (color): color is string =>
+          typeof color === "string" && /^#[0-9a-f]{3,8}$/i.test(color)
+      )
+    : []
+
+  if (colors.length === 0) {
+    return null
+  }
+
+  return {
+    bandCount: clampInteger(coerceNumber(value.bandCount, 3), {
+      max: 8,
+      min: 1,
+    }),
+    colors,
+    offsetX: Math.min(1, Math.max(-1, coerceNumber(value.offsetX, 0))),
+    offsetY: Math.min(1, Math.max(-1, coerceNumber(value.offsetY, 0))),
+    softness: Math.min(1, Math.max(0, coerceNumber(value.softness, 0.9))),
+    speed: Math.min(2, Math.max(0, coerceNumber(value.speed, 0.5))),
+    twist: Math.min(1, Math.max(0, coerceNumber(value.twist, 0.35))),
+  }
+}
+
+const SHOT_SIZE_VALUES = SHOT_SIZE_OPTIONS.map((option) => option.value)
+
+/**
+ * Validates and normalises one scene from untrusted JSON (imports and
+ * localStorage). Returns null when the value is not a usable scene.
+ */
+export function coerceScene(value: unknown, index: number): Scene | null {
+  if (!isRecord(value)) {
+    return null
+  }
+
+  const shader = coerceShader(value.shader)
+
+  if (shader === null) {
+    return null
+  }
+
+  const requiredStrings = [
+    value.camera,
+    value.lens,
+    value.lighting,
+    value.movement,
+  ]
+
+  if (requiredStrings.some((entry) => typeof entry !== "string")) {
+    return null
+  }
+
+  const image =
+    typeof value.image === "string" && value.image.startsWith("data:image/")
+      ? value.image
+      : undefined
+
+  return {
+    action: sanitizeNote(typeof value.action === "string" ? value.action : ""),
+    camera: value.camera as string,
+    dialogue: sanitizeNote(
+      typeof value.dialogue === "string" ? value.dialogue : ""
+    ),
+    id: `scene-${String(index + 1).padStart(2, "0")}`,
+    image,
+    lens: value.lens as string,
+    lighting: value.lighting as string,
+    movement: value.movement as string,
+    music: sanitizeNote(typeof value.music === "string" ? value.music : ""),
+    shader,
+    shot: SHOT_SIZE_VALUES.includes(value.shot as ShotSize)
+      ? (value.shot as ShotSize)
+      : "WS",
+    timeSeconds: clampInteger(
+      coerceNumber(value.timeSeconds, SCENE_TIME_LIMITS.min),
+      SCENE_TIME_LIMITS
+    ),
+  }
+}
+
+/**
+ * Validates and normalises one board from untrusted JSON. Returns null
+ * when the value has no usable title or scenes.
+ */
+export function coerceBoard(value: unknown, fallbackId: string): Board | null {
+  if (!isRecord(value) || !Array.isArray(value.scenes)) {
+    return null
+  }
+
+  const scenes = value.scenes
+    .map((scene, index) => coerceScene(scene, index))
+    .filter((scene): scene is Scene => scene !== null)
+  const title = sanitizeTitle(
+    typeof value.title === "string" ? value.title : ""
+  )
+
+  if (scenes.length === 0 || title === "") {
+    return null
+  }
+
+  return {
+    id: typeof value.id === "string" && value.id !== "" ? value.id : fallbackId,
+    scenes,
+    title,
+    updatedAt: coerceNumber(value.updatedAt, Date.now()),
+  }
 }
 
 /**

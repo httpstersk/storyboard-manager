@@ -42,7 +42,7 @@ type DrawTool = (typeof DRAW_TOOLS)[number]["value"]
 
 /**
  * New reference image state for the scene being edited:
- * `undefined` = untouched, `null` = removed, string = new object URL.
+ * `undefined` = untouched, `null` = removed, string = new data URL.
  */
 type DraftImage = string | null | undefined
 
@@ -84,12 +84,6 @@ function EditSceneDialog({
 
   const previewImage = draftImage === undefined ? scene.image : draftImage
 
-  const revokeDraft = () => {
-    if (typeof draftImage === "string") {
-      URL.revokeObjectURL(draftImage)
-    }
-  }
-
   const resetState = () => {
     setBrushSize(4)
     setColor(DRAW_COLORS[0].value)
@@ -100,7 +94,6 @@ function EditSceneDialog({
 
   const handleOpenChange = (nextOpen: boolean) => {
     if (!nextOpen) {
-      revokeDraft()
       resetState()
     }
 
@@ -115,20 +108,26 @@ function EditSceneDialog({
       return
     }
 
-    revokeDraft()
-    setDraftImage(URL.createObjectURL(file))
-    setError(null)
+    // Stored as a data URL so the image survives reloads and JSON export.
+    const reader = new FileReader()
+
+    reader.onload = () => {
+      setDraftImage(reader.result as string)
+      setError(null)
+    }
+    reader.onerror = () => {
+      setError("This file could not be read.")
+    }
+    reader.readAsDataURL(file)
   }
 
   const handleRemoveImage = () => {
-    revokeDraft()
     setDraftImage(null)
     setError(null)
   }
 
   const handleSave = () => {
     if (draftImage !== undefined) {
-      // Ownership of the object URL moves to the scene, so it is not revoked here.
       onSave({ image: draftImage ?? undefined })
     }
 
@@ -358,7 +357,7 @@ function CanvasImage({ image }: { image: string | undefined | null }) {
   }
 
   return (
-    // eslint-disable-next-line @next/next/no-img-element -- object URLs from local uploads cannot go through next/image
+    // eslint-disable-next-line @next/next/no-img-element -- data URLs from local uploads cannot go through next/image
     <img
       alt="Uploaded scene reference"
       className="absolute inset-0 z-10 size-full object-cover"

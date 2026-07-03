@@ -13,11 +13,14 @@ const segmentedControlItemVariants = cva(
       variant: "emphasis",
     },
     variants: {
+      // Selected styling keys off aria-checked rather than data-state:
+      // wrapping an option in Tooltip.Trigger asChild overwrites the
+      // toggle item's data-state with the tooltip's open state.
       variant: {
         emphasis:
-          "text-ink-muted hover:text-ink data-[state=on]:bg-emphasis data-[state=on]:text-emphasis-foreground",
+          "text-ink-muted hover:text-ink aria-checked:bg-emphasis aria-checked:text-emphasis-foreground",
         raised:
-          "px-2.5 py-1 text-label text-ink-muted hover:text-ink data-[state=on]:bg-surface-raised data-[state=on]:text-ink-strong data-[state=on]:shadow-sm",
+          "px-2.5 py-1 text-label text-ink-muted hover:text-ink aria-checked:bg-surface-raised aria-checked:text-ink-strong aria-checked:shadow-sm",
       },
     },
   }

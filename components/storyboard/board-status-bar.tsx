@@ -40,6 +40,23 @@ function BoardStatusBarSummary({
   )
 }
 
+/** Import/export error line of the {@link BoardStatusBar}. */
+function BoardStatusBarError({
+  children,
+  className,
+  ...props
+}: React.ComponentProps<"p">) {
+  return (
+    <p
+      className={cn("text-caption text-destructive", className)}
+      role="alert"
+      {...props}
+    >
+      {children}
+    </p>
+  )
+}
+
 /** Right-hand autosave indicator, announced politely when it changes. */
 function BoardStatusBarAutosave({
   children,
@@ -63,6 +80,7 @@ function BoardStatusBarAutosave({
 
 const BoardStatusBar = Object.assign(BoardStatusBarRoot, {
   Autosave: BoardStatusBarAutosave,
+  Error: BoardStatusBarError,
   Summary: BoardStatusBarSummary,
 })
 

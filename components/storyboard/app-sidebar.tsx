@@ -1,6 +1,13 @@
 "use client"
 
-import { Ellipsis, LayoutGrid, PanelLeftClose, Plus, Search } from "lucide-react"
+import {
+  Ellipsis,
+  LayoutGrid,
+  PanelLeftClose,
+  PanelLeftOpen,
+  Plus,
+  Search,
+} from "lucide-react"
 import * as React from "react"
 
 import { IconButton } from "@/components/ui/icon-button"
@@ -44,12 +51,14 @@ function SidebarRoot({
 /** Props for {@link SidebarHeader}. */
 interface SidebarHeaderProps {
   className?: string
+  /** Called when the collapse button is activated. */
+  onCollapse: () => void
   /** Sidebar heading text. */
   title: string
 }
 
 /** Heading row of the {@link Sidebar} with a collapse affordance. */
-function SidebarHeader({ className, title }: SidebarHeaderProps) {
+function SidebarHeader({ className, onCollapse, title }: SidebarHeaderProps) {
   return (
     <div
       className={cn(
@@ -58,10 +67,38 @@ function SidebarHeader({ className, title }: SidebarHeaderProps) {
       )}
     >
       <h1 className="text-label font-medium text-ink-strong">{title}</h1>
-      <IconButton label="Collapse sidebar" size="sm">
+      <IconButton label="Collapse sidebar" onClick={onCollapse} size="sm">
         <PanelLeftClose aria-hidden />
       </IconButton>
     </div>
+  )
+}
+
+/** Props for {@link SidebarRail}. */
+interface SidebarRailProps {
+  className?: string
+  /** Called when the expand button is activated. */
+  onExpand: () => void
+  /** Called when the new board button is activated. */
+  onNewBoard: () => void
+}
+
+/** Slim rail shown in place of the {@link Sidebar} while collapsed. */
+function SidebarRail({ className, onExpand, onNewBoard }: SidebarRailProps) {
+  return (
+    <aside
+      className={cn(
+        "flex shrink-0 flex-col items-center gap-3 rounded-2xl bg-surface-panel p-3",
+        className
+      )}
+    >
+      <IconButton label="Expand sidebar" onClick={onExpand} size="sm">
+        <PanelLeftOpen aria-hidden />
+      </IconButton>
+      <IconButton label="New storyboard" onClick={onNewBoard} size="sm">
+        <Plus aria-hidden />
+      </IconButton>
+    </aside>
   )
 }
 
@@ -221,6 +258,7 @@ const Sidebar = Object.assign(SidebarRoot, {
   Footer: SidebarFooter,
   Header: SidebarHeader,
   NewBoardButton: SidebarNewBoardButton,
+  Rail: SidebarRail,
   Search: SidebarSearch,
   Section: SidebarSection,
 })
@@ -229,6 +267,7 @@ export {
   Sidebar,
   type SidebarBoardItemProps,
   type SidebarHeaderProps,
+  type SidebarRailProps,
   type SidebarSearchProps,
   type SidebarSectionProps,
 }
