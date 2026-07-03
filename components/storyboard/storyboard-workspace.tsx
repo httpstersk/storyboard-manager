@@ -275,11 +275,16 @@ function StoryboardWorkspace() {
           natural height so a rows/columns edit can't distort it. */}
       <div className="h-[calc(100svh_-_2.25rem)] shrink-0">
         <Sidebar.Rail
+          boards={state.boards}
           className="h-full"
           onExpand={() =>
             dispatch({ collapsed: false, type: "setSidebarCollapsed" })
           }
           onNewBoard={handleNewBoard}
+          onSelectBoard={(boardId) =>
+            dispatch({ boardId, type: "selectBoard" })
+          }
+          selectedBoardId={state.selectedBoardId}
         />
       </div>
       {/* <main> is a plain flex child: the sidebar now floats above it
@@ -405,6 +410,13 @@ function StoryboardWorkspace() {
               <Sidebar.NewBoardButton onClick={handleNewBoard}>
                 New storyboard
               </Sidebar.NewBoardButton>
+              <Sidebar.BoardSwitcher
+                boards={state.boards}
+                onSelectBoard={(boardId) =>
+                  dispatch({ boardId, type: "selectBoard" })
+                }
+                selectedBoardId={state.selectedBoardId}
+              />
               <Sidebar.Search
                 onQueryChange={(query) => dispatch({ query, type: "setQuery" })}
                 query={state.query}

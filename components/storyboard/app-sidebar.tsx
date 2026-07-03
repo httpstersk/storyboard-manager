@@ -79,19 +79,33 @@ function SidebarHeader({ className, onCollapse, title }: SidebarHeaderProps) {
 
 /** Props for {@link SidebarRail}. */
 interface SidebarRailProps {
+  /** All boards, used to render the numbered switcher buttons. */
+  boards: Array<{ id: string }>
   className?: string
   /** Called when the expand button is activated. */
   onExpand: () => void
   /** Called when the new board button is activated. */
   onNewBoard: () => void
+  /** Called when a numbered board button is activated. */
+  onSelectBoard: (boardId: string) => void
+  /** Id of the currently open board. */
+  selectedBoardId: string
 }
 
-/** Slim rail shown in place of the {@link Sidebar} while collapsed. */
-function SidebarRail({ className, onExpand, onNewBoard }: SidebarRailProps) {
+/** Slim rail shown in place of the {@link Sidebar} while collapsed.
+ * Renders as a pill-shaped column of icon buttons. */
+function SidebarRail({
+  boards,
+  className,
+  onExpand,
+  onNewBoard,
+  onSelectBoard,
+  selectedBoardId,
+}: SidebarRailProps) {
   return (
     <aside
       className={cn(
-        "flex shrink-0 flex-col items-center gap-3 rounded-2xl bg-surface-panel p-3",
+        "flex shrink-0 flex-col items-center gap-2 rounded-full bg-surface-panel p-3",
         className
       )}
     >
@@ -101,6 +115,28 @@ function SidebarRail({ className, onExpand, onNewBoard }: SidebarRailProps) {
       <IconButton label="New storyboard" onClick={onNewBoard} size="sm">
         <Plus aria-hidden />
       </IconButton>
+      {/* Divider separating actions from the per-board switcher */}
+      <div aria-hidden className="h-px w-4 shrink-0 bg-surface-inset" />
+      {/* Numbered board buttons — scrollable when there are many boards */}
+      <div className="flex min-h-0 flex-1 flex-col items-center gap-1 overflow-y-auto">
+        {boards.map((board, index) => (
+          <button
+            key={board.id}
+            aria-current={board.id === selectedBoardId ? "true" : undefined}
+            aria-label={`Storyboard ${index + 1}`}
+            className={cn(
+              "size-6 shrink-0 rounded-full text-caption font-medium tabular-nums outline-none transition-[color,background-color,transform] duration-150 ease-out active:scale-95 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1 focus-visible:ring-offset-surface-panel",
+              board.id === selectedBoardId
+                ? "bg-emphasis text-emphasis-foreground"
+                : "bg-surface-inset text-ink-muted hover:text-ink-strong"
+            )}
+            onClick={() => onSelectBoard(board.id)}
+            type="button"
+          >
+            {index + 1}
+          </button>
+        ))}
+      </div>
     </aside>
   )
 }
@@ -166,11 +202,12 @@ interface SidebarSectionProps {
   title: string
 }
 
-/** A titled section of the {@link Sidebar}. */
+/** A titled section of the {@link Sidebar}. Grows to fill available space
+ * so the board list inside can scroll when content overflows. */
 function SidebarSection({ children, className, title }: SidebarSectionProps) {
   return (
-    <div className={cn("flex min-h-0 flex-col gap-1.5", className)}>
-      <h2 className="px-1.5 pt-1.5 pb-0.5 text-caption font-normal text-ink-muted">
+    <div className={cn("flex min-h-0 flex-1 flex-col gap-1.5", className)}>
+      <h2 className="shrink-0 px-1.5 pt-1.5 pb-0.5 text-caption font-normal text-ink-muted">
         {title}
       </h2>
       {children}
@@ -178,13 +215,20 @@ function SidebarSection({ children, className, title }: SidebarSectionProps) {
   )
 }
 
-/** List container for {@link SidebarBoardItem} entries. */
+/** List container for {@link SidebarBoardItem} entries. Scrolls internally
+ * when there are more boards than the sidebar can display at once. */
 function SidebarBoardList({
   className,
   ...props
 }: React.ComponentProps<"ul">) {
   return (
-    <ul className={cn("flex flex-col gap-1.5", className)} {...props} />
+    <ul
+      className={cn(
+        "flex min-h-0 flex-1 flex-col gap-1.5 overflow-y-auto",
+        className
+      )}
+      {...props}
+    />
   )
 }
 
@@ -271,6 +315,50 @@ function SidebarBoardItem({
   )
 }
 
+/** Props for {@link SidebarBoardSwitcher}. */
+interface SidebarBoardSwitcherProps {
+  /** All boards, used to render the numbered switcher buttons. */
+  boards: Array<{ id: string }>
+  className?: string
+  /** Called when a numbered board button is activated. */
+  onSelectBoard: (boardId: string) => void
+  /** Id of the currently open board. */
+  selectedBoardId: string
+}
+
+/** Compact row of numbered board-switcher buttons shown below the new-board
+ * action in the expanded sidebar. Hidden when fewer than two boards exist. */
+function SidebarBoardSwitcher({
+  boards,
+  className,
+  onSelectBoard,
+  selectedBoardId,
+}: SidebarBoardSwitcherProps) {
+  if (boards.length <= 1) return null
+
+  return (
+    <div className={cn("flex shrink-0 flex-wrap gap-1", className)}>
+      {boards.map((board, index) => (
+        <button
+          key={board.id}
+          aria-current={board.id === selectedBoardId ? "true" : undefined}
+          aria-label={`Switch to storyboard ${index + 1}`}
+          className={cn(
+            "size-6 shrink-0 rounded-full text-caption font-medium tabular-nums outline-none transition-[color,background-color,transform] duration-150 ease-out active:scale-95 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1 focus-visible:ring-offset-surface-panel",
+            board.id === selectedBoardId
+              ? "bg-emphasis text-emphasis-foreground"
+              : "bg-surface-inset text-ink-muted hover:text-ink-strong"
+          )}
+          onClick={() => onSelectBoard(board.id)}
+          type="button"
+        >
+          {index + 1}
+        </button>
+      ))}
+    </div>
+  )
+}
+
 /** Footer status row of the {@link Sidebar}. */
 function SidebarFooter({
   children,
@@ -294,6 +382,7 @@ function SidebarFooter({
 const Sidebar = Object.assign(SidebarRoot, {
   BoardItem: SidebarBoardItem,
   BoardList: SidebarBoardList,
+  BoardSwitcher: SidebarBoardSwitcher,
   Footer: SidebarFooter,
   Header: SidebarHeader,
   NewBoardButton: SidebarNewBoardButton,
@@ -305,6 +394,7 @@ const Sidebar = Object.assign(SidebarRoot, {
 export {
   Sidebar,
   type SidebarBoardItemProps,
+  type SidebarBoardSwitcherProps,
   type SidebarHeaderProps,
   type SidebarRailProps,
   type SidebarSearchProps,
