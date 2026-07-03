@@ -67,7 +67,10 @@ function SceneCardRoot({
   return (
     <article
       aria-label={`Scene ${sceneNumber}`}
-      className={cn("flex flex-col bg-surface-panel", className)}
+      className={cn(
+        "flex flex-col bg-surface-panel min-w-55 [container-type:inline-size] [container-name:scene-card]",
+        className
+      )}
       {...props}
     >
       <SceneCardContext.Provider value={contextValue}>
@@ -145,7 +148,7 @@ function SceneCardDetails({
   ...props
 }: React.ComponentProps<"div">) {
   return (
-    <div className={cn("flex flex-col gap-2 p-3", className)} {...props} />
+    <div className={cn("scene-card-details flex flex-col gap-2 p-3", className)} {...props} />
   )
 }
 

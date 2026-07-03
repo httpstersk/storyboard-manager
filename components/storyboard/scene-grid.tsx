@@ -79,12 +79,12 @@ function SceneGrid({
     // this wrapper owns the vertical scroll and rounded clipping while the
     // inner <section> (the PNG-capture target) keeps its natural full
     // height -- exports therefore still include every visible row.
-    <div className="min-h-0 flex-1 overflow-x-hidden overflow-y-auto rounded-2xl bg-grid-line">
+    <div className="min-h-0 flex-1 overflow-x-hidden overflow-y-auto rounded-2xl bg-grid-line [container-type:inline-size] [container-name:scene-grid]">
       <section
         aria-label="Scenes"
         ref={ref}
-        className="grid content-start gap-px bg-grid-line"
-        style={{ gridTemplateColumns: `repeat(${columns}, minmax(0, 1fr))` }}
+        data-cols={columns}
+        className="scene-grid grid content-start gap-px bg-grid-line"
       >
         <AnimatePresence initial={false} mode="popLayout">
           {visibleScenes.map((scene, index) => (
