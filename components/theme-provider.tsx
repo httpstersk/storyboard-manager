@@ -4,6 +4,8 @@ import { MotionConfig } from "motion/react"
 import { ThemeProvider as NextThemesProvider, useTheme } from "next-themes"
 import * as React from "react"
 
+import { TooltipProvider } from "@/components/ui/tooltip"
+
 function ThemeProvider({
   children,
   ...props
@@ -20,7 +22,11 @@ function ThemeProvider({
       {/* Every motion.* element in the tree automatically respects the
           user's OS-level reduced-motion preference with no per-component
           opt-in required. */}
-      <MotionConfig reducedMotion="user">{children}</MotionConfig>
+      <MotionConfig reducedMotion="user">
+        {/* Rendered once so every <Tooltip> in the app shares delay
+            state -- see the skipDelayDuration note in ui/tooltip.tsx. */}
+        <TooltipProvider>{children}</TooltipProvider>
+      </MotionConfig>
     </NextThemesProvider>
   )
 }

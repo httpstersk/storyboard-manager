@@ -72,7 +72,10 @@ function BoardStatusBarAutosave({
       )}
       {...props}
     >
-      <span aria-hidden className="size-1.5 rounded-full bg-emphasis" />
+      <span
+        aria-hidden
+        className="size-1.5 animate-pulse rounded-full bg-emphasis"
+      />
       {children}
     </p>
   )

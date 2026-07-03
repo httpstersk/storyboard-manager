@@ -35,7 +35,9 @@ function DropdownMenuContent({
     <DropdownMenuPrimitive.Portal>
       <DropdownMenuPrimitive.Content
         className={cn(
-          "z-50 min-w-36 rounded-xl border border-edge bg-surface-raised p-1 shadow-popover data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=closed]:zoom-out-95 data-[state=open]:animate-in data-[state=open]:fade-in-0 data-[state=open]:zoom-in-95",
+          "z-50 min-w-36 origin-[var(--radix-popper-transform-origin)] rounded-xl border border-edge bg-surface-raised p-1 shadow-popover",
+          "data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=closed]:zoom-out-95 data-[state=closed]:duration-125 data-[state=closed]:ease-out",
+          "data-[state=open]:animate-in data-[state=open]:fade-in-0 data-[state=open]:zoom-in-95 data-[state=open]:duration-150 data-[state=open]:ease-out",
           className
         )}
         sideOffset={sideOffset}

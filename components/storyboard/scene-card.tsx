@@ -102,12 +102,12 @@ function SceneCardThumbnail({ className, onEdit }: SceneCardThumbnailProps) {
       <SceneCardReferenceImage image={scene.image} />
       {!scene.image && (
         <span className="relative z-10 grid text-display font-extralight tracking-display text-ink-on-media/90 select-none">
-          <span className="col-start-1 row-start-1 transition-opacity group-hover:opacity-0">
+          <span className="col-start-1 row-start-1 scale-100 opacity-100 blur-none transition-[opacity,filter,transform] duration-150 ease-out group-hover:scale-95 group-hover:opacity-0 group-hover:blur-[4px]">
             {sceneNumber}
           </span>
           <span
             aria-hidden="true"
-            className="col-start-1 row-start-1 opacity-0 transition-opacity group-hover:opacity-100"
+            className="col-start-1 row-start-1 scale-95 opacity-0 blur-[4px] transition-[opacity,filter,transform] duration-150 ease-out group-hover:scale-100 group-hover:opacity-100 group-hover:blur-none"
           >
             Edit
           </span>

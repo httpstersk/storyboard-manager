@@ -8,6 +8,12 @@ import { cn } from "@/lib/utils"
 /**
  * A hover/focus tooltip built on the Radix Tooltip primitive.
  *
+ * Must be rendered under a single app-level {@link TooltipProvider} (see
+ * `components/theme-provider.tsx`). A shared provider lets adjacent
+ * tooltips skip the open delay when the pointer moves directly from one
+ * trigger to the next -- with a provider per instance, every tooltip
+ * would wait out the full delay independently.
+ *
  * ```tsx
  * <Tooltip>
  *   <Tooltip.Trigger asChild>
@@ -17,13 +23,24 @@ import { cn } from "@/lib/utils"
  * </Tooltip>
  * ```
  */
-function TooltipRoot({
-  ...props
-}: React.ComponentProps<typeof TooltipPrimitive.Root>) {
+const TooltipRoot = TooltipPrimitive.Root
+
+/**
+ * App-level provider for every {@link Tooltip}. Render once near the root.
+ * `skipDelayDuration` lets a tooltip open instantly if the pointer arrives
+ * within 200ms of another tooltip closing, so scanning across a row of
+ * controls (for example the shot-size options) only pays the initial
+ * delay once.
+ */
+function TooltipProvider(
+  props: React.ComponentProps<typeof TooltipPrimitive.Provider>
+) {
   return (
-    <TooltipPrimitive.Provider delayDuration={250}>
-      <TooltipPrimitive.Root {...props} />
-    </TooltipPrimitive.Provider>
+    <TooltipPrimitive.Provider
+      delayDuration={250}
+      skipDelayDuration={200}
+      {...props}
+    />
   )
 }
 
@@ -38,7 +55,10 @@ function TooltipContent({
     <TooltipPrimitive.Portal>
       <TooltipPrimitive.Content
         className={cn(
-          "z-50 rounded-full bg-emphasis px-2.5 py-1 text-caption text-emphasis-foreground",
+          "z-50 origin-[var(--radix-popper-transform-origin)] rounded-full bg-emphasis px-2.5 py-1 text-caption text-emphasis-foreground",
+          "data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=closed]:zoom-out-95 data-[state=closed]:duration-100 data-[state=closed]:ease-out",
+          "data-[state=delayed-open]:animate-in data-[state=delayed-open]:fade-in-0 data-[state=delayed-open]:zoom-in-95 data-[state=delayed-open]:duration-125 data-[state=delayed-open]:ease-out",
+          "data-[state=instant-open]:animate-in data-[state=instant-open]:fade-in-0 data-[state=instant-open]:zoom-in-95 data-[state=instant-open]:duration-125 data-[state=instant-open]:ease-out",
           className
         )}
         sideOffset={sideOffset}
@@ -56,4 +76,4 @@ const Tooltip = Object.assign(TooltipRoot, {
   Trigger: TooltipPrimitive.Trigger,
 })
 
-export { Tooltip }
+export { Tooltip, TooltipProvider }

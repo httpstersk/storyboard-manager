@@ -97,7 +97,7 @@ function StepperRoot({
 }
 
 const stepperButtonClassName =
-  "flex size-5 shrink-0 items-center justify-center rounded-full bg-surface-raised text-ink-muted transition-colors outline-none hover:text-ink-strong focus-visible:ring-2 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-40 [&_svg]:size-2.75"
+  "flex size-5 shrink-0 items-center justify-center rounded-full bg-surface-raised text-ink-muted outline-none transition-[color,transform] duration-150 ease-out hover:text-ink-strong active:scale-90 focus-visible:ring-2 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-40 [&_svg]:size-2.75"
 
 /** Decrement button of a {@link Stepper}. */
 function StepperDecrement({

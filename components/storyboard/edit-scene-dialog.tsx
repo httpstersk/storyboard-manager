@@ -154,7 +154,7 @@ function EditSceneDialog({
         <div className="flex h-12 shrink-0 items-center justify-between gap-2 px-5">
           <div className="flex items-center gap-2.5">
             <button
-              className="flex h-7 items-center gap-1.5 rounded-full bg-emphasis px-3 text-label font-medium text-emphasis-foreground transition-colors outline-none hover:bg-emphasis/85 focus-visible:ring-2 focus-visible:ring-ring"
+              className="flex h-7 items-center gap-1.5 rounded-full bg-emphasis px-3 text-label font-medium text-emphasis-foreground outline-none transition-[background-color,transform] duration-150 ease-out hover:bg-emphasis/85 active:scale-[0.97] focus-visible:ring-2 focus-visible:ring-ring"
               onClick={() => fileInputRef.current?.click()}
               type="button"
             >
@@ -219,14 +219,14 @@ function EditSceneDialog({
           <div className="flex items-center gap-2">
             <Dialog.Close asChild>
               <button
-                className="flex h-7.5 items-center rounded-full bg-surface-inset px-4 text-label text-ink transition-colors outline-none hover:text-ink-strong focus-visible:ring-2 focus-visible:ring-ring"
+                className="flex h-7.5 items-center rounded-full bg-surface-inset px-4 text-label text-ink outline-none transition-[color,transform] duration-150 ease-out hover:text-ink-strong active:scale-[0.97] focus-visible:ring-2 focus-visible:ring-ring"
                 type="button"
               >
                 Cancel
               </button>
             </Dialog.Close>
             <button
-              className="flex h-7.5 items-center rounded-full bg-emphasis px-4 text-label font-medium text-emphasis-foreground transition-colors outline-none hover:bg-emphasis/85 focus-visible:ring-2 focus-visible:ring-ring"
+              className="flex h-7.5 items-center rounded-full bg-emphasis px-4 text-label font-medium text-emphasis-foreground outline-none transition-[background-color,transform] duration-150 ease-out hover:bg-emphasis/85 active:scale-[0.97] focus-visible:ring-2 focus-visible:ring-ring"
               onClick={handleSave}
               type="button"
             >
@@ -257,7 +257,7 @@ function DrawColorPicker({ color, onColorChange }: DrawColorPickerProps) {
           aria-checked={color === swatch.value}
           aria-label={swatch.label}
           className={cn(
-            "size-4 rounded-full border border-edge-strong outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1",
+            "size-4 rounded-full border border-edge-strong outline-none transition-[box-shadow,transform] duration-150 ease-out active:scale-90 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1",
             color === swatch.value &&
               "ring-2 ring-emphasis ring-offset-2 ring-offset-surface-panel"
           )}

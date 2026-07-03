@@ -9,6 +9,7 @@ import {
   Search,
   Trash2,
 } from "lucide-react"
+import { motion } from "motion/react"
 import * as React from "react"
 
 import { DropdownMenu } from "@/components/ui/dropdown-menu"
@@ -114,7 +115,7 @@ function SidebarNewBoardButton({
   return (
     <button
       className={cn(
-        "flex h-7.5 shrink-0 items-center justify-center gap-1.5 rounded-full bg-emphasis text-caption font-medium text-emphasis-foreground transition-colors outline-none hover:bg-emphasis/85 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1 focus-visible:ring-offset-surface-panel",
+        "flex h-7.5 shrink-0 items-center justify-center gap-1.5 rounded-full bg-emphasis text-caption font-medium text-emphasis-foreground outline-none transition-[background-color,transform] duration-150 ease-out hover:bg-emphasis/85 active:scale-[0.97] focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1 focus-visible:ring-offset-surface-panel",
         className
       )}
       type={type}
@@ -216,13 +217,20 @@ function SidebarBoardItem({
     <li>
       <div
         className={cn(
-          "flex w-full items-center gap-1 rounded-xl p-2.5 transition-colors",
-          active ? "bg-surface-raised" : "hover:bg-surface-inset/60"
+          "relative flex w-full items-center gap-1 rounded-xl p-2.5",
+          !active && "hover:bg-surface-inset/60"
         )}
       >
+        {active && (
+          <motion.div
+            className="absolute inset-0 rounded-xl bg-surface-raised"
+            layoutId="active-board"
+            transition={{ type: "spring", duration: 0.4, bounce: 0.1 }}
+          />
+        )}
         <button
           aria-current={active ? "true" : undefined}
-          className="flex min-w-0 flex-1 flex-col gap-1 text-left outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          className="relative z-10 flex min-w-0 flex-1 flex-col gap-1 text-left outline-none focus-visible:ring-2 focus-visible:ring-ring"
           onClick={onSelect}
           type="button"
         >
@@ -239,7 +247,7 @@ function SidebarBoardItem({
         <DropdownMenu>
           <DropdownMenu.Trigger asChild>
             <IconButton
-              className="shrink-0"
+              className="relative z-10 shrink-0"
               label={`More actions for ${title}`}
               size="sm"
               variant="ghost"

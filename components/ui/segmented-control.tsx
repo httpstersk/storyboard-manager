@@ -7,7 +7,7 @@ import * as React from "react"
 import { cn } from "@/lib/utils"
 
 const segmentedControlItemVariants = cva(
-  "flex items-center gap-1.5 rounded-full px-2 py-0.5 text-caption transition-colors outline-none focus-visible:ring-2 focus-visible:ring-ring [&_svg]:size-3 [&_svg]:shrink-0",
+  "flex items-center gap-1.5 rounded-full px-2 py-0.5 text-caption outline-none transition-[color,background-color,transform] duration-150 ease-out active:scale-95 focus-visible:ring-2 focus-visible:ring-ring [&_svg]:size-3 [&_svg]:shrink-0",
   {
     defaultVariants: {
       variant: "emphasis",

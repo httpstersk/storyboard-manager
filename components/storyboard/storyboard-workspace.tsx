@@ -1,6 +1,7 @@
 "use client"
 
 import { Download, Upload } from "lucide-react"
+import { AnimatePresence, motion } from "motion/react"
 import * as React from "react"
 
 import { Sidebar } from "@/components/storyboard/app-sidebar"
@@ -177,6 +178,13 @@ function createBoardId(): string {
     : `board-${Date.now()}`
 }
 
+/** Shared spring for the sidebar collapse/expand transition; interruptible
+ * so rapid toggling doesn't fight itself. */
+const SIDEBAR_SPRING = { type: "spring", duration: 0.4, bounce: 0.1 } as const
+
+/** Quick fade/scale used for cross-fading the sidebar/rail contents. */
+const SIDEBAR_CONTENT_TRANSITION = { duration: 0.15, ease: "easeOut" } as const
+
 /**
  * Client-side shell of the storyboard manager: owns all board state and
  * composes the sidebar, toolbar, scene grid, status bar, and scene
@@ -256,54 +264,102 @@ function StoryboardWorkspace() {
 
   return (
     <div className="flex min-h-svh gap-3.5 bg-surface-app p-4.5">
-      {state.sidebarCollapsed ? (
-        <Sidebar.Rail
-          onExpand={() =>
-            dispatch({ collapsed: false, type: "setSidebarCollapsed" })
-          }
-          onNewBoard={handleNewBoard}
-        />
-      ) : (
-        <Sidebar>
-          <Sidebar.Header
-            onCollapse={() =>
-              dispatch({ collapsed: true, type: "setSidebarCollapsed" })
-            }
-            title="Storyboards"
-          />
-          <Sidebar.NewBoardButton onClick={handleNewBoard}>
-            New storyboard
-          </Sidebar.NewBoardButton>
-          <Sidebar.Search
-            onQueryChange={(query) => dispatch({ query, type: "setQuery" })}
-            query={state.query}
-          />
-          <Sidebar.Section title="Recent">
-            <Sidebar.BoardList>
-              {visibleBoards.map((board) => (
-                <Sidebar.BoardItem
-                  active={board.id === selectedBoard.id}
-                  canDelete={state.boards.length > 1}
-                  key={board.id}
-                  meta={`${board.scenes.length} scenes · ${formatSeconds(totalRuntimeSeconds(board.scenes))} · ${formatEditedAt(board.updatedAt, state.now)}`}
-                  onDeleteRequest={() =>
-                    dispatch({ boardId: board.id, type: "setDeleteRequest" })
+      {/* Fixed to the viewport height (minus the outer padding) rather
+          than stretching to match <main>'s natural height. Without this,
+          flex's default align-items: stretch ties this box's height to
+          main's content height, so every rows/columns change would make
+          this element -- which has `layout` for the collapse/expand
+          width animation -- falsely detect a "resize" and flicker. */}
+      <motion.div
+        className="h-[calc(100svh_-_2.25rem)] shrink-0"
+        layout
+        transition={SIDEBAR_SPRING}
+      >
+        <AnimatePresence initial={false} mode="popLayout">
+          {state.sidebarCollapsed ? (
+            <motion.div
+              animate={{ opacity: 1, scale: 1 }}
+              className="h-full"
+              exit={{ opacity: 0, scale: 0.95 }}
+              initial={{ opacity: 0, scale: 0.95 }}
+              key="rail"
+              transition={SIDEBAR_CONTENT_TRANSITION}
+            >
+              <Sidebar.Rail
+                className="h-full"
+                onExpand={() =>
+                  dispatch({ collapsed: false, type: "setSidebarCollapsed" })
+                }
+                onNewBoard={handleNewBoard}
+              />
+            </motion.div>
+          ) : (
+            <motion.div
+              animate={{ opacity: 1, scale: 1 }}
+              className="h-full"
+              exit={{ opacity: 0, scale: 0.95 }}
+              initial={{ opacity: 0, scale: 0.95 }}
+              key="sidebar"
+              transition={SIDEBAR_CONTENT_TRANSITION}
+            >
+              <Sidebar className="h-full">
+                <Sidebar.Header
+                  onCollapse={() =>
+                    dispatch({ collapsed: true, type: "setSidebarCollapsed" })
                   }
-                  onSelect={() =>
-                    dispatch({ boardId: board.id, type: "selectBoard" })
-                  }
-                  title={board.title}
+                  title="Storyboards"
                 />
-              ))}
-            </Sidebar.BoardList>
-          </Sidebar.Section>
-          <Sidebar.Footer>
-            {state.boards.length}{" "}
-            {state.boards.length === 1 ? "board" : "boards"} · synced
-          </Sidebar.Footer>
-        </Sidebar>
-      )}
-      <main className="flex min-w-0 flex-1 flex-col gap-3.5">
+                <Sidebar.NewBoardButton onClick={handleNewBoard}>
+                  New storyboard
+                </Sidebar.NewBoardButton>
+                <Sidebar.Search
+                  onQueryChange={(query) =>
+                    dispatch({ query, type: "setQuery" })
+                  }
+                  query={state.query}
+                />
+                <Sidebar.Section title="Recent">
+                  <Sidebar.BoardList>
+                    {visibleBoards.map((board) => (
+                      <Sidebar.BoardItem
+                        active={board.id === selectedBoard.id}
+                        canDelete={state.boards.length > 1}
+                        key={board.id}
+                        meta={`${board.scenes.length} scenes · ${formatSeconds(totalRuntimeSeconds(board.scenes))} · ${formatEditedAt(board.updatedAt, state.now)}`}
+                        onDeleteRequest={() =>
+                          dispatch({
+                            boardId: board.id,
+                            type: "setDeleteRequest",
+                          })
+                        }
+                        onSelect={() =>
+                          dispatch({ boardId: board.id, type: "selectBoard" })
+                        }
+                        title={board.title}
+                      />
+                    ))}
+                  </Sidebar.BoardList>
+                </Sidebar.Section>
+                <Sidebar.Footer>
+                  {state.boards.length}{" "}
+                  {state.boards.length === 1 ? "board" : "boards"} · synced
+                </Sidebar.Footer>
+              </Sidebar>
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </motion.div>
+      {/* `layout="position"` only smooths this element's x/y offset (for
+          example when the sidebar's width change shifts main's left
+          edge). It never applies the scale-based size correction that
+          `layout={true}` does, so main's own height changing (for
+          example from a rows/columns edit) can never stretch or distort
+          the header/toolbar inside it. */}
+      <motion.main
+        className="flex min-w-0 flex-1 flex-col gap-3.5"
+        layout="position"
+        transition={SIDEBAR_SPRING}
+      >
         <BoardToolbar>
           <BoardToolbar.Brand name="boards" version="v1.2" />
           <BoardToolbar.Controls>
@@ -383,7 +439,7 @@ function StoryboardWorkspace() {
           )}
           <BoardStatusBar.Autosave>Autosaved just now</BoardStatusBar.Autosave>
         </BoardStatusBar>
-      </main>
+      </motion.main>
       <EditSceneDialog
         onOpenChange={(open) => {
           if (!open) {
@@ -443,14 +499,14 @@ function DeleteBoardConfirmDialog({
         <Dialog.Footer>
           <Dialog.Close asChild>
             <button
-              className="flex h-7.5 items-center rounded-full bg-surface-inset px-4 text-label text-ink transition-colors outline-none hover:text-ink-strong focus-visible:ring-2 focus-visible:ring-ring"
+              className="flex h-7.5 items-center rounded-full bg-surface-inset px-4 text-label text-ink outline-none transition-[color,transform] duration-150 ease-out hover:text-ink-strong active:scale-[0.97] focus-visible:ring-2 focus-visible:ring-ring"
               type="button"
             >
               Cancel
             </button>
           </Dialog.Close>
           <button
-            className="flex h-7.5 items-center rounded-full bg-destructive px-4 text-label font-medium text-white transition-colors outline-none hover:bg-destructive/85 focus-visible:ring-2 focus-visible:ring-ring"
+            className="flex h-7.5 items-center rounded-full bg-destructive px-4 text-label font-medium text-white outline-none transition-[background-color,transform] duration-150 ease-out hover:bg-destructive/85 active:scale-[0.97] focus-visible:ring-2 focus-visible:ring-ring"
             onClick={onConfirm}
             type="button"
           >

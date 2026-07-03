@@ -2,6 +2,7 @@
 
 import { cva, type VariantProps } from "class-variance-authority"
 import { Moon, Sun } from "lucide-react"
+import { motion } from "motion/react"
 import { useTheme } from "next-themes"
 import * as React from "react"
 
@@ -83,7 +84,7 @@ function BoardToolbarActions({
 }
 
 const boardToolbarActionVariants = cva(
-  "flex h-7.5 items-center gap-1.5 rounded-full px-3 text-caption font-medium transition-colors outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1 focus-visible:ring-offset-surface-app [&_svg]:size-2.75 [&_svg]:shrink-0",
+  "flex h-7.5 items-center gap-1.5 rounded-full px-3 text-caption font-medium outline-none transition-[color,background-color,transform] duration-150 ease-out active:scale-[0.97] focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1 focus-visible:ring-offset-surface-app [&_svg]:size-2.75 [&_svg]:shrink-0",
   {
     defaultVariants: {
       variant: "default",
@@ -125,8 +126,8 @@ const emptySubscribe = () => () => {}
 /**
  * Light/dark theme switcher. Active-segment styling is driven by CSS
  * `dark:` variants so it renders correctly before hydration; the
- * `aria-pressed` state is only attached after hydration because the
- * persisted theme is unknown on the server.
+ * `aria-pressed` state and the sliding indicator are only attached after
+ * hydration because the persisted theme is unknown on the server.
  */
 function BoardToolbarThemeToggle({ className }: { className?: string }) {
   const { resolvedTheme, setTheme } = useTheme()
@@ -145,25 +146,75 @@ function BoardToolbarThemeToggle({ className }: { className?: string }) {
       )}
       role="group"
     >
-      <button
-        aria-label="Light theme"
-        aria-pressed={hydrated ? resolvedTheme === "light" : undefined}
-        className="flex size-6 items-center justify-center rounded-full bg-surface-raised text-ink-strong outline-none focus-visible:ring-2 focus-visible:ring-ring dark:bg-transparent dark:text-ink-muted"
+      <ThemeToggleOption
+        active={hydrated ? resolvedTheme === "light" : undefined}
+        fallbackClassName="bg-surface-raised text-ink-strong dark:bg-transparent dark:text-ink-muted"
+        label="Light theme"
         onClick={() => setTheme("light")}
-        type="button"
       >
-        <Sun aria-hidden className="size-2.75" />
-      </button>
-      <button
-        aria-label="Dark theme"
-        aria-pressed={hydrated ? resolvedTheme === "dark" : undefined}
-        className="flex size-6 items-center justify-center rounded-full text-ink-muted outline-none focus-visible:ring-2 focus-visible:ring-ring dark:bg-surface-raised dark:text-ink-strong"
+        <Sun aria-hidden className="relative z-10 size-2.75" />
+      </ThemeToggleOption>
+      <ThemeToggleOption
+        active={hydrated ? resolvedTheme === "dark" : undefined}
+        fallbackClassName="text-ink-muted dark:bg-surface-raised dark:text-ink-strong"
+        label="Dark theme"
         onClick={() => setTheme("dark")}
-        type="button"
       >
-        <Moon aria-hidden className="size-2.75" />
-      </button>
+        <Moon aria-hidden className="relative z-10 size-2.75" />
+      </ThemeToggleOption>
     </div>
+  )
+}
+
+interface ThemeToggleOptionProps {
+  /** Whether this option is active; `undefined` before hydration. */
+  active: boolean | undefined
+  children: React.ReactNode
+  /** Pre-hydration styling driven by the `dark:` class already on `<html>`. */
+  fallbackClassName: string
+  label: string
+  onClick: () => void
+}
+
+/**
+ * A single light/dark option of {@link BoardToolbarThemeToggle}.
+ *
+ * `next-themes` disables CSS transitions site-wide while it swaps the
+ * `dark` class (`disableTransitionOnChange`, set in `theme-provider.tsx`)
+ * to avoid every element on the page cross-fading at once. That means a
+ * plain CSS transition on this background would never actually animate.
+ * A `motion.div` sidesteps this: once hydrated, a single shared
+ * `layoutId="theme-toggle-thumb"` element is rendered inside whichever
+ * option is active, and Motion animates it sliding to its new position
+ * with a snappy, low-bounce spring whenever the active option changes.
+ */
+function ThemeToggleOption({
+  active,
+  children,
+  fallbackClassName,
+  label,
+  onClick,
+}: ThemeToggleOptionProps) {
+  return (
+    <button
+      aria-label={label}
+      aria-pressed={active}
+      className={cn(
+        "relative flex size-6 items-center justify-center rounded-full text-ink-muted outline-none focus-visible:ring-2 focus-visible:ring-ring",
+        active === undefined ? fallbackClassName : active && "text-ink-strong"
+      )}
+      onClick={onClick}
+      type="button"
+    >
+      {active && (
+        <motion.div
+          className="absolute inset-0 rounded-full bg-surface-raised"
+          layoutId="theme-toggle-thumb"
+          transition={{ type: "spring", duration: 0.3, bounce: 0.15 }}
+        />
+      )}
+      {children}
+    </button>
   )
 }
 
