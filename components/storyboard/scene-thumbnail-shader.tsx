@@ -1,6 +1,6 @@
 "use client"
 
-import { Swirl } from "@paper-design/shaders-react"
+import { MeshGradient } from "@paper-design/shaders-react"
 import * as React from "react"
 
 import type { SceneShaderPreset } from "@/lib/storyboard"
@@ -28,15 +28,17 @@ const SceneThumbnailShader = React.memo(function SceneThumbnailShader({
       aria-hidden
       className={cn("pointer-events-none absolute inset-0", className)}
     >
-      <Swirl
-        bandCount={preset.bandCount}
+      <MeshGradient
         colors={preset.colors}
+        distortion={preset.distortion}
+        grainMixer={preset.grainMixer}
+        grainOverlay={preset.grainOverlay}
         height="100%"
         offsetX={preset.offsetX}
         offsetY={preset.offsetY}
-        softness={preset.softness}
+        scale={preset.scale}
         speed={preset.speed}
-        twist={preset.twist}
+        swirl={preset.swirl}
         width="100%"
       />
     </div>

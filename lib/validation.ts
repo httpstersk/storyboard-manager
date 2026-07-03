@@ -95,16 +95,18 @@ function coerceShader(value: unknown): SceneShaderPreset | null {
   }
 
   return {
-    bandCount: clampInteger(coerceNumber(value.bandCount, 3), {
-      max: 8,
-      min: 1,
-    }),
     colors,
+    distortion: Math.min(1, Math.max(0, coerceNumber(value.distortion, 0.6))),
+    grainMixer: Math.min(1, Math.max(0, coerceNumber(value.grainMixer, 0.15))),
+    grainOverlay: Math.min(
+      1,
+      Math.max(0, coerceNumber(value.grainOverlay, 0.08))
+    ),
     offsetX: Math.min(1, Math.max(-1, coerceNumber(value.offsetX, 0))),
     offsetY: Math.min(1, Math.max(-1, coerceNumber(value.offsetY, 0))),
-    softness: Math.min(1, Math.max(0, coerceNumber(value.softness, 0.9))),
-    speed: Math.min(2, Math.max(0, coerceNumber(value.speed, 0.5))),
-    twist: Math.min(1, Math.max(0, coerceNumber(value.twist, 0.35))),
+    scale: Math.min(4, Math.max(0.01, coerceNumber(value.scale, 1))),
+    speed: Math.min(2, Math.max(0, coerceNumber(value.speed, 0.4))),
+    swirl: Math.min(1, Math.max(0, coerceNumber(value.swirl, 0.2))),
   }
 }
 

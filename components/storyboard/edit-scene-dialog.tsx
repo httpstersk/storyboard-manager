@@ -203,7 +203,7 @@ function EditSceneDialog({
             </IconButton>
           </div>
         </div>
-        <div className="flex min-h-95 flex-1 px-5 pb-1">
+        <div className="flex w-full px-5 pb-1">
           <SceneCanvas
             error={error}
             fileInputRef={fileInputRef}
@@ -299,7 +299,7 @@ function SceneCanvas({
 
   return (
     <div
-      className="relative flex flex-1 items-center justify-center overflow-clip rounded-xl bg-surface-thumb"
+      className="relative flex w-full aspect-video items-center justify-center overflow-clip rounded-xl bg-surface-thumb"
       onDragOver={(event) => event.preventDefault()}
       onDrop={handleDrop}
     >

@@ -45,22 +45,26 @@ export interface Scene {
   timeSeconds: number
 }
 
-/** Parameters for the animated swirl rendered in a scene thumbnail. */
+/** Parameters for the mesh gradient rendered in a scene thumbnail. */
 export interface SceneShaderPreset {
-  /** Number of colour bands in the swirl. */
-  bandCount: number
-  /** Stripe colours blended by the swirl. */
+  /** Colour spots (up to 10). */
   colors: string[]
-  /** Horizontal offset of the swirl centre, -1 to 1. */
+  /** Organic noise distortion power, 0 to 1. */
+  distortion: number
+  /** Grain distortion on shape edges, 0 to 1. */
+  grainMixer: number
+  /** Post-processing b/w grain overlay, 0 to 1. */
+  grainOverlay: number
+  /** Horizontal offset of the gradient centre, -1 to 1. */
   offsetX: number
-  /** Vertical offset of the swirl centre, -1 to 1. */
+  /** Vertical offset of the gradient centre, -1 to 1. */
   offsetY: number
-  /** Colour transition softness, 0 hard to 1 smooth. */
-  softness: number
+  /** Overall zoom level, 0.01 to 4. */
+  scale: number
   /** Animation speed multiplier. */
   speed: number
-  /** Vortex strength, 0 straight to 1 fully twisted. */
-  twist: number
+  /** Vortex distortion power, 0 to 1. */
+  swirl: number
 }
 
 /** A generic labelled option for select-style controls. */
@@ -139,53 +143,95 @@ export const SHOT_SIZE_OPTIONS: { label: string; value: ShotSize }[] = [
   { label: "Close-up", value: "CU" },
 ]
 
-const SHADER_PRESET_DEFAULTS = {
-  bandCount: 3,
-  softness: 0.9,
-  speed: 0.5,
-  twist: 0.35,
-} satisfies Partial<SceneShaderPreset>
-
-/** Shader palettes cycled through the scenes of a blank board. */
-const BLANK_SCENE_SHADERS: Pick<
-  SceneShaderPreset,
-  "colors" | "offsetX" | "offsetY"
->[] = [
-  { colors: ["#ff3d9a", "#ffd93d", "#f72585"], offsetX: 0.4, offsetY: -0.3 },
+/** Cinematic mesh gradient presets with opposing-spectrum colour pairs. */
+const BLANK_SCENE_SHADERS: SceneShaderPreset[] = [
   {
-    colors: ["#5edf3c", "#7636ff", "#f2ff05", "#0037ff"],
-    offsetX: 0.1,
-    offsetY: -0.35,
+    colors: ["#0a4f5c", "#e85d20", "#064e6b", "#ff8c42"],
+    distortion: 0.6,
+    grainMixer: 0.15,
+    grainOverlay: 0.08,
+    offsetX: 0.3,
+    offsetY: -0.2,
+    scale: 1.2,
+    speed: 0.35,
+    swirl: 0.2,
   },
   {
-    colors: ["#90c8cf", "#3d3a6b", "#012afc", "#1b6dd9"],
+    colors: ["#6b21a8", "#d4e500", "#4c1d95", "#a3e635"],
+    distortion: 0.7,
+    grainMixer: 0.12,
+    grainOverlay: 0.1,
+    offsetX: -0.15,
+    offsetY: 0.4,
+    scale: 1.0,
+    speed: 0.4,
+    swirl: 0.15,
+  },
+  {
+    colors: ["#be123c", "#06b6d4", "#9f1239", "#22d3ee"],
+    distortion: 0.55,
+    grainMixer: 0.18,
+    grainOverlay: 0.06,
     offsetX: 0.2,
-    offsetY: 0.8,
+    offsetY: -0.6,
+    scale: 1.4,
+    speed: 0.3,
+    swirl: 0.25,
   },
   {
-    colors: ["#4e0149", "#058d92", "#7657f0", "#79eb0b"],
-    offsetX: -0.05,
-    offsetY: -0.9,
+    colors: ["#ea580c", "#2563eb", "#c2410c", "#3b82f6"],
+    distortion: 0.65,
+    grainMixer: 0.1,
+    grainOverlay: 0.12,
+    offsetX: -0.4,
+    offsetY: 0.1,
+    scale: 1.1,
+    speed: 0.45,
+    swirl: 0.18,
   },
   {
-    colors: ["#e63412", "#ffb703", "#ff4400", "#8b0045"],
-    offsetX: 0.4,
-    offsetY: 0.15,
+    colors: ["#0891b2", "#f43f5e", "#0e7490", "#fb7185"],
+    distortion: 0.5,
+    grainMixer: 0.2,
+    grainOverlay: 0.07,
+    offsetX: 0.5,
+    offsetY: 0.3,
+    scale: 1.3,
+    speed: 0.35,
+    swirl: 0.22,
   },
   {
-    colors: ["#76d3f5", "#b569ff", "#7dd3fc", "#e0aaff"],
-    offsetX: 0.4,
-    offsetY: 0.25,
+    colors: ["#ca8a04", "#7c3aed", "#a16207", "#8b5cf6"],
+    distortion: 0.72,
+    grainMixer: 0.14,
+    grainOverlay: 0.09,
+    offsetX: -0.25,
+    offsetY: -0.45,
+    scale: 0.9,
+    speed: 0.5,
+    swirl: 0.12,
   },
   {
-    colors: ["#e3408a", "#edbd55", "#d4876e", "#a34d7a"],
-    offsetX: 0.4,
-    offsetY: 0.05,
+    colors: ["#e11d48", "#10b981", "#be123c", "#34d399"],
+    distortion: 0.58,
+    grainMixer: 0.16,
+    grainOverlay: 0.11,
+    offsetX: 0.35,
+    offsetY: 0.55,
+    scale: 1.15,
+    speed: 0.38,
+    swirl: 0.28,
   },
   {
-    colors: ["#ff0040", "#00ff88", "#ffe600", "#ff00d5"],
-    offsetX: 0.4,
-    offsetY: -0.9,
+    colors: ["#059669", "#dc2626", "#047857", "#ef4444"],
+    distortion: 0.62,
+    grainMixer: 0.13,
+    grainOverlay: 0.08,
+    offsetX: -0.1,
+    offsetY: -0.7,
+    scale: 1.25,
+    speed: 0.42,
+    swirl: 0.2,
   },
 ]
 
@@ -209,10 +255,7 @@ export function createBlankScene(index: number): Scene {
     lighting: "Overcast soft",
     movement: "Static",
     music: "",
-    shader: {
-      ...SHADER_PRESET_DEFAULTS,
-      ...BLANK_SCENE_SHADERS[index % BLANK_SCENE_SHADERS.length],
-    },
+    shader: BLANK_SCENE_SHADERS[index % BLANK_SCENE_SHADERS.length],
     shot: "WS",
     timeSeconds: 3,
   }

@@ -94,7 +94,7 @@ function SceneCardThumbnail({ className, onEdit }: SceneCardThumbnailProps) {
   return (
     <div
       className={cn(
-        "relative flex h-50 shrink-0 items-center justify-center overflow-clip bg-surface-thumb",
+        "relative flex aspect-video shrink-0 items-center justify-center overflow-clip bg-surface-thumb",
         className
       )}
     >
