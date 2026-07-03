@@ -48,7 +48,7 @@
 
   /* Storyboard design system: scale. The reference design is built on a
        3.5px spacing unit (87.5% of Tailwind's default 4px). */
-  --spacing: 0.5rem;
+  --spacing: 0.21875rem;
 
   /* Storyboard design system: colours */
   --color-edge: var(--edge);
@@ -68,15 +68,15 @@
   --color-surface-thumb: var(--surface-thumb);
 
   /* Storyboard design system: typography */
-  --text-caption: 0.5625rem;
+  --text-caption: 0.625rem;
   --text-caption--line-height: 1.5;
-  --text-label: 0.59375rem;
+  --text-label: 0.6875rem;
   --text-label--line-height: 1.5;
-  --text-body: 0.71875rem;
+  --text-body: 0.8125rem;
   --text-body--line-height: 1.5;
-  --text-title: 0.8125rem;
+  --text-title: 0.875rem;
   --text-title--line-height: 1.4;
-  --text-heading: 0.9375rem;
+  --text-heading: 1rem;
   --text-heading--line-height: 1.4;
   --text-display: clamp(4.375rem, 9vw, 9.1875rem);
   --text-display--line-height: 1;
