@@ -79,7 +79,7 @@ function PillSelectContent({
           className
         )}
         position="popper"
-        sideOffset={4}
+        sideOffset={5}
         {...props}
       >
         <Select.Viewport className="flex flex-col gap-px">

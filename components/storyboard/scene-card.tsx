@@ -94,15 +94,23 @@ function SceneCardThumbnail({ className, onEdit }: SceneCardThumbnailProps) {
   return (
     <div
       className={cn(
-        "relative flex aspect-video shrink-0 items-center justify-center overflow-clip bg-surface-thumb",
+        "group relative flex aspect-video shrink-0 items-center justify-center overflow-clip bg-surface-thumb [container-type:size]",
         className
       )}
     >
       <SceneThumbnailShader preset={scene.shader} />
       <SceneCardReferenceImage image={scene.image} />
       {!scene.image && (
-        <span className="relative z-10 text-display font-extralight tracking-display text-ink-on-media/90 select-none">
-          {sceneNumber}
+        <span className="relative z-10 grid text-display font-extralight tracking-display text-ink-on-media/90 select-none">
+          <span className="col-start-1 row-start-1 transition-opacity group-hover:opacity-0">
+            {sceneNumber}
+          </span>
+          <span
+            aria-hidden="true"
+            className="col-start-1 row-start-1 opacity-0 transition-opacity group-hover:opacity-100"
+          >
+            Edit
+          </span>
         </span>
       )}
       <button

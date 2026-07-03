@@ -31,7 +31,7 @@ function TooltipRoot({
 function TooltipContent({
   children,
   className,
-  sideOffset = 6,
+  sideOffset = 7,
   ...props
 }: React.ComponentProps<typeof TooltipPrimitive.Content>) {
   return (
@@ -45,7 +45,7 @@ function TooltipContent({
         {...props}
       >
         {children}
-        <TooltipPrimitive.Arrow className="fill-emphasis" height={4} width={8} />
+        <TooltipPrimitive.Arrow className="fill-emphasis" height={5} width={10} />
       </TooltipPrimitive.Content>
     </TooltipPrimitive.Portal>
   )

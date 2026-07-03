@@ -107,12 +107,12 @@ function workspaceReducer(
       return action.workspace === null
         ? { ...state, hydrated: true, now }
         : {
-            ...state,
-            boards: action.workspace.boards,
-            hydrated: true,
-            now,
-            selectedBoardId: action.workspace.selectedBoardId,
-          }
+          ...state,
+          boards: action.workspace.boards,
+          hydrated: true,
+          now,
+          selectedBoardId: action.workspace.selectedBoardId,
+        }
     case "selectBoard":
       return { ...state, now, selectedBoardId: action.boardId }
     case "setColumns":
@@ -137,14 +137,14 @@ function workspaceReducer(
         boards: state.boards.map((board) =>
           board.id === state.selectedBoardId
             ? {
-                ...board,
-                scenes: board.scenes.map((scene) =>
-                  scene.id === action.sceneId
-                    ? { ...scene, ...action.patch }
-                    : scene
-                ),
-                updatedAt: now,
-              }
+              ...board,
+              scenes: board.scenes.map((scene) =>
+                scene.id === action.sceneId
+                  ? { ...scene, ...action.patch }
+                  : scene
+              ),
+              updatedAt: now,
+            }
             : board
         ),
         now,
@@ -157,7 +157,7 @@ function createInitialState(): WorkspaceState {
 
   return {
     boards: [board],
-    columns: COLUMN_LIMITS.max,
+    columns: COLUMN_LIMITS.max - 1,
     deleteRequestBoardId: null,
     editingSceneId: null,
     hydrated: false,

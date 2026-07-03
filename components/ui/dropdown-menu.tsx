@@ -28,7 +28,7 @@ const DropdownMenuRoot = DropdownMenuPrimitive.Root
 function DropdownMenuContent({
   children,
   className,
-  sideOffset = 4,
+  sideOffset = 5,
   ...props
 }: React.ComponentProps<typeof DropdownMenuPrimitive.Content>) {
   return (

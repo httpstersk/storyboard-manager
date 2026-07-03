@@ -47,8 +47,9 @@
   --radius-4xl: calc(var(--radius) * 2.6);
 
   /* Storyboard design system: scale. The reference design is built on a
-       3.5px spacing unit (87.5% of Tailwind's default 4px). */
-  --spacing: 0.21875rem;
+       4px spacing unit (100% of Tailwind's default; bumped up one step
+       from the earlier 87.5%/3.5px compact baseline). */
+  --spacing: 0.25rem;
 
   /* Storyboard design system: colours */
   --color-edge: var(--edge);
@@ -67,26 +68,36 @@
   --color-surface-raised: var(--surface-raised);
   --color-surface-thumb: var(--surface-thumb);
 
-  /* Storyboard design system: typography */
-  --text-caption: 0.625rem;
+  /* Storyboard design system: typography. Scale bumped up one step; each
+       name now carries the value the next tier up used to hold. */
+  --text-caption: 0.6875rem;
   --text-caption--line-height: 1.5;
-  --text-label: 0.6875rem;
+  --text-label: 0.8125rem;
   --text-label--line-height: 1.5;
-  --text-body: 0.8125rem;
-  --text-body--line-height: 1.5;
-  --text-title: 0.875rem;
+  --text-body: 0.875rem;
+  --text-body--line-height: 1.4;
+  --text-title: 1rem;
   --text-title--line-height: 1.4;
-  --text-heading: 1rem;
-  --text-heading--line-height: 1.4;
-  --text-display: clamp(5.5rem, 11vw, 11.5rem);
+  --text-heading: 1.125rem;
+  --text-heading--line-height: 1.35;
+  --text-display: 122cqh;
   --text-display--line-height: 1;
   --tracking-display: -0.048em;
+  --text-canvas: 13.75rem;
+  --text-canvas-lg: 22rem;
 
   /* Storyboard design system: elevation */
   --shadow-knob: 0px 1px 3px rgb(0 0 0 / 0.25);
   --shadow-modal:
     0px 32px 80px rgb(0 0 0 / 0.22), 0px 4px 16px rgb(0 0 0 / 0.08);
   --shadow-popover: 0px 2px 8px rgb(0 0 0 / 0.06);
+
+  /* Storyboard design system: motion. Stronger custom curves in place of
+       Tailwind's default (too-weak) ease-out/ease-in-out, per the
+       animations.dev design-engineering guidance: entrances/exits get a
+       confident ease-out, on-screen movement gets a natural ease-in-out. */
+  --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
+  --ease-in-out: cubic-bezier(0.77, 0, 0.175, 1);
 }
 
 :root {
@@ -204,5 +215,19 @@
 
   html {
     @apply font-sans;
+  }
+
+  /* Motion sickness accommodation: keep opacity/colour transitions (they
+       aid comprehension) but strip movement, scaling, and long-running
+       animations down to effectively instant. */
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    ::before,
+    ::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      scroll-behavior: auto !important;
+      transition-duration: 0.01ms !important;
+    }
   }
 }

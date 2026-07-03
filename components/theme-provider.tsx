@@ -1,7 +1,8 @@
 "use client"
 
-import * as React from "react"
+import { MotionConfig } from "motion/react"
 import { ThemeProvider as NextThemesProvider, useTheme } from "next-themes"
+import * as React from "react"
 
 function ThemeProvider({
   children,
@@ -16,7 +17,10 @@ function ThemeProvider({
       {...props}
     >
       <ThemeHotkey />
-      {children}
+      {/* Every motion.* element in the tree automatically respects the
+          user's OS-level reduced-motion preference with no per-component
+          opt-in required. */}
+      <MotionConfig reducedMotion="user">{children}</MotionConfig>
     </NextThemesProvider>
   )
 }

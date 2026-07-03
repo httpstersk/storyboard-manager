@@ -302,7 +302,7 @@ function SceneCanvas({
       onDrop={handleDrop}
     >
       {!image && (
-        <span className="text-[12.5rem] leading-none font-extralight tracking-display text-ink-on-media select-none sm:text-[20rem]">
+        <span className="text-canvas leading-none font-extralight tracking-display text-ink-on-media select-none sm:text-canvas-lg">
           {sceneNumber}
         </span>
       )}
