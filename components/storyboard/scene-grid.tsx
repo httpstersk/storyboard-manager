@@ -92,7 +92,7 @@ function SceneGrid({
             }}
             initial={{ opacity: 0, scale: 0.95 }}
             key={scene.id}
-            layout
+            layout="position"
             transition={{
               ...SCENE_ENTER_TRANSITION,
               delay: Math.min(index * SCENE_STAGGER_STEP, SCENE_STAGGER_MAX),
@@ -132,33 +132,48 @@ function GridScene({
   return (
     <SceneCard scene={scene} sceneNumber={sceneNumber}>
       <SceneCard.Thumbnail onEdit={onEdit} />
-      <SceneCard.Details>
+      <AnimatePresence initial={false}>
         {showParameters && (
-          <SceneParameters onUpdate={onUpdate} scene={scene} />
+          <motion.div
+            animate={{ height: "auto", opacity: 1 }}
+            className="overflow-hidden"
+            exit={{ height: 0, opacity: 0 }}
+            initial={{ height: 0, opacity: 0 }}
+            key="details"
+            transition={SCENE_LAYOUT_TRANSITION}
+          >
+            <SceneCard.Details>
+              <SceneParameters onUpdate={onUpdate} scene={scene} />
+              <SceneCard.Notes>
+                <SceneCard.NoteRow
+                  label="Action"
+                  onValueChange={(value) =>
+                    onUpdate({ action: sanitizeNote(value) })
+                  }
+                  placeholder="Add action"
+                  value={scene.action}
+                />
+                <SceneCard.NoteRow
+                  label="Dialogue"
+                  onValueChange={(value) =>
+                    onUpdate({ dialogue: sanitizeNote(value) })
+                  }
+                  placeholder="Add dialogue"
+                  value={scene.dialogue}
+                />
+                <SceneCard.NoteRow
+                  label="Music"
+                  onValueChange={(value) =>
+                    onUpdate({ music: sanitizeNote(value) })
+                  }
+                  placeholder="Add music"
+                  value={scene.music}
+                />
+              </SceneCard.Notes>
+            </SceneCard.Details>
+          </motion.div>
         )}
-        <SceneCard.Notes>
-          <SceneCard.NoteRow
-            label="Action"
-            onValueChange={(value) => onUpdate({ action: sanitizeNote(value) })}
-            placeholder="Add action"
-            value={scene.action}
-          />
-          <SceneCard.NoteRow
-            label="Dialogue"
-            onValueChange={(value) =>
-              onUpdate({ dialogue: sanitizeNote(value) })
-            }
-            placeholder="Add dialogue"
-            value={scene.dialogue}
-          />
-          <SceneCard.NoteRow
-            label="Music"
-            onValueChange={(value) => onUpdate({ music: sanitizeNote(value) })}
-            placeholder="Add music"
-            value={scene.music}
-          />
-        </SceneCard.Notes>
-      </SceneCard.Details>
+      </AnimatePresence>
     </SceneCard>
   )
 }
