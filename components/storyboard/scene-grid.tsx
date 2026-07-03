@@ -75,41 +75,47 @@ function SceneGrid({
   const visibleScenes = scenes.slice(0, rows * columns)
 
   return (
-    <section
-      aria-label="Scenes"
-      ref={ref}
-      className="grid flex-1 content-start gap-px overflow-clip rounded-2xl bg-grid-line"
-      style={{ gridTemplateColumns: `repeat(${columns}, minmax(0, 1fr))` }}
-    >
-      <AnimatePresence initial={false} mode="popLayout">
-        {visibleScenes.map((scene, index) => (
-          <motion.div
-            animate={{ opacity: 1, scale: 1 }}
-            exit={{
-              opacity: 0,
-              scale: 0.97,
-              transition: SCENE_EXIT_TRANSITION,
-            }}
-            initial={{ opacity: 0, scale: 0.95 }}
-            key={scene.id}
-            layout="position"
-            transition={{
-              ...SCENE_ENTER_TRANSITION,
-              delay: Math.min(index * SCENE_STAGGER_STEP, SCENE_STAGGER_MAX),
-              layout: SCENE_LAYOUT_TRANSITION,
-            }}
-          >
-            <GridScene
-              onEdit={() => onEditScene(scene.id)}
-              onUpdate={(patch) => onUpdateScene(scene.id, patch)}
-              scene={scene}
-              sceneNumber={formatSceneNumber(index)}
-              showParameters={showParameters}
-            />
-          </motion.div>
-        ))}
-      </AnimatePresence>
-    </section>
+    // Once several rows are shown the grid can grow past the viewport, so
+    // this wrapper owns the vertical scroll and rounded clipping while the
+    // inner <section> (the PNG-capture target) keeps its natural full
+    // height -- exports therefore still include every visible row.
+    <div className="min-h-0 flex-1 overflow-x-hidden overflow-y-auto rounded-2xl bg-grid-line">
+      <section
+        aria-label="Scenes"
+        ref={ref}
+        className="grid content-start gap-px bg-grid-line"
+        style={{ gridTemplateColumns: `repeat(${columns}, minmax(0, 1fr))` }}
+      >
+        <AnimatePresence initial={false} mode="popLayout">
+          {visibleScenes.map((scene, index) => (
+            <motion.div
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{
+                opacity: 0,
+                scale: 0.97,
+                transition: SCENE_EXIT_TRANSITION,
+              }}
+              initial={{ opacity: 0, scale: 0.95 }}
+              key={scene.id}
+              layout="position"
+              transition={{
+                ...SCENE_ENTER_TRANSITION,
+                delay: Math.min(index * SCENE_STAGGER_STEP, SCENE_STAGGER_MAX),
+                layout: SCENE_LAYOUT_TRANSITION,
+              }}
+            >
+              <GridScene
+                onEdit={() => onEditScene(scene.id)}
+                onUpdate={(patch) => onUpdateScene(scene.id, patch)}
+                scene={scene}
+                sceneNumber={formatSceneNumber(index)}
+                showParameters={showParameters}
+              />
+            </motion.div>
+          ))}
+        </AnimatePresence>
+      </section>
+    </div>
   )
 }
 

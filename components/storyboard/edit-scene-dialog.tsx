@@ -84,6 +84,7 @@ function EditSceneDialog({
   const [error, setError] = React.useState<string | null>(null)
   const [tool, setTool] = React.useState<DrawTool>("pencil")
   const fileInputRef = React.useRef<HTMLInputElement>(null)
+  const drawingCanvasRef = React.useRef<DrawingCanvasHandle>(null)
 
   if (scene === null) {
     return null
@@ -133,8 +134,17 @@ function EditSceneDialog({
     setError(null)
   }
 
-  const handleSave = () => {
-    if (draftImage !== undefined) {
+  const handleSave = async () => {
+    const drawing = drawingCanvasRef.current?.getDrawing() ?? null
+
+    if (drawing !== null) {
+      // The user painted something: flatten the strokes over whatever is
+      // currently behind them (an uploaded or existing reference image)
+      // so the scene card shows the finished artwork rather than the
+      // pre-drawing state.
+      const image = await composeSceneImage(previewImage, drawing)
+      onSave({ image })
+    } else if (draftImage !== undefined) {
       onSave({ image: draftImage ?? undefined })
     }
 
@@ -215,6 +225,7 @@ function EditSceneDialog({
           <SceneCanvas
             brushSize={brushSize}
             color={color}
+            drawingCanvasRef={drawingCanvasRef}
             fileInputRef={fileInputRef}
             image={previewImage}
             onFile={handleFile}
@@ -237,7 +248,7 @@ function EditSceneDialog({
             </Dialog.Close>
             <button
               className="flex h-7.5 items-center rounded-full bg-emphasis px-4 text-label font-medium text-emphasis-foreground outline-none transition-[background-color,transform] duration-150 ease-out hover:bg-emphasis/85 active:scale-[0.97] focus-visible:ring-2 focus-visible:ring-ring"
-              onClick={handleSave}
+              onClick={() => void handleSave()}
               type="button"
             >
               Save scene
@@ -285,6 +296,7 @@ function DrawColorPicker({ color, onColorChange }: DrawColorPickerProps) {
 interface SceneCanvasProps {
   brushSize: number
   color: string
+  drawingCanvasRef: React.RefObject<DrawingCanvasHandle | null>
   fileInputRef: React.RefObject<HTMLInputElement | null>
   image: string | undefined | null
   onFile: (file: File) => void
@@ -299,6 +311,7 @@ interface SceneCanvasProps {
 function SceneCanvas({
   brushSize,
   color,
+  drawingCanvasRef,
   fileInputRef,
   image,
   onFile,
@@ -326,7 +339,12 @@ function SceneCanvas({
         </span>
       )}
       <CanvasImage image={image} />
-      <DrawingCanvas brushSize={brushSize} color={color} tool={tool} />
+      <DrawingCanvas
+        brushSize={brushSize}
+        color={color}
+        ref={drawingCanvasRef}
+        tool={tool}
+      />
       <input
         accept={IMAGE_UPLOAD_RULES.acceptedTypes.join(",")}
         aria-label="Upload scene image"
@@ -469,9 +487,130 @@ function drawSegment(
   context.stroke()
 }
 
+/**
+ * Returns a standalone copy of the drawing when the overlay holds any
+ * painted pixels, or null when it is still blank. The copy is detached
+ * from the live element so it survives the dialog closing after a save.
+ */
+function captureDrawing(
+  canvas: HTMLCanvasElement | null
+): HTMLCanvasElement | null {
+  if (canvas === null || canvas.width === 0 || canvas.height === 0) {
+    return null
+  }
+
+  const context = canvas.getContext("2d")
+
+  if (context === null) {
+    return null
+  }
+
+  // The overlay starts fully transparent, so any non-zero alpha byte means
+  // the user has drawn at least one mark.
+  const { data } = context.getImageData(0, 0, canvas.width, canvas.height)
+  let hasStrokes = false
+
+  for (let index = 3; index < data.length; index += 4) {
+    if (data[index] !== 0) {
+      hasStrokes = true
+      break
+    }
+  }
+
+  if (!hasStrokes) {
+    return null
+  }
+
+  const copy = document.createElement("canvas")
+  copy.width = canvas.width
+  copy.height = canvas.height
+  copy.getContext("2d")?.drawImage(canvas, 0, 0)
+
+  return copy
+}
+
+/** Loads an image element from a URL, rejecting if it cannot decode. */
+function loadImage(src: string): Promise<HTMLImageElement> {
+  return new Promise((resolve, reject) => {
+    const image = new Image()
+
+    image.onload = () => resolve(image)
+    image.onerror = () => reject(new Error("The image could not be loaded."))
+    image.src = src
+  })
+}
+
+/**
+ * Draws `image` to fill the width x height box while preserving its aspect
+ * ratio and cropping the overflow — the canvas equivalent of CSS
+ * `object-fit: cover`, matching how reference images are displayed.
+ */
+function drawImageCover(
+  context: CanvasRenderingContext2D,
+  image: HTMLImageElement,
+  width: number,
+  height: number
+): void {
+  const scale = Math.max(width / image.width, height / image.height)
+  const drawWidth = image.width * scale
+  const drawHeight = image.height * scale
+
+  context.drawImage(
+    image,
+    (width - drawWidth) / 2,
+    (height - drawHeight) / 2,
+    drawWidth,
+    drawHeight
+  )
+}
+
+/**
+ * Flattens a freehand drawing over its background reference image (when
+ * one is present) into a single PNG data URL for storing as the scene
+ * image. A missing or unreadable background is ignored so the strokes are
+ * always captured.
+ */
+async function composeSceneImage(
+  background: string | null | undefined,
+  drawing: HTMLCanvasElement
+): Promise<string> {
+  const output = document.createElement("canvas")
+  output.width = drawing.width
+  output.height = drawing.height
+
+  const context = output.getContext("2d")
+
+  if (context === null) {
+    return drawing.toDataURL("image/png")
+  }
+
+  if (background) {
+    try {
+      const image = await loadImage(background)
+      drawImageCover(context, image, output.width, output.height)
+    } catch {
+      // Keep the strokes even when the background image can't be drawn.
+    }
+  }
+
+  context.drawImage(drawing, 0, 0)
+
+  return output.toDataURL("image/png")
+}
+
+/** Imperative handle exposed by {@link DrawingCanvas}. */
+interface DrawingCanvasHandle {
+  /**
+   * Returns a detached copy of the painted drawing, or null when nothing
+   * has been drawn (so save can fall back to the untouched scene image).
+   */
+  getDrawing: () => HTMLCanvasElement | null
+}
+
 interface DrawingCanvasProps {
   brushSize: number
   color: string
+  ref?: React.Ref<DrawingCanvasHandle>
   tool: DrawTool
 }
 
@@ -479,12 +618,19 @@ interface DrawingCanvasProps {
  * Transparent overlay that captures pointer input and renders freehand
  * strokes for the active tool. Sits above the reference image so drawings
  * annotate it, and keeps the in-progress stroke in refs to avoid
- * re-rendering on every pointer move.
+ * re-rendering on every pointer move. Exposes {@link DrawingCanvasHandle}
+ * so the editor can capture the finished artwork on save.
  */
-function DrawingCanvas({ brushSize, color, tool }: DrawingCanvasProps) {
+function DrawingCanvas({ brushSize, color, ref, tool }: DrawingCanvasProps) {
   const canvasRef = React.useRef<HTMLCanvasElement>(null)
   const drawingRef = React.useRef(false)
   const lastPointRef = React.useRef<Point | null>(null)
+
+  React.useImperativeHandle(
+    ref,
+    () => ({ getDrawing: () => captureDrawing(canvasRef.current) }),
+    []
+  )
 
   useMountEffect(() => {
     const canvas = canvasRef.current

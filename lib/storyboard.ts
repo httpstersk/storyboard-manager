@@ -130,7 +130,12 @@ export const MOVEMENT_OPTIONS: SelectOption[] = [
 ]
 
 /** Allowed range for the grid row stepper. */
-export const ROW_LIMITS: ValueLimits = { max: 2, min: 1 }
+export const ROW_LIMITS: ValueLimits = { max: 9, min: 1 }
+
+/** Rows shown when a workspace first loads. Kept modest (well below
+ * {@link ROW_LIMITS.max}) so a fresh board opens compact rather than
+ * filling every available row. */
+export const DEFAULT_ROWS = 2
 
 /** Allowed range for a scene duration in seconds. */
 export const SCENE_TIME_LIMITS: ValueLimits = { max: 60, min: 1 }
@@ -235,7 +240,11 @@ const BLANK_SCENE_SHADERS: SceneShaderPreset[] = [
   },
 ]
 
-/** Number of blank scenes a new board starts with (a full grid). */
+/**
+ * Number of blank scenes a new board starts with: enough to fill the
+ * largest possible grid (COLUMN_LIMITS.max x ROW_LIMITS.max), so every
+ * row and column the user can select always has a scene to display.
+ */
 export const NEW_BOARD_SCENE_COUNT = COLUMN_LIMITS.max * ROW_LIMITS.max
 
 /** Title given to boards created without an explicit name. */

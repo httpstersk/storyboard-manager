@@ -23,6 +23,7 @@ import {
   type Board,
   COLUMN_LIMITS,
   createBlankBoard,
+  DEFAULT_ROWS,
   formatEditedAt,
   formatSceneNumber,
   formatSeconds,
@@ -165,10 +166,12 @@ function createInitialState(): WorkspaceState {
     ioError: null,
     now: board.updatedAt,
     query: "",
-    rows: ROW_LIMITS.max,
+    rows: DEFAULT_ROWS,
     selectedBoardId: board.id,
     showParameters: true,
-    sidebarCollapsed: false,
+    // Start closed: the sidebar now floats over the content when open, so
+    // the board loads unobstructed and the user opens the sidebar on demand.
+    sidebarCollapsed: true,
   }
 }
 
@@ -263,103 +266,26 @@ function StoryboardWorkspace() {
   }
 
   return (
-    <div className="flex min-h-svh gap-3.5 bg-surface-app p-4.5">
-      {/* Fixed to the viewport height (minus the outer padding) rather
-          than stretching to match <main>'s natural height. Without this,
-          flex's default align-items: stretch ties this box's height to
-          main's content height, so every rows/columns change would make
-          this element -- which has `layout` for the collapse/expand
-          width animation -- falsely detect a "resize" and flicker. */}
-      <motion.div
-        className="h-[calc(100svh_-_2.25rem)] shrink-0"
-        layout
-        transition={SIDEBAR_SPRING}
-      >
-        <AnimatePresence initial={false} mode="popLayout">
-          {state.sidebarCollapsed ? (
-            <motion.div
-              animate={{ opacity: 1, scale: 1 }}
-              className="h-full"
-              exit={{ opacity: 0, scale: 0.95 }}
-              initial={{ opacity: 0, scale: 0.95 }}
-              key="rail"
-              transition={SIDEBAR_CONTENT_TRANSITION}
-            >
-              <Sidebar.Rail
-                className="h-full"
-                onExpand={() =>
-                  dispatch({ collapsed: false, type: "setSidebarCollapsed" })
-                }
-                onNewBoard={handleNewBoard}
-              />
-            </motion.div>
-          ) : (
-            <motion.div
-              animate={{ opacity: 1, scale: 1 }}
-              className="h-full"
-              exit={{ opacity: 0, scale: 0.95 }}
-              initial={{ opacity: 0, scale: 0.95 }}
-              key="sidebar"
-              transition={SIDEBAR_CONTENT_TRANSITION}
-            >
-              <Sidebar className="h-full">
-                <Sidebar.Header
-                  onCollapse={() =>
-                    dispatch({ collapsed: true, type: "setSidebarCollapsed" })
-                  }
-                  title="Storyboards"
-                />
-                <Sidebar.NewBoardButton onClick={handleNewBoard}>
-                  New storyboard
-                </Sidebar.NewBoardButton>
-                <Sidebar.Search
-                  onQueryChange={(query) =>
-                    dispatch({ query, type: "setQuery" })
-                  }
-                  query={state.query}
-                />
-                <Sidebar.Section title="Recent">
-                  <Sidebar.BoardList>
-                    {visibleBoards.map((board) => (
-                      <Sidebar.BoardItem
-                        active={board.id === selectedBoard.id}
-                        canDelete={state.boards.length > 1}
-                        key={board.id}
-                        meta={`${board.scenes.length} scenes · ${formatSeconds(totalRuntimeSeconds(board.scenes))} · ${formatEditedAt(board.updatedAt, state.now)}`}
-                        onDeleteRequest={() =>
-                          dispatch({
-                            boardId: board.id,
-                            type: "setDeleteRequest",
-                          })
-                        }
-                        onSelect={() =>
-                          dispatch({ boardId: board.id, type: "selectBoard" })
-                        }
-                        title={board.title}
-                      />
-                    ))}
-                  </Sidebar.BoardList>
-                </Sidebar.Section>
-                <Sidebar.Footer>
-                  {state.boards.length}{" "}
-                  {state.boards.length === 1 ? "board" : "boards"} · synced
-                </Sidebar.Footer>
-              </Sidebar>
-            </motion.div>
-          )}
-        </AnimatePresence>
-      </motion.div>
-      {/* `layout="position"` only smooths this element's x/y offset (for
-          example when the sidebar's width change shifts main's left
-          edge). It never applies the scale-based size correction that
-          `layout={true}` does, so main's own height changing (for
-          example from a rows/columns edit) can never stretch or distort
-          the header/toolbar inside it. */}
-      <motion.main
-        className="flex min-w-0 flex-1 flex-col gap-3.5"
-        layout="position"
-        transition={SIDEBAR_SPRING}
-      >
+    <div className="relative flex min-h-svh gap-3.5 bg-surface-app p-4.5">
+      {/* Persistent slim rail. It always occupies layout space so <main>
+          keeps a constant position and size whether the full sidebar is
+          open or closed -- opening the sidebar overlays the content (see
+          the floating panel below) instead of widening this column. Kept
+          at a fixed viewport height rather than stretching to <main>'s
+          natural height so a rows/columns edit can't distort it. */}
+      <div className="h-[calc(100svh_-_2.25rem)] shrink-0">
+        <Sidebar.Rail
+          className="h-full"
+          onExpand={() =>
+            dispatch({ collapsed: false, type: "setSidebarCollapsed" })
+          }
+          onNewBoard={handleNewBoard}
+        />
+      </div>
+      {/* <main> is a plain flex child: the sidebar now floats above it
+          (see the overlay below), so nothing shifts or resizes the
+          content and no layout animation is needed here. */}
+      <main className="flex min-w-0 flex-1 flex-col gap-3.5">
         <BoardToolbar>
           <BoardToolbar.Brand name="boards" version="v1.2" />
           <BoardToolbar.Controls>
@@ -439,7 +365,80 @@ function StoryboardWorkspace() {
           )}
           <BoardStatusBar.Autosave>Autosaved just now</BoardStatusBar.Autosave>
         </BoardStatusBar>
-      </motion.main>
+      </main>
+      {/* Floating sidebar overlay. Rendered above <main> and positioned to
+          sit exactly over the rail, so opening it layers the sidebar on
+          top of the content instead of pushing or resizing it. The
+          backdrop dims the board and closes the sidebar on outside click;
+          the panel's shadow reinforces that it floats above. */}
+      <AnimatePresence>
+        {!state.sidebarCollapsed && (
+          <motion.div
+            animate={{ opacity: 1 }}
+            aria-hidden
+            className="absolute inset-0 z-40 bg-[oklch(0_0_0_/_0.32)]"
+            exit={{ opacity: 0 }}
+            initial={{ opacity: 0 }}
+            key="sidebar-backdrop"
+            onClick={() =>
+              dispatch({ collapsed: true, type: "setSidebarCollapsed" })
+            }
+            transition={SIDEBAR_CONTENT_TRANSITION}
+          />
+        )}
+        {!state.sidebarCollapsed && (
+          <motion.div
+            animate={{ opacity: 1, x: 0 }}
+            className="absolute top-4.5 left-4.5 z-50 h-[calc(100svh_-_2.25rem)]"
+            exit={{ opacity: 0, x: -12 }}
+            initial={{ opacity: 0, x: -12 }}
+            key="sidebar-panel"
+            transition={SIDEBAR_SPRING}
+          >
+            <Sidebar className="h-full shadow-modal">
+              <Sidebar.Header
+                onCollapse={() =>
+                  dispatch({ collapsed: true, type: "setSidebarCollapsed" })
+                }
+                title="Storyboards"
+              />
+              <Sidebar.NewBoardButton onClick={handleNewBoard}>
+                New storyboard
+              </Sidebar.NewBoardButton>
+              <Sidebar.Search
+                onQueryChange={(query) => dispatch({ query, type: "setQuery" })}
+                query={state.query}
+              />
+              <Sidebar.Section title="Recent">
+                <Sidebar.BoardList>
+                  {visibleBoards.map((board) => (
+                    <Sidebar.BoardItem
+                      active={board.id === selectedBoard.id}
+                      canDelete={state.boards.length > 1}
+                      key={board.id}
+                      meta={`${board.scenes.length} scenes · ${formatSeconds(totalRuntimeSeconds(board.scenes))} · ${formatEditedAt(board.updatedAt, state.now)}`}
+                      onDeleteRequest={() =>
+                        dispatch({
+                          boardId: board.id,
+                          type: "setDeleteRequest",
+                        })
+                      }
+                      onSelect={() =>
+                        dispatch({ boardId: board.id, type: "selectBoard" })
+                      }
+                      title={board.title}
+                    />
+                  ))}
+                </Sidebar.BoardList>
+              </Sidebar.Section>
+              <Sidebar.Footer>
+                {state.boards.length}{" "}
+                {state.boards.length === 1 ? "board" : "boards"} · synced
+              </Sidebar.Footer>
+            </Sidebar>
+          </motion.div>
+        )}
+      </AnimatePresence>
       <EditSceneDialog
         onOpenChange={(open) => {
           if (!open) {
