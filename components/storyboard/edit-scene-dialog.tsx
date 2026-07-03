@@ -161,6 +161,7 @@ function EditSceneDialog({
               <CloudUpload aria-hidden className="size-3.25" />
               Upload image
             </button>
+            <UploadError error={error} />
             <SegmentedControl
               label="Drawing tool"
               onValueChange={(value) => setTool(value as DrawTool)}
@@ -205,7 +206,6 @@ function EditSceneDialog({
         </div>
         <div className="flex w-full px-5 pb-1">
           <SceneCanvas
-            error={error}
             fileInputRef={fileInputRef}
             image={previewImage}
             onFile={handleFile}
@@ -273,16 +273,14 @@ function DrawColorPicker({ color, onColorChange }: DrawColorPickerProps) {
 }
 
 interface SceneCanvasProps {
-  error: string | null
   fileInputRef: React.RefObject<HTMLInputElement | null>
   image: string | undefined | null
   onFile: (file: File) => void
   sceneNumber: string
 }
 
-/** Canvas area with the scene numeral and the image drop zone. */
+/** Canvas area with the scene numeral and the image drop target. */
 function SceneCanvas({
-  error,
   fileInputRef,
   image,
   onFile,
@@ -303,46 +301,28 @@ function SceneCanvas({
       onDragOver={(event) => event.preventDefault()}
       onDrop={handleDrop}
     >
-      <span className="text-[10rem] leading-none font-extralight tracking-display text-ink-on-media select-none sm:text-[16rem]">
-        {sceneNumber}
-      </span>
+      {!image && (
+        <span className="text-[12.5rem] leading-none font-extralight tracking-display text-ink-on-media select-none sm:text-[20rem]">
+          {sceneNumber}
+        </span>
+      )}
       <CanvasImage image={image} />
-      <div className="absolute inset-0 z-20 flex items-center justify-center">
-        <div className="flex w-85 flex-col items-center gap-4 rounded-xl border border-edge-strong px-8 py-8">
-          <div className="flex flex-col items-center gap-1">
-            <p className="text-body font-medium text-ink">
-              Drop an image here
-            </p>
-            <p className="text-caption text-ink-faint">
-              PNG or JPG, up to 10 MB · or draw directly on the canvas
-            </p>
-            <UploadError error={error} />
-          </div>
-          <button
-            className="rounded-full border border-edge-strong px-4 py-1.5 text-label font-medium text-ink transition-colors outline-none hover:bg-surface-panel focus-visible:ring-2 focus-visible:ring-ring"
-            onClick={() => fileInputRef.current?.click()}
-            type="button"
-          >
-            Browse files
-          </button>
-          <input
-            accept={IMAGE_UPLOAD_RULES.acceptedTypes.join(",")}
-            aria-label="Upload scene image"
-            className="sr-only"
-            onChange={(event) => {
-              const file = event.target.files?.[0]
+      <input
+        accept={IMAGE_UPLOAD_RULES.acceptedTypes.join(",")}
+        aria-label="Upload scene image"
+        className="sr-only"
+        onChange={(event) => {
+          const file = event.target.files?.[0]
 
-              if (file) {
-                onFile(file)
-              }
+          if (file) {
+            onFile(file)
+          }
 
-              event.target.value = ""
-            }}
-            ref={fileInputRef}
-            type="file"
-          />
-        </div>
-      </div>
+          event.target.value = ""
+        }}
+        ref={fileInputRef}
+        type="file"
+      />
       <span className="absolute right-3 bottom-2.5 z-20 rounded-full bg-ink-strong/55 px-2.5 py-[3px] text-caption text-ink-on-media">
         100%
       </span>

@@ -8,6 +8,7 @@ import { BoardStatusBar } from "@/components/storyboard/board-status-bar"
 import { BoardToolbar } from "@/components/storyboard/board-toolbar"
 import { EditSceneDialog } from "@/components/storyboard/edit-scene-dialog"
 import { SceneGrid } from "@/components/storyboard/scene-grid"
+import { Dialog } from "@/components/ui/dialog"
 import { Field } from "@/components/ui/field"
 import { Stepper } from "@/components/ui/stepper"
 import { Switch } from "@/components/ui/switch"
@@ -35,6 +36,8 @@ import { clampInteger } from "@/lib/validation"
 interface WorkspaceState {
   boards: Board[]
   columns: number
+  /** Board pending delete confirmation, or null when none is pending. */
+  deleteRequestBoardId: string | null
   editingSceneId: string | null
   hydrated: boolean
   ioError: string | null
@@ -49,8 +52,10 @@ interface WorkspaceState {
 
 type WorkspaceAction =
   | { board: Board; type: "addBoard" }
+  | { boardId: string; type: "deleteBoard" }
   | { boardId: string; type: "selectBoard" }
   | { columns: number; type: "setColumns" }
+  | { boardId: string | null; type: "setDeleteRequest" }
   | { error: string | null; type: "setIoError" }
   | { query: string; type: "setQuery" }
   | { rows: number; type: "setRows" }
@@ -75,6 +80,29 @@ function workspaceReducer(
         now,
         selectedBoardId: action.board.id,
       }
+    case "deleteBoard": {
+      if (state.boards.length <= 1) {
+        return state
+      }
+
+      const remainingBoards = state.boards.filter(
+        (board) => board.id !== action.boardId
+      )
+
+      return {
+        ...state,
+        boards: remainingBoards,
+        deleteRequestBoardId:
+          state.deleteRequestBoardId === action.boardId
+            ? null
+            : state.deleteRequestBoardId,
+        now,
+        selectedBoardId:
+          state.selectedBoardId === action.boardId
+            ? remainingBoards[0].id
+            : state.selectedBoardId,
+      }
+    }
     case "hydrate":
       return action.workspace === null
         ? { ...state, hydrated: true, now }
@@ -89,6 +117,8 @@ function workspaceReducer(
       return { ...state, now, selectedBoardId: action.boardId }
     case "setColumns":
       return { ...state, columns: clampInteger(action.columns, COLUMN_LIMITS) }
+    case "setDeleteRequest":
+      return { ...state, deleteRequestBoardId: action.boardId }
     case "setEditingScene":
       return { ...state, editingSceneId: action.sceneId }
     case "setIoError":
@@ -128,6 +158,7 @@ function createInitialState(): WorkspaceState {
   return {
     boards: [board],
     columns: COLUMN_LIMITS.max,
+    deleteRequestBoardId: null,
     editingSceneId: null,
     hydrated: false,
     ioError: null,
@@ -186,6 +217,9 @@ function StoryboardWorkspace() {
   const editingScene =
     editingIndex === -1 ? null : selectedBoard.scenes[editingIndex]
   const runtime = formatSeconds(totalRuntimeSeconds(selectedBoard.scenes))
+  const deleteRequestBoard =
+    state.boards.find((board) => board.id === state.deleteRequestBoardId) ??
+    null
 
   const handleNewBoard = () => {
     dispatch({
@@ -249,8 +283,12 @@ function StoryboardWorkspace() {
               {visibleBoards.map((board) => (
                 <Sidebar.BoardItem
                   active={board.id === selectedBoard.id}
+                  canDelete={state.boards.length > 1}
                   key={board.id}
                   meta={`${board.scenes.length} scenes · ${formatSeconds(totalRuntimeSeconds(board.scenes))} · ${formatEditedAt(board.updatedAt, state.now)}`}
+                  onDeleteRequest={() =>
+                    dispatch({ boardId: board.id, type: "setDeleteRequest" })
+                  }
                   onSelect={() =>
                     dispatch({ boardId: board.id, type: "selectBoard" })
                   }
@@ -361,7 +399,66 @@ function StoryboardWorkspace() {
         scene={editingScene}
         sceneNumber={formatSceneNumber(Math.max(editingIndex, 0))}
       />
+      <DeleteBoardConfirmDialog
+        board={deleteRequestBoard}
+        onConfirm={() => {
+          if (deleteRequestBoard) {
+            dispatch({ boardId: deleteRequestBoard.id, type: "deleteBoard" })
+          }
+        }}
+        onOpenChange={(open) => {
+          if (!open) {
+            dispatch({ boardId: null, type: "setDeleteRequest" })
+          }
+        }}
+      />
     </div>
+  )
+}
+
+interface DeleteBoardConfirmDialogProps {
+  /** Board pending deletion, or null when the dialog is closed. */
+  board: Board | null
+  /** Called when the user confirms the delete. */
+  onConfirm: () => void
+  /** Called when the dialog requests to open or close. */
+  onOpenChange: (open: boolean) => void
+}
+
+/** Confirmation dialog shown before a storyboard is permanently deleted. */
+function DeleteBoardConfirmDialog({
+  board,
+  onConfirm,
+  onOpenChange,
+}: DeleteBoardConfirmDialogProps) {
+  return (
+    <Dialog onOpenChange={onOpenChange} open={board !== null}>
+      <Dialog.Content className="max-w-sm">
+        <Dialog.Header>
+          <Dialog.Title>Delete storyboard</Dialog.Title>
+        </Dialog.Header>
+        <p className="px-5 py-4 text-body text-ink-muted">
+          Delete &ldquo;{board?.title}&rdquo;? This can&rsquo;t be undone.
+        </p>
+        <Dialog.Footer>
+          <Dialog.Close asChild>
+            <button
+              className="flex h-7.5 items-center rounded-full bg-surface-inset px-4 text-label text-ink transition-colors outline-none hover:text-ink-strong focus-visible:ring-2 focus-visible:ring-ring"
+              type="button"
+            >
+              Cancel
+            </button>
+          </Dialog.Close>
+          <button
+            className="flex h-7.5 items-center rounded-full bg-destructive px-4 text-label font-medium text-white transition-colors outline-none hover:bg-destructive/85 focus-visible:ring-2 focus-visible:ring-ring"
+            onClick={onConfirm}
+            type="button"
+          >
+            Delete
+          </button>
+        </Dialog.Footer>
+      </Dialog.Content>
+    </Dialog>
   )
 }
 

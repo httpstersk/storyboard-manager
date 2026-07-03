@@ -100,9 +100,11 @@ function SceneCardThumbnail({ className, onEdit }: SceneCardThumbnailProps) {
     >
       <SceneThumbnailShader preset={scene.shader} />
       <SceneCardReferenceImage image={scene.image} />
-      <span className="relative z-10 text-display font-extralight tracking-display text-ink-on-media/90 select-none">
-        {sceneNumber}
-      </span>
+      {!scene.image && (
+        <span className="relative z-10 text-display font-extralight tracking-display text-ink-on-media/90 select-none">
+          {sceneNumber}
+        </span>
+      )}
       <button
         aria-label={`Edit scene ${sceneNumber}`}
         className="absolute inset-0 z-20 outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset"

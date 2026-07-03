@@ -7,9 +7,11 @@ import {
   PanelLeftOpen,
   Plus,
   Search,
+  Trash2,
 } from "lucide-react"
 import * as React from "react"
 
+import { DropdownMenu } from "@/components/ui/dropdown-menu"
 import { IconButton } from "@/components/ui/icon-button"
 import { cn } from "@/lib/utils"
 
@@ -189,8 +191,12 @@ function SidebarBoardList({
 interface SidebarBoardItemProps {
   /** Whether this board is the one currently open. */
   active: boolean
+  /** Whether the board can be deleted (false for the last remaining board). */
+  canDelete: boolean
   /** Secondary line, for example "8 scenes · 0:42 · edited now". */
   meta: string
+  /** Called when deletion is requested from the actions menu. */
+  onDeleteRequest: () => void
   /** Called when the board is selected. */
   onSelect: () => void
   /** Board title. */
@@ -200,22 +206,26 @@ interface SidebarBoardItemProps {
 /** A selectable board entry inside {@link SidebarBoardList}. */
 function SidebarBoardItem({
   active,
+  canDelete,
   meta,
+  onDeleteRequest,
   onSelect,
   title,
 }: SidebarBoardItemProps) {
   return (
     <li>
-      <button
-        aria-current={active ? "true" : undefined}
+      <div
         className={cn(
-          "flex w-full flex-col gap-1 rounded-xl p-2.5 text-left transition-colors outline-none focus-visible:ring-2 focus-visible:ring-ring",
+          "flex w-full items-center gap-1 rounded-xl p-2.5 transition-colors",
           active ? "bg-surface-raised" : "hover:bg-surface-inset/60"
         )}
-        onClick={onSelect}
-        type="button"
       >
-        <span className="flex w-full items-center justify-between gap-2">
+        <button
+          aria-current={active ? "true" : undefined}
+          className="flex min-w-0 flex-1 flex-col gap-1 text-left outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          onClick={onSelect}
+          type="button"
+        >
           <span
             className={cn(
               "truncate text-label font-medium",
@@ -224,10 +234,31 @@ function SidebarBoardItem({
           >
             {title}
           </span>
-          <Ellipsis aria-hidden className="size-2.75 shrink-0 text-ink-faint" />
-        </span>
-        <span className="text-caption text-ink-muted">{meta}</span>
-      </button>
+          <span className="text-caption text-ink-muted">{meta}</span>
+        </button>
+        <DropdownMenu>
+          <DropdownMenu.Trigger asChild>
+            <IconButton
+              className="shrink-0"
+              label={`More actions for ${title}`}
+              size="sm"
+              variant="ghost"
+            >
+              <Ellipsis aria-hidden />
+            </IconButton>
+          </DropdownMenu.Trigger>
+          <DropdownMenu.Content align="end">
+            <DropdownMenu.Item
+              disabled={!canDelete}
+              onSelect={onDeleteRequest}
+              variant="destructive"
+            >
+              <Trash2 aria-hidden />
+              Delete storyboard
+            </DropdownMenu.Item>
+          </DropdownMenu.Content>
+        </DropdownMenu>
+      </div>
     </li>
   )
 }

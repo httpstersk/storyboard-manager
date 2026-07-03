@@ -78,7 +78,7 @@
   --text-title--line-height: 1.4;
   --text-heading: 1rem;
   --text-heading--line-height: 1.4;
-  --text-display: clamp(4.375rem, 9vw, 9.1875rem);
+  --text-display: clamp(5.5rem, 11vw, 11.5rem);
   --text-display--line-height: 1;
   --tracking-display: -0.048em;
 
