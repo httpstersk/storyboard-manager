@@ -101,13 +101,13 @@ function SceneCardThumbnail({ className, onEdit }: SceneCardThumbnailProps) {
       <SceneThumbnailShader preset={scene.shader} />
       <SceneCardReferenceImage image={scene.image} />
       {!scene.image && (
-        <span className="relative z-10 grid text-display font-extralight tracking-display text-ink-on-media/90 select-none">
+        <span className="relative z-10 grid w-full justify-items-center text-display font-extralight tracking-[-0.065em] text-ink-on-media/90 select-none">
           <span className="col-start-1 row-start-1 scale-100 opacity-100 blur-none transition-[opacity,filter,transform] duration-150 ease-out group-hover:scale-95 group-hover:opacity-0 group-hover:blur-[4px]">
             {sceneNumber}
           </span>
           <span
             aria-hidden="true"
-            className="col-start-1 row-start-1 scale-95 opacity-0 blur-[4px] transition-[opacity,filter,transform] duration-150 ease-out group-hover:scale-100 group-hover:opacity-100 group-hover:blur-none"
+            className="col-start-1 row-start-1 translate-x-[-0.0625em] scale-95 opacity-0 blur-[4px] transition-[opacity,filter,transform] duration-150 ease-out group-hover:scale-100 group-hover:opacity-100 group-hover:blur-none"
           >
             Edit
           </span>
