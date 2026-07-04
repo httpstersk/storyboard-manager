@@ -33,7 +33,7 @@ import { cn } from "@/lib/utils"
  * </Sidebar>
  * ```
  */
-function SidebarRoot({
+function Sidebar({
   children,
   className,
   ...props
@@ -379,17 +379,15 @@ function SidebarFooter({
   )
 }
 
-const Sidebar = Object.assign(SidebarRoot, {
-  BoardItem: SidebarBoardItem,
-  BoardList: SidebarBoardList,
-  BoardSwitcher: SidebarBoardSwitcher,
-  Footer: SidebarFooter,
-  Header: SidebarHeader,
-  NewBoardButton: SidebarNewBoardButton,
-  Rail: SidebarRail,
-  Search: SidebarSearch,
-  Section: SidebarSection,
-})
+Sidebar.BoardItem = SidebarBoardItem
+Sidebar.BoardList = SidebarBoardList
+Sidebar.BoardSwitcher = SidebarBoardSwitcher
+Sidebar.Footer = SidebarFooter
+Sidebar.Header = SidebarHeader
+Sidebar.NewBoardButton = SidebarNewBoardButton
+Sidebar.Rail = SidebarRail
+Sidebar.Search = SidebarSearch
+Sidebar.Section = SidebarSection
 
 export {
   Sidebar,

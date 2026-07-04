@@ -27,7 +27,7 @@ interface PillSelectProps {
  * </PillSelect>
  * ```
  */
-function PillSelectRoot({ children, onValueChange, value }: PillSelectProps) {
+function PillSelect({ children, onValueChange, value }: PillSelectProps) {
   return (
     <Select.Root onValueChange={onValueChange} value={value}>
       {children}
@@ -123,11 +123,9 @@ function PillSelectOption({
   )
 }
 
-const PillSelect = Object.assign(PillSelectRoot, {
-  Content: PillSelectContent,
-  Option: PillSelectOption,
-  Trigger: PillSelectTrigger,
-})
+PillSelect.Content = PillSelectContent
+PillSelect.Option = PillSelectOption
+PillSelect.Trigger = PillSelectTrigger
 
 export {
   PillSelect,

@@ -13,7 +13,7 @@ interface FieldContextValue {
 const FieldContext = React.createContext<FieldContextValue | null>(null)
 
 function useField(): FieldContextValue {
-  const context = React.useContext(FieldContext)
+  const context = React.use(FieldContext)
 
   if (context === null) {
     throw new Error("Field compound components must be used within <Field>.")

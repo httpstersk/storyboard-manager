@@ -19,7 +19,9 @@ import { cn } from "@/lib/utils"
  * </Dialog>
  * ```
  */
-const DialogRoot = DialogPrimitive.Root
+function Dialog(props: React.ComponentProps<typeof DialogPrimitive.Root>) {
+  return <DialogPrimitive.Root {...props} />
+}
 
 /** Panel of a {@link Dialog}, rendered in a portal above an overlay. */
 function DialogContent({
@@ -103,14 +105,12 @@ function DialogFooter({
   )
 }
 
-const Dialog = Object.assign(DialogRoot, {
-  Close: DialogPrimitive.Close,
-  Content: DialogContent,
-  Description: DialogDescription,
-  Footer: DialogFooter,
-  Header: DialogHeader,
-  Title: DialogTitle,
-  Trigger: DialogPrimitive.Trigger,
-})
+Dialog.Close = DialogPrimitive.Close
+Dialog.Content = DialogContent
+Dialog.Description = DialogDescription
+Dialog.Footer = DialogFooter
+Dialog.Header = DialogHeader
+Dialog.Title = DialogTitle
+Dialog.Trigger = DialogPrimitive.Trigger
 
 export { Dialog }

@@ -12,7 +12,7 @@ import { cn } from "@/lib/utils"
  * </BoardStatusBar>
  * ```
  */
-function BoardStatusBarRoot({
+function BoardStatusBar({
   className,
   ...props
 }: React.ComponentProps<"footer">) {
@@ -81,10 +81,8 @@ function BoardStatusBarAutosave({
   )
 }
 
-const BoardStatusBar = Object.assign(BoardStatusBarRoot, {
-  Autosave: BoardStatusBarAutosave,
-  Error: BoardStatusBarError,
-  Summary: BoardStatusBarSummary,
-})
+BoardStatusBar.Autosave = BoardStatusBarAutosave
+BoardStatusBar.Error = BoardStatusBarError
+BoardStatusBar.Summary = BoardStatusBarSummary
 
 export { BoardStatusBar }

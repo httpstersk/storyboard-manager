@@ -56,7 +56,7 @@ interface StepperProps extends Omit<React.ComponentProps<"div">, "onChange"> {
  * </Stepper>
  * ```
  */
-function StepperRoot({
+function Stepper({
   children,
   className,
   label,
@@ -165,10 +165,8 @@ function StepperValue({ className, format, ...props }: StepperValueProps) {
   )
 }
 
-const Stepper = Object.assign(StepperRoot, {
-  Decrement: StepperDecrement,
-  Increment: StepperIncrement,
-  Value: StepperValue,
-})
+Stepper.Decrement = StepperDecrement
+Stepper.Increment = StepperIncrement
+Stepper.Value = StepperValue
 
 export { Stepper, type StepperProps, type StepperValueProps }

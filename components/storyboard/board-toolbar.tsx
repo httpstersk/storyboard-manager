@@ -22,7 +22,7 @@ import { cn } from "@/lib/utils"
  * </BoardToolbar>
  * ```
  */
-function BoardToolbarRoot({
+function BoardToolbar({
   className,
   ...props
 }: React.ComponentProps<"header">) {
@@ -218,13 +218,11 @@ function ThemeToggleOption({
   )
 }
 
-const BoardToolbar = Object.assign(BoardToolbarRoot, {
-  Action: BoardToolbarAction,
-  Actions: BoardToolbarActions,
-  Brand: BoardToolbarBrand,
-  Controls: BoardToolbarControls,
-  ThemeToggle: BoardToolbarThemeToggle,
-})
+BoardToolbar.Action = BoardToolbarAction
+BoardToolbar.Actions = BoardToolbarActions
+BoardToolbar.Brand = BoardToolbarBrand
+BoardToolbar.Controls = BoardToolbarControls
+BoardToolbar.ThemeToggle = BoardToolbarThemeToggle
 
 export {
   BoardToolbar,

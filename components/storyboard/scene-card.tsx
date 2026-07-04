@@ -52,7 +52,7 @@ interface SceneCardProps extends React.ComponentProps<"article"> {
  * </SceneCard>
  * ```
  */
-function SceneCardRoot({
+function SceneCard({
   children,
   className,
   scene,
@@ -219,13 +219,11 @@ function SceneCardNoteRow({
   )
 }
 
-const SceneCard = Object.assign(SceneCardRoot, {
-  Details: SceneCardDetails,
-  NoteRow: SceneCardNoteRow,
-  Notes: SceneCardNotes,
-  Row: SceneCardRow,
-  Thumbnail: SceneCardThumbnail,
-})
+SceneCard.Details = SceneCardDetails
+SceneCard.NoteRow = SceneCardNoteRow
+SceneCard.Notes = SceneCardNotes
+SceneCard.Row = SceneCardRow
+SceneCard.Thumbnail = SceneCardThumbnail
 
 export {
   SceneCard,
