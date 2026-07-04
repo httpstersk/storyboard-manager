@@ -17,7 +17,7 @@ interface StepperContextValue {
 const StepperContext = React.createContext<StepperContextValue | null>(null)
 
 function useStepper(): StepperContextValue {
-  const context = React.useContext(StepperContext)
+  const context = React.use(StepperContext)
 
   if (context === null) {
     throw new Error("Stepper compound components must be used within <Stepper>.")

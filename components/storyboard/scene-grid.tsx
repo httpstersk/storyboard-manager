@@ -1,6 +1,6 @@
 "use client"
 
-import { AnimatePresence, motion } from "motion/react"
+import { AnimatePresence, m } from "motion/react"
 import * as React from "react"
 
 import { SceneCard } from "@/components/storyboard/scene-card"
@@ -88,7 +88,7 @@ function SceneGrid({
       >
         <AnimatePresence initial={false} mode="popLayout">
           {visibleScenes.map((scene, index) => (
-            <motion.div
+            <m.div
               animate={{ opacity: 1, scale: 1 }}
               exit={{
                 opacity: 0,
@@ -111,7 +111,7 @@ function SceneGrid({
                 sceneNumber={formatSceneNumber(index)}
                 showParameters={showParameters}
               />
-            </motion.div>
+            </m.div>
           ))}
         </AnimatePresence>
       </section>
@@ -140,7 +140,7 @@ function GridScene({
       <SceneCard.Thumbnail onEdit={onEdit} />
       <AnimatePresence initial={false}>
         {showParameters && (
-          <motion.div
+          <m.div
             animate={{ height: "auto", opacity: 1 }}
             className="overflow-hidden"
             exit={{ height: 0, opacity: 0 }}
@@ -177,7 +177,7 @@ function GridScene({
                 />
               </SceneCard.Notes>
             </SceneCard.Details>
-          </motion.div>
+          </m.div>
         )}
       </AnimatePresence>
     </SceneCard>

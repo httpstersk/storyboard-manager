@@ -9,7 +9,7 @@ import {
   Search,
   Trash2,
 } from "lucide-react"
-import { motion } from "motion/react"
+import { m } from "motion/react"
 import * as React from "react"
 
 import { DropdownMenu } from "@/components/ui/dropdown-menu"
@@ -266,7 +266,7 @@ function SidebarBoardItem({
         )}
       >
         {active && (
-          <motion.div
+          <m.div
             className="absolute inset-0 rounded-xl bg-surface-raised"
             layoutId="active-board"
             transition={{ type: "spring", duration: 0.4, bounce: 0.1 }}

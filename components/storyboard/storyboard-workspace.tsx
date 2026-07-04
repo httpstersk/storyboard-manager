@@ -1,7 +1,7 @@
 "use client"
 
 import { Download, Upload } from "lucide-react"
-import { AnimatePresence, motion } from "motion/react"
+import { AnimatePresence, m } from "motion/react"
 import * as React from "react"
 
 import { Sidebar } from "@/components/storyboard/app-sidebar"
@@ -380,7 +380,7 @@ function StoryboardWorkspace() {
           the panel's shadow reinforces that it floats above. */}
       <AnimatePresence>
         {!state.sidebarCollapsed && (
-          <motion.div
+          <m.div
             animate={{ opacity: 1 }}
             aria-hidden
             className="absolute inset-0 z-40 bg-[oklch(0_0_0_/_0.32)]"
@@ -394,7 +394,7 @@ function StoryboardWorkspace() {
           />
         )}
         {!state.sidebarCollapsed && (
-          <motion.div
+          <m.div
             animate={{ opacity: 1, x: 0 }}
             className="absolute top-4.5 left-4.5 z-50 h-[calc(100svh_-_2.25rem)]"
             exit={{ opacity: 0, x: -12 }}
@@ -450,7 +450,7 @@ function StoryboardWorkspace() {
                 {state.boards.length === 1 ? "board" : "boards"} · synced
               </Sidebar.Footer>
             </Sidebar>
-          </motion.div>
+          </m.div>
         )}
       </AnimatePresence>
       <EditSceneDialog

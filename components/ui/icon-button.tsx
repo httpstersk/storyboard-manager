@@ -55,4 +55,4 @@ function IconButton({
   )
 }
 
-export { IconButton, iconButtonVariants, type IconButtonProps }
+export { IconButton, type IconButtonProps }

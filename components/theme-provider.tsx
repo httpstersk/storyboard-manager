@@ -1,6 +1,6 @@
 "use client"
 
-import { MotionConfig } from "motion/react"
+import { domAnimation, LazyMotion, MotionConfig } from "motion/react"
 import { ThemeProvider as NextThemesProvider, useTheme } from "next-themes"
 import * as React from "react"
 
@@ -26,9 +26,11 @@ function ThemeProvider({
           user's OS-level reduced-motion preference with no per-component
           opt-in required. */}
       <MotionConfig reducedMotion="user">
-        {/* Rendered once so every <Tooltip> in the app shares delay
-            state -- see the skipDelayDuration note in ui/tooltip.tsx. */}
-        <TooltipProvider>{children}</TooltipProvider>
+        <LazyMotion features={domAnimation}>
+          {/* Rendered once so every <Tooltip> in the app shares delay
+              state -- see the skipDelayDuration note in ui/tooltip.tsx. */}
+          <TooltipProvider>{children}</TooltipProvider>
+        </LazyMotion>
       </MotionConfig>
     </NextThemesProvider>
   )

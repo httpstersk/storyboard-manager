@@ -1,5 +1,6 @@
 "use client"
 
+import Image from "next/image"
 import * as React from "react"
 
 import { SceneThumbnailShader } from "@/components/storyboard/scene-thumbnail-shader"
@@ -18,7 +19,7 @@ const SceneCardContext = React.createContext<SceneCardContextValue | null>(
 )
 
 function useSceneCard(): SceneCardContextValue {
-  const context = React.useContext(SceneCardContext)
+  const context = React.use(SceneCardContext)
 
   if (context === null) {
     throw new Error(
@@ -135,11 +136,13 @@ function SceneCardReferenceImage({ image }: { image?: string }) {
   }
 
   return (
-    // eslint-disable-next-line @next/next/no-img-element -- data URLs from local uploads cannot go through next/image
-    <img
+    <Image
       alt=""
       className="absolute inset-0 z-10 size-full object-cover"
+      fill
+      sizes="(max-width: 768px) 50vw, 25vw"
       src={image}
+      unoptimized
     />
   )
 }

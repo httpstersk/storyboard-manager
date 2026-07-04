@@ -17,7 +17,7 @@ export interface SoundSettings {
 }
 
 /** Default preferences: enabled at a subtle mid volume. */
-export const DEFAULT_SOUND_SETTINGS: SoundSettings = {
+const DEFAULT_SOUND_SETTINGS: SoundSettings = {
   enabled: true,
   volume: 0.6,
 }

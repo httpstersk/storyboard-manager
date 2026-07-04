@@ -9,6 +9,7 @@ import {
   Trash2,
   X,
 } from "lucide-react"
+import NextImage from "next/image"
 import * as React from "react"
 
 import { Dialog } from "@/components/ui/dialog"
@@ -53,6 +54,56 @@ type DrawTool = (typeof DRAW_TOOLS)[number]["value"]
  */
 type DraftImage = string | null | undefined
 
+interface DialogState {
+  brushSize: number
+  color: string
+  draftImage: DraftImage
+  error: string | null
+  tool: DrawTool
+}
+
+type DialogAction =
+  | { type: "CLEAR_IMAGE" }
+  | { type: "RESET" }
+  | { payload: number; type: "SET_BRUSH_SIZE" }
+  | { payload: string; type: "SET_COLOR" }
+  | { payload: DraftImage; type: "SET_DRAFT_IMAGE" }
+  | { payload: string | null; type: "SET_ERROR" }
+  | { payload: DrawTool; type: "SET_TOOL" }
+
+const initialDialogState: DialogState = {
+  brushSize: 4,
+  color: DRAW_COLORS[0].value,
+  draftImage: undefined,
+  error: null,
+  tool: "pencil",
+}
+
+function dialogReducer(state: DialogState, action: DialogAction): DialogState {
+  switch (action.type) {
+    case "CLEAR_IMAGE":
+      return {
+        ...state,
+        draftImage: null,
+        error: null,
+      }
+    case "RESET":
+      return initialDialogState
+    case "SET_BRUSH_SIZE":
+      return { ...state, brushSize: action.payload }
+    case "SET_COLOR":
+      return { ...state, color: action.payload }
+    case "SET_DRAFT_IMAGE":
+      return { ...state, draftImage: action.payload }
+    case "SET_ERROR":
+      return { ...state, error: action.payload }
+    case "SET_TOOL":
+      return { ...state, tool: action.payload }
+    default:
+      return state
+  }
+}
+
 /** Props for {@link EditSceneDialog}. */
 interface EditSceneDialogProps {
   /** Called when the dialog requests to open or close. */
@@ -78,11 +129,8 @@ function EditSceneDialog({
   scene,
   sceneNumber,
 }: EditSceneDialogProps) {
-  const [brushSize, setBrushSize] = React.useState(4)
-  const [color, setColor] = React.useState<string>(DRAW_COLORS[0].value)
-  const [draftImage, setDraftImage] = React.useState<DraftImage>(undefined)
-  const [error, setError] = React.useState<string | null>(null)
-  const [tool, setTool] = React.useState<DrawTool>("pencil")
+  const [state, dispatch] = React.useReducer(dialogReducer, initialDialogState)
+  const { brushSize, color, draftImage, error, tool } = state
   const fileInputRef = React.useRef<HTMLInputElement>(null)
   const drawingCanvasRef = React.useRef<DrawingCanvasHandle>(null)
 
@@ -93,11 +141,7 @@ function EditSceneDialog({
   const previewImage = draftImage === undefined ? scene.image : draftImage
 
   const resetState = () => {
-    setBrushSize(4)
-    setColor(DRAW_COLORS[0].value)
-    setDraftImage(undefined)
-    setError(null)
-    setTool("pencil")
+    dispatch({ type: "RESET" })
   }
 
   const handleOpenChange = (nextOpen: boolean) => {
@@ -112,7 +156,7 @@ function EditSceneDialog({
     const result = validateImageFile(file)
 
     if (!result.ok) {
-      setError(result.error ?? "This file cannot be used.")
+      dispatch({ payload: result.error ?? "This file cannot be used.", type: "SET_ERROR" })
       return
     }
 
@@ -120,18 +164,17 @@ function EditSceneDialog({
     const reader = new FileReader()
 
     reader.onload = () => {
-      setDraftImage(reader.result as string)
-      setError(null)
+      dispatch({ payload: reader.result as string, type: "SET_DRAFT_IMAGE" })
+      dispatch({ payload: null, type: "SET_ERROR" })
     }
     reader.onerror = () => {
-      setError("This file could not be read.")
+      dispatch({ payload: "This file could not be read.", type: "SET_ERROR" })
     }
     reader.readAsDataURL(file)
   }
 
   const handleRemoveImage = () => {
-    setDraftImage(null)
-    setError(null)
+    dispatch({ type: "CLEAR_IMAGE" })
   }
 
   const handleSave = async () => {
@@ -181,7 +224,7 @@ function EditSceneDialog({
             <UploadError error={error} />
             <SegmentedControl
               label="Drawing tool"
-              onValueChange={(value) => setTool(value as DrawTool)}
+              onValueChange={(value) => dispatch({ payload: value as DrawTool, type: "SET_TOOL" })}
               value={tool}
               variant="raised"
             >
@@ -201,12 +244,12 @@ function EditSceneDialog({
                 label="Brush size"
                 max={BRUSH_SIZE_LIMITS.max}
                 min={BRUSH_SIZE_LIMITS.min}
-                onValueChange={([value]) => setBrushSize(value)}
+                onValueChange={([value]) => dispatch({ payload: value, type: "SET_BRUSH_SIZE" })}
                 value={[brushSize]}
               />
               <span className="text-label text-ink">{brushSize}</span>
             </div>
-            <DrawColorPicker color={color} onColorChange={setColor} />
+            <DrawColorPicker color={color} onColorChange={(nextColor) => dispatch({ payload: nextColor, type: "SET_COLOR" })} />
           </div>
           <div className="flex items-center gap-1.5">
             <IconButton disabled label="Undo">
@@ -375,11 +418,12 @@ function CanvasImage({ image }: { image: string | undefined | null }) {
   }
 
   return (
-    // eslint-disable-next-line @next/next/no-img-element -- data URLs from local uploads cannot go through next/image
-    <img
+    <NextImage
       alt="Uploaded scene reference"
       className="absolute inset-0 z-10 size-full object-cover"
+      fill
       src={image}
+      unoptimized
     />
   )
 }

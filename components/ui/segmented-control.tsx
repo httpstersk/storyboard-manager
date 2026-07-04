@@ -99,7 +99,7 @@ function SegmentedControlOption({
   value,
   ...props
 }: SegmentedControlOptionProps) {
-  const variant = React.useContext(SegmentedControlContext)
+  const variant = React.use(SegmentedControlContext)
 
   return (
     <ToggleGroup.Item

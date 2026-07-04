@@ -55,13 +55,13 @@ export function sanitizeNote(value: string): string {
 }
 
 /** Maximum length of a board title. */
-export const MAX_TITLE_LENGTH = 60
+const MAX_TITLE_LENGTH = 60
 
 /**
  * Normalises a board title: strips control characters and enforces
  * {@link MAX_TITLE_LENGTH}.
  */
-export function sanitizeTitle(value: string): string {
+function sanitizeTitle(value: string): string {
   return value
     .replace(/[\u0000-\u001f\u007f]/g, "")
     .slice(0, MAX_TITLE_LENGTH)
@@ -116,7 +116,7 @@ const SHOT_SIZE_VALUES = SHOT_SIZE_OPTIONS.map((option) => option.value)
  * Validates and normalises one scene from untrusted JSON (imports and
  * localStorage). Returns null when the value is not a usable scene.
  */
-export function coerceScene(value: unknown, index: number): Scene | null {
+function coerceScene(value: unknown, index: number): Scene | null {
   if (!isRecord(value)) {
     return null
   }

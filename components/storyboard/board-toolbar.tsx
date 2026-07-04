@@ -2,7 +2,7 @@
 
 import { cva, type VariantProps } from "class-variance-authority"
 import { Moon, Sun } from "lucide-react"
-import { motion } from "motion/react"
+import { m } from "motion/react"
 import { useTheme } from "next-themes"
 import * as React from "react"
 
@@ -207,7 +207,7 @@ function ThemeToggleOption({
       type="button"
     >
       {active && (
-        <motion.div
+        <m.div
           className="absolute inset-0 rounded-full bg-surface-raised"
           layoutId="theme-toggle-thumb"
           transition={{ type: "spring", duration: 0.3, bounce: 0.15 }}

@@ -245,7 +245,7 @@ const BLANK_SCENE_SHADERS: SceneShaderPreset[] = [
  * largest possible grid (COLUMN_LIMITS.max x ROW_LIMITS.max), so every
  * row and column the user can select always has a scene to display.
  */
-export const NEW_BOARD_SCENE_COUNT = COLUMN_LIMITS.max * ROW_LIMITS.max
+const NEW_BOARD_SCENE_COUNT = COLUMN_LIMITS.max * ROW_LIMITS.max
 
 /** Title given to boards created without an explicit name. */
 export const UNTITLED_BOARD_TITLE = "Untitled board"
@@ -254,7 +254,7 @@ export const UNTITLED_BOARD_TITLE = "Untitled board"
  * Creates a blank scene with neutral defaults and a shader preset
  * cycled by scene index.
  */
-export function createBlankScene(index: number): Scene {
+function createBlankScene(index: number): Scene {
   return {
     action: "",
     camera: CAMERA_OPTIONS[0].value,
