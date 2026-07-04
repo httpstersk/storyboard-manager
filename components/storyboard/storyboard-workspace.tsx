@@ -239,7 +239,8 @@ function StoryboardWorkspace() {
   )
   const editingScene =
     editingIndex === -1 ? null : selectedBoard.scenes[editingIndex]
-  const runtime = formatSeconds(totalRuntimeSeconds(selectedBoard.scenes))
+  const visibleScenes = selectedBoard.scenes.slice(0, state.rows * state.columns)
+  const runtime = formatSeconds(totalRuntimeSeconds(visibleScenes))
   const deleteRequestBoard =
     state.boards.find((board) => board.id === state.deleteRequestBoardId) ??
     null
@@ -376,7 +377,7 @@ function StoryboardWorkspace() {
         />
         <BoardStatusBar>
           <BoardStatusBar.Summary>
-            {selectedBoard.scenes.length} scenes · {runtime} total · 16:9
+            {visibleScenes.length} scenes · {runtime} total
           </BoardStatusBar.Summary>
           {state.ioError !== null && (
             <BoardStatusBar.Error>{state.ioError}</BoardStatusBar.Error>

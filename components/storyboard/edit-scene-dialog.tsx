@@ -202,7 +202,7 @@ function EditSceneDialog({
           <div className="flex items-baseline gap-2.5">
             <Dialog.Title>Edit scene {sceneNumber}</Dialog.Title>
             <Dialog.Description>
-              {formatSeconds(scene.timeSeconds)} · 16:9
+              {formatSeconds(scene.timeSeconds)}
             </Dialog.Description>
           </div>
           <Dialog.Close asChild>
@@ -323,7 +323,7 @@ function DrawColorPicker({ color, onColorChange }: DrawColorPickerProps) {
           className={cn(
             "size-4 rounded-full border border-edge-strong outline-none transition-[box-shadow,transform] duration-150 ease-out active:scale-90 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1",
             color === swatch.value &&
-              "ring-2 ring-emphasis ring-offset-2 ring-offset-surface-panel"
+            "ring-2 ring-emphasis ring-offset-2 ring-offset-surface-panel"
           )}
           key={swatch.value}
           onClick={() => onColorChange(swatch.value)}
