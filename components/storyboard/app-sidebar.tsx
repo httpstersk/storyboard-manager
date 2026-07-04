@@ -5,6 +5,7 @@ import {
   LayoutGrid,
   PanelLeftClose,
   PanelLeftOpen,
+  Pencil,
   Plus,
   Search,
   Trash2,
@@ -242,6 +243,8 @@ interface SidebarBoardItemProps {
   meta: string
   /** Called when deletion is requested from the actions menu. */
   onDeleteRequest: () => void
+  /** Called when the board title is renamed inline. */
+  onRename: (newTitle: string) => void
   /** Called when the board is selected. */
   onSelect: () => void
   /** Board title. */
@@ -254,14 +257,40 @@ function SidebarBoardItem({
   canDelete,
   meta,
   onDeleteRequest,
+  onRename,
   onSelect,
   title,
 }: SidebarBoardItemProps) {
+  const [isEditing, setIsEditing] = React.useState(false)
+  const inputRef = React.useRef<HTMLInputElement>(null)
+
+  const handleConfirm = () => {
+    if (!inputRef.current) return
+
+    const newTitle = inputRef.current.value.trim()
+
+    if (newTitle && newTitle !== title) {
+      onRename(newTitle)
+    }
+
+    setIsEditing(false)
+  }
+
+  const handleKeyDown = (event: React.KeyboardEvent<HTMLInputElement>) => {
+    if (event.key === "Enter") {
+      event.preventDefault()
+      handleConfirm()
+    } else if (event.key === "Escape") {
+      event.preventDefault()
+      setIsEditing(false)
+    }
+  }
+
   return (
     <li>
       <div
         className={cn(
-          "relative flex w-full items-center gap-1 rounded-xl p-2.5",
+          "group relative flex w-full items-center gap-1 rounded-xl p-2.5",
           !active && "hover:bg-surface-inset/60"
         )}
       >
@@ -272,44 +301,77 @@ function SidebarBoardItem({
             transition={{ type: "spring", duration: 0.4, bounce: 0.1 }}
           />
         )}
-        <button
-          aria-current={active ? "true" : undefined}
-          className="relative z-10 flex min-w-0 flex-1 flex-col gap-1 text-left outline-none focus-visible:ring-2 focus-visible:ring-ring"
-          onClick={onSelect}
-          type="button"
-        >
-          <span
-            className={cn(
-              "truncate text-label font-medium",
-              active ? "text-ink-strong" : "text-ink"
-            )}
-          >
-            {title}
-          </span>
-          <span className="text-caption text-ink-muted">{meta}</span>
-        </button>
-        <DropdownMenu>
-          <DropdownMenu.Trigger asChild>
+        {isEditing ? (
+          <div className="relative z-10 flex min-w-0 flex-1 flex-col gap-1">
+            <input
+              aria-label="Board name"
+              autoFocus
+              className="w-full rounded-md bg-transparent px-1 text-label font-medium text-ink-strong outline-none ring-1 ring-ring"
+              defaultValue={title}
+              onBlur={handleConfirm}
+              onFocus={(event) => event.currentTarget.select()}
+              onKeyDown={handleKeyDown}
+              ref={inputRef}
+              type="text"
+            />
+            <span className="text-caption text-ink-muted">{meta}</span>
+          </div>
+        ) : (
+          <>
+            <button
+              aria-current={active ? "true" : undefined}
+              className="relative z-10 flex min-w-0 flex-1 flex-col gap-1 text-left outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              onClick={onSelect}
+              type="button"
+            >
+              <span
+                className={cn(
+                  "truncate text-label font-medium",
+                  active ? "text-ink-strong" : "text-ink"
+                )}
+              >
+                {title}
+              </span>
+              <span className="text-caption text-ink-muted">{meta}</span>
+            </button>
             <IconButton
-              className="relative z-10 shrink-0"
-              label={`More actions for ${title}`}
+              className="relative z-10 shrink-0 opacity-0 transition-opacity group-hover:opacity-100"
+              label={`Rename ${title}`}
+              onClick={(event) => {
+                event.stopPropagation()
+                setIsEditing(true)
+              }}
               size="sm"
               variant="ghost"
             >
-              <Ellipsis aria-hidden />
+              <Pencil aria-hidden />
             </IconButton>
-          </DropdownMenu.Trigger>
-          <DropdownMenu.Content align="end">
-            <DropdownMenu.Item
-              disabled={!canDelete}
-              onSelect={onDeleteRequest}
-              variant="destructive"
-            >
-              <Trash2 aria-hidden />
-              Delete storyboard
-            </DropdownMenu.Item>
-          </DropdownMenu.Content>
-        </DropdownMenu>
+          </>
+        )}
+        {!isEditing && (
+          <DropdownMenu>
+            <DropdownMenu.Trigger asChild>
+              <IconButton
+                className="relative z-10 shrink-0"
+                label={`More actions for ${title}`}
+                size="sm"
+                variant="ghost"
+              >
+                <Ellipsis aria-hidden />
+              </IconButton>
+            </DropdownMenu.Trigger>
+            <DropdownMenu.Content align="end">
+              <DropdownMenu.Item
+                disabled={!canDelete}
+                onSelect={onDeleteRequest}
+                variant="destructive"
+              >
+                <Trash2 aria-hidden />
+                Delete storyboard
+              </DropdownMenu.Item>
+            </DropdownMenu.Content>
+          </DropdownMenu>
+        )}
       </div>
     </li>
   )

@@ -56,6 +56,7 @@ interface WorkspaceState {
 type WorkspaceAction =
   | { board: Board; type: "addBoard" }
   | { boardId: string; type: "deleteBoard" }
+  | { boardId: string; title: string; type: "renameBoard" }
   | { boardId: string; type: "selectBoard" }
   | { columns: number; type: "setColumns" }
   | { boardId: string | null; type: "setDeleteRequest" }
@@ -116,6 +117,16 @@ function workspaceReducer(
           now,
           selectedBoardId: action.workspace.selectedBoardId,
         }
+    case "renameBoard":
+      return {
+        ...state,
+        boards: state.boards.map((board) =>
+          board.id === action.boardId
+            ? { ...board, title: action.title, updatedAt: now }
+            : board
+        ),
+        now,
+      }
     case "selectBoard":
       return { ...state, now, selectedBoardId: action.boardId }
     case "setColumns":
@@ -435,6 +446,13 @@ function StoryboardWorkspace() {
                         dispatch({
                           boardId: board.id,
                           type: "setDeleteRequest",
+                        })
+                      }
+                      onRename={(newTitle) =>
+                        dispatch({
+                          boardId: board.id,
+                          title: newTitle,
+                          type: "renameBoard",
                         })
                       }
                       onSelect={() =>
