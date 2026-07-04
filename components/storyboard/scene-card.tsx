@@ -88,8 +88,10 @@ interface SceneCardThumbnailProps {
 }
 
 /**
- * Scene preview area: shader background, uploaded reference image when
- * present, giant numeral, and a full-size edit target.
+ * Scene preview area. Scenes without artwork show the animated shader
+ * behind the giant numeral; once a scene has an image (an upload or a
+ * saved drawing) the shader is hidden so it can't bleed through the
+ * transparent parts of the artwork. Also renders a full-size edit target.
  */
 function SceneCardThumbnail({ className, onEdit }: SceneCardThumbnailProps) {
   const { scene, sceneNumber } = useSceneCard()
@@ -101,7 +103,7 @@ function SceneCardThumbnail({ className, onEdit }: SceneCardThumbnailProps) {
         className
       )}
     >
-      <SceneThumbnailShader preset={scene.shader} />
+      {!scene.image && <SceneThumbnailShader preset={scene.shader} />}
       <SceneCardReferenceImage image={scene.image} />
       {!scene.image && (
         <span className="relative z-10 grid w-full justify-items-center text-display font-extralight tracking-[-0.065em] text-ink-on-media/90 select-none">
