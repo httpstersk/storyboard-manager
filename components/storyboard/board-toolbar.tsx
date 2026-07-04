@@ -1,7 +1,7 @@
 "use client"
 
 import { cva, type VariantProps } from "class-variance-authority"
-import { Moon, Sun } from "lucide-react"
+import { SFMoon, SFSunMax } from "sf-symbols-lib/monochrome"
 import { m } from "motion/react"
 import { useTheme } from "next-themes"
 import * as React from "react"
@@ -158,7 +158,7 @@ function BoardToolbarThemeToggle({ className }: { className?: string }) {
         label="Light theme"
         onClick={() => setTheme("light")}
       >
-        <Sun aria-hidden className="relative z-10 size-2.75" />
+        <SFSunMax aria-hidden className="relative z-10 size-2.75" />
       </ThemeToggleOption>
       <ThemeToggleOption
         active={hydrated ? resolvedTheme === "dark" : undefined}
@@ -166,7 +166,7 @@ function BoardToolbarThemeToggle({ className }: { className?: string }) {
         label="Dark theme"
         onClick={() => setTheme("dark")}
       >
-        <Moon aria-hidden className="relative z-10 size-2.75" />
+        <SFMoon aria-hidden className="relative z-10 size-2.75" />
       </ThemeToggleOption>
     </div>
   )

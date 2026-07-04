@@ -1,14 +1,14 @@
 "use client"
 
 import {
-  Brush,
-  CloudUpload,
-  Eraser,
-  Pencil,
-  RotateCcw,
-  Trash2,
-  X,
-} from "lucide-react"
+  SFArrowCounterclockwise,
+  SFEraser,
+  SFIcloudAndArrowUp,
+  SFPaintbrush,
+  SFPencil,
+  SFTrash,
+  SFXmark,
+} from "sf-symbols-lib/monochrome"
 import NextImage from "next/image"
 import * as React from "react"
 
@@ -41,9 +41,9 @@ const DRAW_COLORS = [
 
 /** Drawing tools offered by the tool picker. */
 const DRAW_TOOLS = [
-  { icon: Pencil, label: "Pencil", value: "pencil" },
-  { icon: Brush, label: "Brush", value: "brush" },
-  { icon: Eraser, label: "Eraser", value: "eraser" },
+  { icon: SFPencil, label: "Pencil", value: "pencil" },
+  { icon: SFPaintbrush, label: "Brush", value: "brush" },
+  { icon: SFEraser, label: "Eraser", value: "eraser" },
 ] as const
 
 type DrawTool = (typeof DRAW_TOOLS)[number]["value"]
@@ -207,7 +207,7 @@ function EditSceneDialog({
           </div>
           <Dialog.Close asChild>
             <IconButton label="Close">
-              <X aria-hidden />
+              <SFXmark aria-hidden />
             </IconButton>
           </Dialog.Close>
         </Dialog.Header>
@@ -218,7 +218,7 @@ function EditSceneDialog({
               onClick={() => fileInputRef.current?.click()}
               type="button"
             >
-              <CloudUpload aria-hidden className="size-3.25" />
+              <SFIcloudAndArrowUp aria-hidden className="size-3.25" />
               Upload image
             </button>
             <UploadError error={error} />
@@ -253,14 +253,14 @@ function EditSceneDialog({
           </div>
           <div className="flex items-center gap-1.5">
             <IconButton disabled label="Undo">
-              <RotateCcw aria-hidden />
+              <SFArrowCounterclockwise aria-hidden />
             </IconButton>
             <IconButton
               disabled={previewImage === undefined}
               label="Remove image"
               onClick={handleRemoveImage}
             >
-              <Trash2 aria-hidden />
+              <SFTrash aria-hidden />
             </IconButton>
           </div>
         </div>

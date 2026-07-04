@@ -1,6 +1,6 @@
 "use client"
 
-import { Minus, Plus } from "lucide-react"
+import { SFMinus, SFPlus } from "sf-symbols-lib/monochrome"
 import * as React from "react"
 
 import { cn } from "@/lib/utils"
@@ -115,7 +115,7 @@ function StepperDecrement({
       type="button"
       {...props}
     >
-      <Minus aria-hidden />
+      <SFMinus aria-hidden />
     </button>
   )
 }
@@ -136,7 +136,7 @@ function StepperIncrement({
       type="button"
       {...props}
     >
-      <Plus aria-hidden />
+      <SFPlus aria-hidden />
     </button>
   )
 }

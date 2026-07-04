@@ -1,6 +1,6 @@
 "use client"
 
-import { Download, Upload } from "lucide-react"
+import { SFArrowDownToLine, SFArrowUpToLine } from "sf-symbols-lib/monochrome"
 import { AnimatePresence, m } from "motion/react"
 import * as React from "react"
 
@@ -330,15 +330,15 @@ function StoryboardWorkspace() {
             <BoardToolbar.Action
               onClick={() => importInputRef.current?.click()}
             >
-              <Upload aria-hidden />
+              <SFArrowUpToLine aria-hidden />
               Import
             </BoardToolbar.Action>
             <BoardToolbar.Action onClick={() => exportBoardJson(selectedBoard)}>
-              <Download aria-hidden />
+              <SFArrowDownToLine aria-hidden />
               JSON
             </BoardToolbar.Action>
             <BoardToolbar.Action onClick={handleExportPng} variant="emphasis">
-              <Download aria-hidden />
+              <SFArrowDownToLine aria-hidden />
               PNG
             </BoardToolbar.Action>
             <SoundControl />

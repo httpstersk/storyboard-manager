@@ -1,6 +1,6 @@
 "use client"
 
-import { Check, ChevronDown } from "lucide-react"
+import { SFCheckmark, SFChevronDown } from "sf-symbols-lib/monochrome"
 import { Select } from "radix-ui"
 import * as React from "react"
 
@@ -59,7 +59,7 @@ function PillSelectTrigger({
     >
       <Select.Value />
       <Select.Icon>
-        <ChevronDown aria-hidden className="size-2.5 opacity-70" />
+        <SFChevronDown aria-hidden className="size-2.5 opacity-70" />
       </Select.Icon>
     </Select.Trigger>
   )
@@ -117,7 +117,7 @@ function PillSelectOption({
     >
       <Select.ItemText>{children}</Select.ItemText>
       <Select.ItemIndicator>
-        <Check aria-hidden className="size-2.5" />
+        <SFCheckmark aria-hidden className="size-2.5" />
       </Select.ItemIndicator>
     </Select.Item>
   )

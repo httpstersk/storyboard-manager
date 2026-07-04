@@ -1,15 +1,14 @@
 "use client"
 
 import {
-  Ellipsis,
-  LayoutGrid,
-  PanelLeftClose,
-  PanelLeftOpen,
-  Pencil,
-  Plus,
-  Search,
-  Trash2,
-} from "lucide-react"
+  SFEllipsis,
+  SFMagnifyingglass,
+  SFPencil,
+  SFPlus,
+  SFSidebarLeft,
+  SFSquareGrid2x2,
+  SFTrash,
+} from "sf-symbols-lib/monochrome"
 import { m } from "motion/react"
 import * as React from "react"
 
@@ -72,7 +71,7 @@ function SidebarHeader({ className, onCollapse, title }: SidebarHeaderProps) {
     >
       <h1 className="text-label font-medium text-ink-strong">{title}</h1>
       <IconButton label="Collapse sidebar" onClick={onCollapse} size="sm">
-        <PanelLeftClose aria-hidden />
+        <SFSidebarLeft aria-hidden />
       </IconButton>
     </div>
   )
@@ -111,10 +110,10 @@ function SidebarRail({
       )}
     >
       <IconButton label="Expand sidebar" onClick={onExpand} size="sm">
-        <PanelLeftOpen aria-hidden />
+        <SFSidebarLeft aria-hidden />
       </IconButton>
       <IconButton label="New storyboard" onClick={onNewBoard} size="sm">
-        <Plus aria-hidden />
+        <SFPlus aria-hidden />
       </IconButton>
       {/* Divider separating actions from the per-board switcher */}
       <div aria-hidden className="h-px w-4 shrink-0 bg-surface-inset" />
@@ -158,7 +157,7 @@ function SidebarNewBoardButton({
       type={type}
       {...props}
     >
-      <Plus aria-hidden className="size-2.75" />
+      <SFPlus aria-hidden className="size-2.75" />
       {children}
     </button>
   )
@@ -182,7 +181,7 @@ function SidebarSearch({ className, onQueryChange, query }: SidebarSearchProps) 
         className
       )}
     >
-      <Search aria-hidden className="size-2.5 shrink-0 text-ink-muted" />
+      <SFMagnifyingglass aria-hidden className="size-2.5 shrink-0 text-ink-muted" />
       <input
         aria-label="Search boards"
         className="w-full bg-transparent text-caption text-ink outline-none placeholder:text-ink-faint"
@@ -344,7 +343,7 @@ function SidebarBoardItem({
               size="sm"
               variant="ghost"
             >
-              <Pencil aria-hidden />
+              <SFPencil aria-hidden />
             </IconButton>
           </>
         )}
@@ -357,7 +356,7 @@ function SidebarBoardItem({
                 size="sm"
                 variant="ghost"
               >
-                <Ellipsis aria-hidden />
+                <SFEllipsis aria-hidden />
               </IconButton>
             </DropdownMenu.Trigger>
             <DropdownMenu.Content align="end">
@@ -366,7 +365,7 @@ function SidebarBoardItem({
                 onSelect={onDeleteRequest}
                 variant="destructive"
               >
-                <Trash2 aria-hidden />
+                <SFTrash aria-hidden />
                 Delete storyboard
               </DropdownMenu.Item>
             </DropdownMenu.Content>
@@ -435,7 +434,7 @@ function SidebarFooter({
       )}
       {...props}
     >
-      <LayoutGrid aria-hidden className="size-2.5 shrink-0 text-ink-muted" />
+      <SFSquareGrid2x2 aria-hidden className="size-2.5 shrink-0 text-ink-muted" />
       <span className="text-caption text-ink-muted">{children}</span>
     </div>
   )

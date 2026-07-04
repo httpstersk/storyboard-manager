@@ -1,7 +1,7 @@
 "use client"
 
 import { useAtom } from "jotai"
-import { Volume1, Volume2, VolumeX } from "lucide-react"
+import { SFSpeakerSlash, SFSpeakerWave1, SFSpeakerWave2 } from "sf-symbols-lib/monochrome"
 import * as React from "react"
 
 import { IconButton } from "@/components/ui/icon-button"
@@ -25,7 +25,7 @@ function SoundControl() {
   const { enabled, volume } = settings
 
   const muted = !enabled || volume === 0
-  const Icon = muted ? VolumeX : volume < LOUD_VOLUME_THRESHOLD ? Volume1 : Volume2
+  const Icon = muted ? SFSpeakerSlash : volume < LOUD_VOLUME_THRESHOLD ? SFSpeakerWave1 : SFSpeakerWave2
 
   return (
     <Popover>
