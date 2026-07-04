@@ -28,7 +28,10 @@ function BoardToolbar({
 }: React.ComponentProps<"header">) {
   return (
     <header
-      className={cn("flex h-12 shrink-0 items-center gap-6 px-1", className)}
+      className={cn(
+        "flex min-h-12 h-auto shrink-0 flex-wrap items-center justify-between gap-x-6 gap-y-3 px-1 py-3 lg:h-12 lg:py-0",
+        className
+      )}
       {...props}
     />
   )
@@ -64,7 +67,10 @@ function BoardToolbarControls({
 }: React.ComponentProps<"div">) {
   return (
     <div
-      className={cn("flex flex-1 items-center gap-6", className)}
+      className={cn(
+        "flex w-full flex-wrap items-center gap-x-6 gap-y-2 lg:w-auto lg:flex-1",
+        className
+      )}
       {...props}
     />
   )
@@ -77,7 +83,7 @@ function BoardToolbarActions({
 }: React.ComponentProps<"div">) {
   return (
     <div
-      className={cn("flex shrink-0 items-center gap-2", className)}
+      className={cn("flex w-full flex-wrap items-center gap-2 lg:w-auto lg:shrink-0", className)}
       {...props}
     />
   )
