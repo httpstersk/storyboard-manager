@@ -79,13 +79,24 @@ export function parseBoardFile(text: string, boardId: string): BoardImportResult
 /**
  * Captures the given element as a PNG and downloads it. Shader
  * thumbnails are WebGL canvases and may capture blank on some browsers.
+ *
+ * `toPng` is called twice deliberately: html-to-image renders the DOM
+ * inside an SVG `foreignObject` and loads embedded images asynchronously.
+ * On the first pass the browser has not yet cached the data-URL images,
+ * so the first scene's image draws blank. The second pass finds every
+ * image already in the browser's internal cache and captures them all.
  */
 export async function exportNodePng(
   node: HTMLElement,
   title: string
 ): Promise<void> {
   const { toPng } = await import("html-to-image")
-  const dataUrl = await toPng(node, { pixelRatio: 2 })
+  const options = { pixelRatio: 2 }
+
+  // Prime the browser's image cache so all data-URL images are ready.
+  await toPng(node, options)
+  const dataUrl = await toPng(node, options)
+
   const response = await fetch(dataUrl)
   const blob = await response.blob()
 
