@@ -9,7 +9,7 @@ import type { Board } from "@/lib/storyboard"
 import { coerceBoard } from "@/lib/validation"
 
 /** Versioned key under which the workspace is stored. */
-const STORAGE_KEY = "storyboard-manager:v1"
+const STORAGE_KEY = "storyboard-studio:v1"
 
 /** Workspace snapshot persisted across reloads. */
 export interface StoredWorkspace {

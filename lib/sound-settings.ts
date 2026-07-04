@@ -23,7 +23,7 @@ const DEFAULT_SOUND_SETTINGS: SoundSettings = {
 }
 
 /** Versioned localStorage key for {@link soundSettingsAtom}. */
-const SOUND_SETTINGS_KEY = "storyboard-manager:sound:v1"
+const SOUND_SETTINGS_KEY = "storyboard-studio:sound:v1"
 
 /** Global, persisted click-sound preferences. */
 export const soundSettingsAtom = atomWithStorage<SoundSettings>(

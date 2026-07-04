@@ -201,7 +201,7 @@ const SIDEBAR_SPRING = { type: "spring", duration: 0.4, bounce: 0.1 } as const
 const SIDEBAR_CONTENT_TRANSITION = { duration: 0.15, ease: "easeOut" } as const
 
 /**
- * Client-side shell of the storyboard manager: owns all board state and
+ * Client-side shell of the storyboard studio: owns all board state and
  * composes the sidebar, toolbar, scene grid, status bar, and scene
  * editor dialog. Boards persist to localStorage after every change.
  */
@@ -285,7 +285,7 @@ function StoryboardWorkspace() {
           the floating panel below) instead of widening this column. Kept
           at a fixed viewport height rather than stretching to <main>'s
           natural height so a rows/columns edit can't distort it. */}
-      <div className="h-[calc(100svh_-_2.25rem)] shrink-0">
+      <div className="h-[calc(100svh_-_3rem)] shrink-0 mt-3">
         <Sidebar.Rail
           boards={state.boards}
           className="h-full"
@@ -407,7 +407,7 @@ function StoryboardWorkspace() {
         {!state.sidebarCollapsed && (
           <m.div
             animate={{ opacity: 1, x: 0 }}
-            className="absolute top-4.5 left-4.5 z-50 h-[calc(100svh_-_2.25rem)]"
+            className="absolute top-7.5 left-4.5 z-50 h-[calc(100svh_-_3rem)]"
             exit={{ opacity: 0, x: -12 }}
             initial={{ opacity: 0, x: -12 }}
             key="sidebar-panel"

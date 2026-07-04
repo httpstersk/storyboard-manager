@@ -1,5 +1,5 @@
 /**
- * Domain model, option catalogues, and seed data for the storyboard manager.
+ * Domain model, option catalogues, and seed data for the storyboard studio.
  *
  * All values that appear in more than one place (cameras, lenses, grid
  * limits, and so on) live here so components never hardcode them.

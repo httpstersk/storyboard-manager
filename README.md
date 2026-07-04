@@ -1,4 +1,4 @@
-# Storyboard Manager
+# Storyboard Studio
 
 A professional, interactive storyboard manager built with **Next.js**, **Tailwind CSS**, and **shadcn/ui**. Designed for filmmakers, directors, animators, and visual designers to plan, organize, and visualize scenes dynamically in a grid workspace.
 
@@ -6,7 +6,7 @@ A professional, interactive storyboard manager built with **Next.js**, **Tailwin
 
 ## 🎬 Overview & Purpose
 
-The Storyboard Manager provides a responsive, responsive-grid workspace that acts as a thin interactive layer over local data. It allows users to structure film or animation boards, adjust grid rows and columns dynamically, upload or sketch scene thumbnails, edit camera parameters, write notes, and export high-fidelity results.
+The Storyboard Studio provides a responsive, responsive-grid workspace that acts as a thin interactive layer over local data. It allows users to structure film or animation boards, adjust grid rows and columns dynamically, upload or sketch scene thumbnails, edit camera parameters, write notes, and export high-fidelity results.
 
 All board data is automatically persisted locally and features interactive WebGL animated mesh gradients, procedural audio feedback, and dual-theme capability.
 
