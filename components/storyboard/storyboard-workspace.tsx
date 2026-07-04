@@ -9,6 +9,7 @@ import { BoardStatusBar } from "@/components/storyboard/board-status-bar"
 import { BoardToolbar } from "@/components/storyboard/board-toolbar"
 import { EditSceneDialog } from "@/components/storyboard/edit-scene-dialog"
 import { SceneGrid } from "@/components/storyboard/scene-grid"
+import { SoundControl } from "@/components/storyboard/sound-control"
 import { Dialog } from "@/components/ui/dialog"
 import { Field } from "@/components/ui/field"
 import { Stepper } from "@/components/ui/stepper"
@@ -329,6 +330,7 @@ function StoryboardWorkspace() {
               <Download aria-hidden />
               PNG
             </BoardToolbar.Action>
+            <SoundControl />
             <BoardToolbar.ThemeToggle />
           </BoardToolbar.Actions>
         </BoardToolbar>

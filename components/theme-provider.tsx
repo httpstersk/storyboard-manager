@@ -5,11 +5,14 @@ import { ThemeProvider as NextThemesProvider, useTheme } from "next-themes"
 import * as React from "react"
 
 import { TooltipProvider } from "@/components/ui/tooltip"
+import { useInteractionSounds } from "@/hooks/use-interaction-sounds"
 
 function ThemeProvider({
   children,
   ...props
 }: React.ComponentProps<typeof NextThemesProvider>) {
+  useInteractionSounds()
+
   return (
     <NextThemesProvider
       attribute="class"
