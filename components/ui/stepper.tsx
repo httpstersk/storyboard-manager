@@ -97,7 +97,7 @@ function Stepper({
 }
 
 const stepperButtonClassName =
-  "flex size-5 shrink-0 items-center justify-center rounded-full bg-surface-raised text-ink-muted outline-none transition-[color,transform] duration-150 ease-out hover:text-ink-strong active:scale-90 focus-visible:ring-2 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-40 [&_svg]:size-2.75"
+  "flex size-5 shrink-0 items-center justify-center rounded-full bg-surface-raised text-ink-muted outline-none transition-[color,transform] duration-150 ease-out hover:text-ink-strong active:scale-90 focus-visible:ring-2 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-40 [&_svg]:size-2.75 select-none"
 
 /** Decrement button of a {@link Stepper}. */
 function StepperDecrement({
@@ -155,7 +155,7 @@ function StepperValue({ className, format, ...props }: StepperValueProps) {
     <span
       aria-live="polite"
       className={cn(
-        "min-w-6 text-center text-caption font-medium text-ink",
+        "min-w-6 text-center text-caption font-medium text-ink select-none",
         className
       )}
       {...props}
