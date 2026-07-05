@@ -90,7 +90,7 @@ function BoardToolbarActions({
 }
 
 const boardToolbarActionVariants = cva(
-  "flex h-7.5 items-center gap-1.5 rounded-full px-3 text-caption font-medium outline-none transition-[color,background-color,transform] duration-150 ease-out active:scale-[0.97] focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1 focus-visible:ring-offset-surface-app [&_svg]:size-2.75 [&_svg]:shrink-0",
+  "flex h-7 items-center gap-1.5 rounded-full px-3 text-caption font-medium outline-none transition-[color,background-color,transform] duration-150 ease-out active:scale-[0.97] focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1 focus-visible:ring-offset-surface-app [&_svg]:size-2.75 [&_svg]:shrink-0",
   {
     defaultVariants: {
       variant: "default",

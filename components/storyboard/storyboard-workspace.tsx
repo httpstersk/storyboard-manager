@@ -305,7 +305,7 @@ function StoryboardWorkspace() {
           content and no layout animation is needed here. */}
       <main className="flex min-w-0 flex-1 flex-col gap-3.5">
         <BoardToolbar>
-          <BoardToolbar.Brand name="boards" version="v1.2" />
+          <BoardToolbar.Brand name="Boards" version="v1.3" />
           <BoardToolbar.Controls>
             <GridSteppers
               columns={state.columns}
