@@ -14,15 +14,34 @@ import { cn } from "@/lib/utils"
  */
 const BRAND_EXTRA_LETTERS = 5
 
-/** Per-letter stagger (seconds) for the brand hover pop-in. */
-const BRAND_LETTER_STAGGER = 0.045
+/** Per-letter stagger (seconds) for the brand hover reveal. */
+const BRAND_LETTER_STAGGER = 0.05
 
-/** Bouncy spring shared by every popped-in brand letter. */
+/**
+ * Quick fade applied to a letter's `opacity`. Kept much shorter than the
+ * width spring so the clipped box is fully transparent before it finishes
+ * collapsing — otherwise a half-clipped glyph would jam against the next
+ * letter while the word closes back up.
+ */
+const BRAND_LETTER_FADE_DURATION = 0.18
+
+/**
+ * Bouncy spring shared by every inserted brand letter. Springs the letter's
+ * `width` open so the surrounding text is pushed apart with a lively wobble.
+ */
 const BRAND_LETTER_TRANSITION = {
-  bounce: 0.55,
-  duration: 0.45,
+  bounce: 0.5,
+  duration: 0.5,
   type: "spring",
 } as const
+
+/**
+ * Vertical nudge (em) applied to each inserted letter. An `inline-block`
+ * with `overflow: hidden` (required to clip the width reveal) is baseline-
+ * aligned by its bottom edge rather than the text baseline, which lifts the
+ * glyph; this pushes it back down so it sits level with the static letters.
+ */
+const BRAND_LETTER_BASELINE_NUDGE = "0.22em"
 
 /**
  * The board header toolbar.
@@ -109,18 +128,23 @@ function BoardToolbarBrand({
         ) : (
           <>
             {prefix}
-            <AnimatePresence>
+            <AnimatePresence initial={false}>
               {hovered &&
                 Array.from({ length: BRAND_EXTRA_LETTERS }, (_, index) => (
                   <m.span
-                    animate={{ opacity: 1, scale: 1 }}
-                    className="inline-block origin-center align-baseline"
-                    exit={{ opacity: 0, scale: 0 }}
-                    initial={{ opacity: 0, scale: 0 }}
+                    animate={{ opacity: 1, width: "auto" }}
+                    className="inline-block overflow-hidden whitespace-pre align-baseline"
+                    exit={{ opacity: 0, width: 0 }}
+                    initial={{ opacity: 0, width: 0 }}
                     key={index}
+                    style={{ y: BRAND_LETTER_BASELINE_NUDGE }}
                     transition={{
                       ...BRAND_LETTER_TRANSITION,
                       delay: index * BRAND_LETTER_STAGGER,
+                      opacity: {
+                        delay: index * BRAND_LETTER_STAGGER,
+                        duration: BRAND_LETTER_FADE_DURATION,
+                      },
                     }}
                   >
                     {repeated}

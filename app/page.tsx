@@ -4,11 +4,11 @@ import { StoryboardWorkspace } from "@/components/storyboard/storyboard-workspac
 
 export const metadata: Metadata = {
   description: "A tool to organize, preview, and export storyboards.",
-  title: "Storyboard Studio",
+  title: "Boooards",
 }
 
 /**
- * Storyboard Studio home: opens the most recently edited board.
+ * Boooards home: opens the most recently edited board.
  */
 export default function Page() {
   return <StoryboardWorkspace />

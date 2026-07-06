@@ -129,10 +129,12 @@ function EditSceneDialog({
   scene,
   sceneNumber,
 }: EditSceneDialogProps) {
+  const [canClear, setCanClear] = React.useState(false)
+  const [canUndo, setCanUndo] = React.useState(false)
+  const drawingCanvasRef = React.useRef<DrawingCanvasHandle>(null)
+  const fileInputRef = React.useRef<HTMLInputElement>(null)
   const [state, dispatch] = React.useReducer(dialogReducer, initialDialogState)
   const { brushSize, color, draftImage, error, tool } = state
-  const fileInputRef = React.useRef<HTMLInputElement>(null)
-  const drawingCanvasRef = React.useRef<DrawingCanvasHandle>(null)
 
   if (scene === null) {
     return null
@@ -140,19 +142,11 @@ function EditSceneDialog({
 
   const previewImage = draftImage === undefined ? scene.image : draftImage
 
-  const resetState = () => {
-    dispatch({ type: "RESET" })
+  function handleClearDrawing() {
+    drawingCanvasRef.current?.clear()
   }
 
-  const handleOpenChange = (nextOpen: boolean) => {
-    if (!nextOpen) {
-      resetState()
-    }
-
-    onOpenChange(nextOpen)
-  }
-
-  const handleFile = (file: File) => {
+  function handleFile(file: File) {
     const result = validateImageFile(file)
 
     if (!result.ok) {
@@ -173,11 +167,19 @@ function EditSceneDialog({
     reader.readAsDataURL(file)
   }
 
-  const handleRemoveImage = () => {
+  function handleOpenChange(nextOpen: boolean) {
+    if (!nextOpen) {
+      resetState()
+    }
+
+    onOpenChange(nextOpen)
+  }
+
+  function handleRemoveImage() {
     dispatch({ type: "CLEAR_IMAGE" })
   }
 
-  const handleSave = async () => {
+  async function handleSave() {
     const drawing = drawingCanvasRef.current?.getDrawing() ?? null
 
     if (drawing !== null) {
@@ -193,6 +195,16 @@ function EditSceneDialog({
 
     resetState()
     onOpenChange(false)
+  }
+
+  function handleUndo() {
+    drawingCanvasRef.current?.undo()
+  }
+
+  function resetState() {
+    dispatch({ type: "RESET" })
+    setCanClear(false)
+    setCanUndo(false)
   }
 
   return (
@@ -252,13 +264,17 @@ function EditSceneDialog({
             <DrawColorPicker color={color} onColorChange={(nextColor) => dispatch({ payload: nextColor, type: "SET_COLOR" })} />
           </div>
           <div className="flex items-center gap-1.5">
-            <IconButton disabled label="Undo">
+            <IconButton
+              disabled={!canUndo}
+              label="Undo"
+              onClick={handleUndo}
+            >
               <SFArrowCounterclockwise aria-hidden />
             </IconButton>
             <IconButton
-              disabled={previewImage === undefined}
-              label="Remove image"
-              onClick={handleRemoveImage}
+              disabled={!canClear}
+              label="Clear all"
+              onClick={handleClearDrawing}
             >
               <SFTrash aria-hidden />
             </IconButton>
@@ -272,6 +288,10 @@ function EditSceneDialog({
             fileInputRef={fileInputRef}
             image={previewImage}
             onFile={handleFile}
+            onHistoryChange={({ canClear, canUndo }) => {
+              setCanClear(canClear)
+              setCanUndo(canUndo)
+            }}
             sceneNumber={sceneNumber}
             tool={tool}
           />
@@ -343,6 +363,7 @@ interface SceneCanvasProps {
   fileInputRef: React.RefObject<HTMLInputElement | null>
   image: string | undefined | null
   onFile: (file: File) => void
+  onHistoryChange?: (state: { canClear: boolean; canUndo: boolean }) => void
   sceneNumber: string
   tool: DrawTool
 }
@@ -358,6 +379,7 @@ function SceneCanvas({
   fileInputRef,
   image,
   onFile,
+  onHistoryChange,
   sceneNumber,
   tool,
 }: SceneCanvasProps) {
@@ -385,6 +407,7 @@ function SceneCanvas({
       <DrawingCanvas
         brushSize={brushSize}
         color={color}
+        onHistoryChange={onHistoryChange}
         ref={drawingCanvasRef}
         tool={tool}
       />
@@ -644,16 +667,15 @@ async function composeSceneImage(
 
 /** Imperative handle exposed by {@link DrawingCanvas}. */
 interface DrawingCanvasHandle {
-  /**
-   * Returns a detached copy of the painted drawing, or null when nothing
-   * has been drawn (so save can fall back to the untouched scene image).
-   */
+  clear: () => void
   getDrawing: () => HTMLCanvasElement | null
+  undo: () => void
 }
 
 interface DrawingCanvasProps {
   brushSize: number
   color: string
+  onHistoryChange?: (state: { canClear: boolean; canUndo: boolean }) => void
   ref?: React.Ref<DrawingCanvasHandle>
   tool: DrawTool
 }
@@ -665,15 +687,49 @@ interface DrawingCanvasProps {
  * re-rendering on every pointer move. Exposes {@link DrawingCanvasHandle}
  * so the editor can capture the finished artwork on save.
  */
-function DrawingCanvas({ brushSize, color, ref, tool }: DrawingCanvasProps) {
+function DrawingCanvas({
+  brushSize,
+  color,
+  onHistoryChange,
+  ref,
+  tool,
+}: DrawingCanvasProps) {
   const canvasRef = React.useRef<HTMLCanvasElement>(null)
   const drawingRef = React.useRef(false)
+  const historyRef = React.useRef<HTMLCanvasElement[]>([])
   const lastPointRef = React.useRef<Point | null>(null)
 
   React.useImperativeHandle(
     ref,
-    () => ({ getDrawing: () => captureDrawing(canvasRef.current) }),
-    []
+    () => ({
+      clear: () => {
+        const canvas = canvasRef.current
+        const context = canvas?.getContext("2d")
+        if (!canvas || !context) {
+          return
+        }
+
+        context.clearRect(0, 0, canvas.clientWidth, canvas.clientHeight)
+        historyRef.current = []
+        triggerHistoryChange()
+      },
+      getDrawing: () => captureDrawing(canvasRef.current),
+      undo: () => {
+        const canvas = canvasRef.current
+        const context = canvas?.getContext("2d")
+        if (!canvas || !context || historyRef.current.length === 0) {
+          return
+        }
+
+        const prevState = historyRef.current.pop()
+        if (prevState) {
+          context.clearRect(0, 0, canvas.clientWidth, canvas.clientHeight)
+          context.drawImage(prevState, 0, 0, canvas.clientWidth, canvas.clientHeight)
+        }
+        triggerHistoryChange()
+      },
+    }),
+    [onHistoryChange]
   )
 
   useMountEffect(() => {
@@ -684,6 +740,7 @@ function DrawingCanvas({ brushSize, color, ref, tool }: DrawingCanvasProps) {
     }
 
     syncCanvasSize(canvas)
+    triggerHistoryChange()
 
     const observer = new ResizeObserver(() => syncCanvasSize(canvas))
     observer.observe(canvas)
@@ -691,7 +748,7 @@ function DrawingCanvas({ brushSize, color, ref, tool }: DrawingCanvasProps) {
     return () => observer.disconnect()
   })
 
-  const handlePointerDown = (event: React.PointerEvent<HTMLCanvasElement>) => {
+  function handlePointerDown(event: React.PointerEvent<HTMLCanvasElement>) {
     const canvas = canvasRef.current
     const context = canvas?.getContext("2d")
 
@@ -702,13 +759,15 @@ function DrawingCanvas({ brushSize, color, ref, tool }: DrawingCanvasProps) {
     canvas.setPointerCapture(event.pointerId)
     drawingRef.current = true
 
+    saveStateToHistory()
+
     const point = getCanvasPoint(canvas, event)
     lastPointRef.current = point
     configureStroke(context, tool, color, brushSize)
     drawSegment(context, point, point)
   }
 
-  const handlePointerMove = (event: React.PointerEvent<HTMLCanvasElement>) => {
+  function handlePointerMove(event: React.PointerEvent<HTMLCanvasElement>) {
     const canvas = canvasRef.current
     const context = canvas?.getContext("2d")
 
@@ -721,7 +780,7 @@ function DrawingCanvas({ brushSize, color, ref, tool }: DrawingCanvasProps) {
     lastPointRef.current = point
   }
 
-  const handlePointerUp = (event: React.PointerEvent<HTMLCanvasElement>) => {
+  function handlePointerUp(event: React.PointerEvent<HTMLCanvasElement>) {
     const canvas = canvasRef.current
 
     if (!drawingRef.current) {
@@ -733,6 +792,32 @@ function DrawingCanvas({ brushSize, color, ref, tool }: DrawingCanvasProps) {
 
     if (canvas?.hasPointerCapture(event.pointerId)) {
       canvas.releasePointerCapture(event.pointerId)
+    }
+  }
+
+  function saveStateToHistory() {
+    const canvas = canvasRef.current
+    if (!canvas) {
+      return
+    }
+
+    const copy = document.createElement("canvas")
+    copy.width = canvas.width
+    copy.height = canvas.height
+    const copyContext = copy.getContext("2d")
+    if (copyContext) {
+      copyContext.drawImage(canvas, 0, 0)
+    }
+    historyRef.current.push(copy)
+    triggerHistoryChange()
+  }
+
+  function triggerHistoryChange() {
+    if (onHistoryChange) {
+      onHistoryChange({
+        canClear: historyRef.current.length > 0,
+        canUndo: historyRef.current.length > 0,
+      })
     }
   }
 
