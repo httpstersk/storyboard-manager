@@ -18,7 +18,7 @@ function FieldLabel({
 
   return (
     <span
-      className={cn("shrink-0 text-caption text-ink-muted", className)}
+      className={cn("shrink-0 text-caption text-ink-muted select-none", className)}
       id={labelId}
       {...props}
     />

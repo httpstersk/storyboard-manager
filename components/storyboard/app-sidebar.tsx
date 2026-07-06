@@ -11,6 +11,7 @@ import {
 } from "sf-symbols-lib/monochrome"
 import { m } from "motion/react"
 import * as React from "react"
+import { flushSync } from "react-dom"
 
 import { DropdownMenu } from "@/components/ui/dropdown-menu"
 import { IconButton } from "@/components/ui/icon-button"
@@ -304,11 +305,9 @@ function SidebarBoardItem({
           <div className="relative z-10 flex min-w-0 flex-1 flex-col gap-1">
             <input
               aria-label="Board name"
-              autoFocus
               className="w-full rounded-md bg-transparent px-1 text-label font-medium text-ink-strong outline-none ring-1 ring-ring"
               defaultValue={title}
               onBlur={handleConfirm}
-              onFocus={(event) => event.currentTarget.select()}
               onKeyDown={handleKeyDown}
               ref={inputRef}
               type="text"
@@ -338,7 +337,9 @@ function SidebarBoardItem({
               label={`Rename ${title}`}
               onClick={(event) => {
                 event.stopPropagation()
-                setIsEditing(true)
+                flushSync(() => setIsEditing(true))
+                inputRef.current?.focus()
+                inputRef.current?.select()
               }}
               size="sm"
               variant="ghost"
