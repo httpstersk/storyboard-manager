@@ -72,7 +72,7 @@ type DialogAction =
   | { payload: DrawTool; type: "SET_TOOL" }
 
 const initialDialogState: DialogState = {
-  brushSize: 4,
+  brushSize: 7,
   color: DRAW_COLORS[0].value,
   draftImage: undefined,
   error: null,
