@@ -2,11 +2,27 @@
 
 import { cva, type VariantProps } from "class-variance-authority"
 import { SFMoon, SFSunMax } from "sf-symbols-lib/monochrome"
-import { m } from "motion/react"
+import { AnimatePresence, m } from "motion/react"
 import { useTheme } from "next-themes"
 import * as React from "react"
 
 import { cn } from "@/lib/utils"
+
+/**
+ * Number of extra repeated letters that playfully pop into the brand name
+ * while it is hovered (e.g. `Boooards` -> `Booooooooards`).
+ */
+const BRAND_EXTRA_LETTERS = 5
+
+/** Per-letter stagger (seconds) for the brand hover pop-in. */
+const BRAND_LETTER_STAGGER = 0.045
+
+/** Bouncy spring shared by every popped-in brand letter. */
+const BRAND_LETTER_TRANSITION = {
+  bounce: 0.55,
+  duration: 0.45,
+  type: "spring",
+} as const
 
 /**
  * The board header toolbar.
@@ -46,15 +62,75 @@ interface BoardToolbarBrandProps {
   version: string
 }
 
+/**
+ * Splits a product name around its first run of two-or-more identical
+ * letters so that run can be playfully extended on hover. For `Boooards`
+ * this yields `{ prefix: "B", repeated: "o", suffix: "ards" }`. Names
+ * without a repeated run animate nothing (`repeated` is `null`).
+ */
+function splitRepeatedRun(name: string): {
+  prefix: string
+  repeated: string | null
+  suffix: string
+} {
+  const match = name.match(/(.)\1+/)
+  if (!match || match.index === undefined) {
+    return { prefix: name, repeated: null, suffix: "" }
+  }
+  const start = match.index
+  return {
+    prefix: name.slice(0, start + match[0].length),
+    repeated: match[1],
+    suffix: name.slice(start + match[0].length),
+  }
+}
+
 /** Product name and version of the {@link BoardToolbar}. */
 function BoardToolbarBrand({
   className,
   name,
   version,
 }: BoardToolbarBrandProps) {
+  const [hovered, setHovered] = React.useState(false)
+  const { prefix, repeated, suffix } = React.useMemo(
+    () => splitRepeatedRun(name),
+    [name]
+  )
+
   return (
     <div className={cn("flex shrink-0 items-baseline gap-1.5", className)}>
-      <span className="text-heading font-medium text-ink-strong">{name}</span>
+      <span
+        className="text-heading font-medium text-ink-strong"
+        onPointerEnter={() => setHovered(true)}
+        onPointerLeave={() => setHovered(false)}
+      >
+        {repeated === null ? (
+          name
+        ) : (
+          <>
+            {prefix}
+            <AnimatePresence>
+              {hovered &&
+                Array.from({ length: BRAND_EXTRA_LETTERS }, (_, index) => (
+                  <m.span
+                    animate={{ opacity: 1, scale: 1 }}
+                    className="inline-block origin-center align-baseline"
+                    exit={{ opacity: 0, scale: 0 }}
+                    initial={{ opacity: 0, scale: 0 }}
+                    key={index}
+                    transition={{
+                      ...BRAND_LETTER_TRANSITION,
+                      delay: index * BRAND_LETTER_STAGGER,
+                    }}
+                  >
+                    {repeated}
+                  </m.span>
+                ))}
+            </AnimatePresence>
+            {suffix}
+          </>
+        )}
+      </span>
       <span className="text-caption text-ink-muted">{version}</span>
     </div>
   )
