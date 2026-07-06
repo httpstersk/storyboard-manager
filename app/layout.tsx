@@ -1,10 +1,44 @@
 import { Geist_Mono, Inter } from "next/font/google"
+import type { Metadata } from "next"
 
 import "./globals.css"
 import { ThemeProvider } from "@/components/theme-provider"
 import { cn } from "@/lib/utils";
 
-const inter = Inter({subsets:['latin'],variable:'--font-sans'})
+const PRODUCTION_URL = "https://boooards.vercel.app/"
+
+export const metadata: Metadata = {
+  title: "Boooards — Storyboard Manager",
+  description:
+    "A professional storyboard manager for filmmakers, directors, animators, and visual designers. Plan, organize, and visualize scenes dynamically in a grid workspace.",
+  metadataBase: new URL(PRODUCTION_URL),
+  openGraph: {
+    description:
+      "A professional storyboard manager for filmmakers, directors, animators, and visual designers. Plan, organize, and visualize scenes dynamically in a grid workspace.",
+    images: [
+      {
+        alt: "Boooards — Storyboard Manager",
+        height: 630,
+        url: "/images/boooards-og-image.png",
+        width: 1200,
+      },
+    ],
+    locale: "en_US",
+    siteName: "Boooards",
+    title: "Boooards — Storyboard Manager",
+    type: "website",
+    url: PRODUCTION_URL,
+  },
+  twitter: {
+    card: "summary_large_image",
+    description:
+      "A professional storyboard manager for filmmakers, directors, animators, and visual designers. Plan, organize, and visualize scenes dynamically in a grid workspace.",
+    images: ["/images/boooards-og-image.png"],
+    title: "Boooards — Storyboard Manager",
+  },
+};
+
+const inter = Inter({ subsets: ['latin'], variable: '--font-sans' })
 
 const fontMono = Geist_Mono({
   subsets: ["latin"],
