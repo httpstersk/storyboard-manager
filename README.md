@@ -1,6 +1,6 @@
 # Boooards
 
-A professional, interactive storyboard manager built with **Next.js**, **Tailwind CSS**, and **shadcn/ui**. Designed for filmmakers, directors, animators, and visual designers to plan, organize, and visualize scenes dynamically in a grid workspace.
+An interactive storyboard manager built with **Next.js**, **Tailwind CSS**, and **shadcn/ui**. Designed for filmmakers, directors, animators, and visual designers to plan, organize, and visualize scenes dynamically in a grid workspace.
 
 ---
 

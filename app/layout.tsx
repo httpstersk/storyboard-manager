@@ -10,11 +10,11 @@ const PRODUCTION_URL = "https://boooards.vercel.app/"
 export const metadata: Metadata = {
   title: "Boooards — Storyboard Manager",
   description:
-    "A professional storyboard manager for filmmakers, directors, animators, and visual designers. Plan, organize, and visualize scenes dynamically in a grid workspace.",
+    "A storyboard manager for filmmakers, directors, animators, and visual designers. Plan, organize, and visualize scenes dynamically in a grid workspace.",
   metadataBase: new URL(PRODUCTION_URL),
   openGraph: {
     description:
-      "A professional storyboard manager for filmmakers, directors, animators, and visual designers. Plan, organize, and visualize scenes dynamically in a grid workspace.",
+      "A storyboard manager for filmmakers, directors, animators, and visual designers. Plan, organize, and visualize scenes dynamically in a grid workspace.",
     images: [
       {
         alt: "Boooards — Storyboard Manager",
@@ -29,10 +29,18 @@ export const metadata: Metadata = {
     type: "website",
     url: PRODUCTION_URL,
   },
+  icons: {
+    apple: "/apple-touch-icon.png",
+    icon: [
+      { sizes: "any", type: "image/x-icon", url: "/favicon.ico" },
+      { sizes: "256x256", type: "image/png", url: "/favicon-256.png" },
+    ],
+    shortcut: "/favicon-256.png",
+  },
   twitter: {
     card: "summary_large_image",
     description:
-      "A professional storyboard manager for filmmakers, directors, animators, and visual designers. Plan, organize, and visualize scenes dynamically in a grid workspace.",
+      "A storyboard manager for filmmakers, directors, animators, and visual designers. Plan, organize, and visualize scenes dynamically in a grid workspace.",
     images: ["/images/boooards-og-image.png"],
     title: "Boooards — Storyboard Manager",
   },
