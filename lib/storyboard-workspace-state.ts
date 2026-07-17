@@ -182,7 +182,5 @@ export function createInitialWorkspaceState(): WorkspaceState {
 
 /** Creates a unique board identifier for newly added boards. */
 export function createBoardId(): string {
-  return typeof crypto !== "undefined" && "randomUUID" in crypto
-    ? crypto.randomUUID()
-    : `board-${Date.now()}`
+  return crypto.randomUUID()
 }

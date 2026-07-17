@@ -3,6 +3,9 @@ import { openai } from "@ai-sdk/openai"
 import { generateImage, generateText, Output } from "ai"
 
 import {
+  resolveFalApiKey,
+} from "@/lib/api-route-config"
+import {
   layoutForSceneCount,
   resolveNanoBananaModelId,
   storyboardGenerationRequestSchema,
@@ -40,7 +43,7 @@ Craft rules, applied to every plan:
 export async function POST(request: Request): Promise<Response> {
   if (
     process.env.OPENAI_API_KEY === undefined ||
-    (process.env.FAL_API_KEY === undefined && process.env.FAL_KEY === undefined)
+    resolveFalApiKey() === undefined
   ) {
     return Response.json(
       { error: "Storyboard generation is not configured." },

@@ -58,6 +58,9 @@ function PromptComposerRoot({
   )
   const [isSubmitting, startSubmitTransition] = React.useTransition()
 
+  // Sync character data into the video prompt source atom.
+  // NOTE: The companion sync for `scenes` lives in VideoSectionRoot.
+  // Each component owns its own slice; neither should overwrite the other.
   React.useEffect(() => {
     setCharacterImageFiles(state.characterImageReferences)
     setVideoPromptSource((previous) => ({

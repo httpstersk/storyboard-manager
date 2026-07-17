@@ -52,6 +52,9 @@ function VideoSectionRoot({
   const characterImageFiles = useAtomValue(composerCharacterImageFilesAtom)
   const setSource = useSetAtom(videoPromptSourceAtom)
 
+  // Sync visible scenes into the video prompt source atom.
+  // NOTE: The companion sync for character data lives in PromptComposerRoot.
+  // Each component owns its own slice; neither should overwrite the other.
   React.useEffect(() => {
     setSource((previous) => ({
       ...previous,

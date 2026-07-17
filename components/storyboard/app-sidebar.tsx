@@ -92,6 +92,41 @@ interface SidebarRailProps {
   selectedBoardId: string
 }
 
+/** Props for {@link BoardSwitcherButton}. */
+interface BoardSwitcherButtonProps {
+  /** Zero-based index of the board, displayed as a 1-based numeral. */
+  index: number
+  /** Whether this board is the currently selected one. */
+  isSelected: boolean
+  /** Called when the button is activated. */
+  onClick: () => void
+}
+
+/** Numbered board-selection button shared by {@link SidebarRail} and
+ * {@link SidebarBoardSwitcher}. */
+function BoardSwitcherButton({
+  index,
+  isSelected,
+  onClick,
+}: BoardSwitcherButtonProps) {
+  return (
+    <button
+      aria-current={isSelected ? "true" : undefined}
+      aria-label={`Storyboard ${index + 1}`}
+      className={cn(
+        "size-6 shrink-0 rounded-full text-caption font-medium tabular-nums outline-none transition-[color,background-color,transform] duration-150 ease-out active:scale-95 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1 focus-visible:ring-offset-surface-panel",
+        isSelected
+          ? "bg-emphasis text-emphasis-foreground"
+          : "bg-surface-inset text-ink-muted hover:text-ink-strong"
+      )}
+      onClick={onClick}
+      type="button"
+    >
+      {index + 1}
+    </button>
+  )
+}
+
 /** Slim rail shown in place of the {@link Sidebar} while collapsed.
  * Renders as a pill-shaped column of icon buttons. */
 function SidebarRail({
@@ -120,21 +155,12 @@ function SidebarRail({
       {/* Numbered board buttons — scrollable when there are many boards */}
       <div className="flex min-h-0 flex-1 flex-col items-center gap-1 overflow-y-auto">
         {boards.map((board, index) => (
-          <button
+          <BoardSwitcherButton
             key={board.id}
-            aria-current={board.id === selectedBoardId ? "true" : undefined}
-            aria-label={`Storyboard ${index + 1}`}
-            className={cn(
-              "size-6 shrink-0 rounded-full text-caption font-medium tabular-nums outline-none transition-[color,background-color,transform] duration-150 ease-out active:scale-95 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1 focus-visible:ring-offset-surface-panel",
-              board.id === selectedBoardId
-                ? "bg-emphasis text-emphasis-foreground"
-                : "bg-surface-inset text-ink-muted hover:text-ink-strong"
-            )}
+            index={index}
+            isSelected={board.id === selectedBoardId}
             onClick={() => onSelectBoard(board.id)}
-            type="button"
-          >
-            {index + 1}
-          </button>
+          />
         ))}
       </div>
     </aside>
@@ -402,21 +428,12 @@ function SidebarBoardSwitcher({
   return (
     <div className={cn("flex shrink-0 flex-wrap gap-1", className)}>
       {boards.map((board, index) => (
-        <button
+        <BoardSwitcherButton
           key={board.id}
-          aria-current={board.id === selectedBoardId ? "true" : undefined}
-          aria-label={`Switch to storyboard ${index + 1}`}
-          className={cn(
-            "size-6 shrink-0 rounded-full text-caption font-medium tabular-nums outline-none transition-[color,background-color,transform] duration-150 ease-out active:scale-95 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1 focus-visible:ring-offset-surface-panel",
-            board.id === selectedBoardId
-              ? "bg-emphasis text-emphasis-foreground"
-              : "bg-surface-inset text-ink-muted hover:text-ink-strong"
-          )}
+          index={index}
+          isSelected={board.id === selectedBoardId}
           onClick={() => onSelectBoard(board.id)}
-          type="button"
-        >
-          {index + 1}
-        </button>
+        />
       ))}
     </div>
   )

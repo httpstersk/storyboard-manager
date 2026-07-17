@@ -14,6 +14,13 @@ const twMerge = extendTailwindMerge({
   },
 })
 
+/**
+ * Merges class names with Tailwind-aware conflict resolution.
+ *
+ * Wraps `clsx` for conditional class composition and feeds the result
+ * through a Tailwind Merge instance extended with the design system's
+ * custom font-size utilities.
+ */
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs))
 }

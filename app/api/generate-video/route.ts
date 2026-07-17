@@ -1,6 +1,10 @@
 import { fal } from "@fal-ai/client"
 
 import {
+  resolveFalApiKey,
+} from "@/lib/api-route-config"
+import { dataUrlToBlob } from "@/lib/image-data"
+import {
   SEEDANCE_REFERENCE_TO_VIDEO_MODEL_ID,
   videoGenerationRequestSchema,
   videoGenerationResponseSchema,
@@ -12,20 +16,16 @@ export const maxDuration = 300
 /** Ensures the Fal client runs in a full Node.js environment. */
 export const runtime = "nodejs"
 
-/**
- * Converts a data URL into a Blob suitable for fal.storage.upload.
- */
-async function dataUrlToBlob(dataUrl: string): Promise<Blob> {
-  const response = await fetch(dataUrl)
-
-  return response.blob()
-}
 
 /**
  * Uploads a data-URL image to fal storage and returns the hosted URL.
  */
 async function uploadDataUrl(dataUrl: string): Promise<string> {
-  const blob = await dataUrlToBlob(dataUrl)
+  const blob = dataUrlToBlob(dataUrl)
+
+  if (blob === null) {
+    throw new Error("The image data URL could not be parsed.")
+  }
 
   return fal.storage.upload(blob)
 }
@@ -35,7 +35,7 @@ async function uploadDataUrl(dataUrl: string): Promise<string> {
  * reference images, and a shot-list prompt.
  */
 export async function POST(request: Request): Promise<Response> {
-  const falKey = process.env.FAL_KEY ?? process.env.FAL_API_KEY
+  const falKey = resolveFalApiKey()
 
   if (falKey === undefined) {
     return Response.json(

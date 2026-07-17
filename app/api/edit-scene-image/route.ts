@@ -2,6 +2,9 @@ import { fal } from "@ai-sdk/fal"
 import { generateImage } from "ai"
 
 import {
+  resolveFalApiKey,
+} from "@/lib/api-route-config"
+import {
   resolveNanoBananaEditModelId,
   sceneImageEditRequestSchema,
   sceneImageEditResponseSchema,
@@ -19,10 +22,7 @@ export const runtime = "nodejs"
  * Banana model. The returned data URL is safe to persist in the workspace.
  */
 export async function POST(request: Request): Promise<Response> {
-  if (
-    process.env.FAL_API_KEY === undefined &&
-    process.env.FAL_KEY === undefined
-  ) {
+  if (resolveFalApiKey() === undefined) {
     return Response.json(
       { error: "Scene image editing is not configured." },
       { status: 503 }

@@ -3,7 +3,7 @@ import type { Metadata } from "next"
 
 import "./globals.css"
 import { ThemeProvider } from "@/components/theme-provider"
-import { cn } from "@/lib/utils";
+import { cn } from "@/lib/utils"
 
 const PRODUCTION_URL = "https://boooards.vercel.app/"
 
@@ -44,7 +44,7 @@ export const metadata: Metadata = {
     images: ["/images/boooards-og-image.png"],
     title: "Boooards — Storyboard Manager",
   },
-};
+}
 
 const inter = Inter({ subsets: ['latin'], variable: '--font-sans' })
 

@@ -3,6 +3,7 @@ import { z } from "zod"
 import {
   CAMERA_OPTIONS,
   COLUMN_LIMITS,
+  type GeneratedBoardScene,
   LENS_OPTIONS,
   LIGHTING_OPTIONS,
   MOVEMENT_OPTIONS,
@@ -89,9 +90,10 @@ const NANO_BANANA_PRO_MODEL_IDS = {
 const MAX_PROMPT_LENGTH = 12_000
 
 /** Base64-expanded limit derived from the binary upload limit. */
-const MAX_DATA_URL_LENGTH = Math.ceil(IMAGE_UPLOAD_RULES.maxBytes * 1.4)
+export const MAX_DATA_URL_LENGTH = Math.ceil(IMAGE_UPLOAD_RULES.maxBytes * 1.4)
 
-const dataUrlSchema = z
+/** Reusable Zod schema for a PNG or JPEG data URL within the upload size cap. */
+export const dataUrlSchema = z
   .string()
   .max(MAX_DATA_URL_LENGTH)
   .refine(
@@ -242,24 +244,11 @@ export function resolveNanoBananaModelId({
   return hasReferenceImages ? modelIds.edit : modelIds.generate
 }
 
-/** Planned scene metadata returned alongside each sliced frame. */
-export interface GeneratedScene {
-  action: string
-  camera: string
-  dialogue: string
-  image: string
-  lens: string
-  lighting: string
-  movement: string
-  shot: ShotSize
-  timeSeconds: number
-}
-
 /** Successful response from the storyboard generation API. */
 export interface StoryboardGenerationResponse {
   columns: number
   rows: number
-  scenes: GeneratedScene[]
+  scenes: GeneratedBoardScene[]
   title: string
 }
 

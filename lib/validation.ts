@@ -79,6 +79,19 @@ function coerceNumber(value: unknown, fallback: number): number {
     : fallback
 }
 
+/**
+ * Clamps a float to inclusive [min, max], coercing non-numeric values
+ * to the fallback.
+ */
+function clampFloat(
+  value: unknown,
+  min: number,
+  max: number,
+  fallback: number
+): number {
+  return Math.min(max, Math.max(min, coerceNumber(value, fallback)))
+}
+
 function coerceShader(value: unknown): SceneShaderPreset | null {
   if (!isRecord(value)) {
     return null
@@ -97,17 +110,14 @@ function coerceShader(value: unknown): SceneShaderPreset | null {
 
   return {
     colors,
-    distortion: Math.min(1, Math.max(0, coerceNumber(value.distortion, 0.6))),
-    grainMixer: Math.min(1, Math.max(0, coerceNumber(value.grainMixer, 0.15))),
-    grainOverlay: Math.min(
-      1,
-      Math.max(0, coerceNumber(value.grainOverlay, 0.08))
-    ),
-    offsetX: Math.min(1, Math.max(-1, coerceNumber(value.offsetX, 0))),
-    offsetY: Math.min(1, Math.max(-1, coerceNumber(value.offsetY, 0))),
-    scale: Math.min(4, Math.max(0.01, coerceNumber(value.scale, 1))),
-    speed: Math.min(2, Math.max(0, coerceNumber(value.speed, 0.4))),
-    swirl: Math.min(1, Math.max(0, coerceNumber(value.swirl, 0.2))),
+    distortion: clampFloat(value.distortion, 0, 1, 0.6),
+    grainMixer: clampFloat(value.grainMixer, 0, 1, 0.15),
+    grainOverlay: clampFloat(value.grainOverlay, 0, 1, 0.08),
+    offsetX: clampFloat(value.offsetX, -1, 1, 0),
+    offsetY: clampFloat(value.offsetY, -1, 1, 0),
+    scale: clampFloat(value.scale, 0.01, 4, 1),
+    speed: clampFloat(value.speed, 0, 2, 0.4),
+    swirl: clampFloat(value.swirl, 0, 1, 0.2),
   }
 }
 

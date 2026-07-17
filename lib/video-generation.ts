@@ -4,6 +4,7 @@
 
 import { z } from "zod"
 
+import { dataUrlSchema } from "@/lib/generation"
 import { IMAGE_UPLOAD_RULES } from "@/lib/validation"
 
 /**
@@ -26,19 +27,10 @@ export const MAX_SEEDANCE_VIDEO_PROMPT_LENGTH = 20_000
 export const SEEDANCE_REFERENCE_TO_VIDEO_MODEL_ID =
   "bytedance/seedance-2.0/reference-to-video" as const
 
-/** Base64-expanded limit derived from the binary upload limit. */
-const MAX_DATA_URL_LENGTH = Math.ceil(IMAGE_UPLOAD_RULES.maxBytes * 1.4)
-
 /** PNG data URLs for storyboard capture may exceed the reference upload cap. */
-const MAX_STORYBOARD_PNG_DATA_URL_LENGTH = Math.ceil(25 * 1024 * 1024 * 1.4)
-
-const dataUrlSchema = z
-  .string()
-  .max(MAX_DATA_URL_LENGTH)
-  .refine(
-    (value) => /^data:image\/(?:jpeg|png);base64,[a-z0-9+/=\s]+$/i.test(value),
-    "Reference images must be PNG or JPEG data URLs."
-  )
+const MAX_STORYBOARD_PNG_DATA_URL_LENGTH = Math.ceil(
+  25 * 1024 * 1024 * 1.4
+)
 
 const storyboardPngDataUrlSchema = z
   .string()

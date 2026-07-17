@@ -106,18 +106,6 @@ export function sceneImageId(boardId: string, sceneId: string): string {
 /**
  * Strips the optional `image` field from a scene for IndexedDB storage.
  */
-export function toStoredScene(scene: Scene): StoredScene {
-  return {
-    action: scene.action,
-    camera: scene.camera,
-    dialogue: scene.dialogue,
-    id: scene.id,
-    lens: scene.lens,
-    lighting: scene.lighting,
-    movement: scene.movement,
-    music: scene.music,
-    shader: scene.shader,
-    shot: scene.shot,
-    timeSeconds: scene.timeSeconds,
-  }
+export function toStoredScene({ image: _image, ...rest }: Scene): StoredScene {
+  return rest
 }

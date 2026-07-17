@@ -28,6 +28,8 @@ type DraftImage = string | null | undefined
 
 interface DialogState {
   brushSize: number
+  canClear: boolean
+  canUndo: boolean
   color: string
   draftImage: DraftImage
   error: string | null
@@ -37,6 +39,7 @@ interface DialogState {
 
 type DialogAction =
   | { type: "RESET" }
+  | { payload: { canClear: boolean; canUndo: boolean }; type: "SET_HISTORY" }
   | { payload: number; type: "SET_BRUSH_SIZE" }
   | { payload: string; type: "SET_COLOR" }
   | { payload: DraftImage; type: "SET_DRAFT_IMAGE" }
@@ -46,6 +49,8 @@ type DialogAction =
 
 const initialDialogState: DialogState = {
   brushSize: 7,
+  canClear: false,
+  canUndo: false,
   color: "#1a1a1a",
   draftImage: undefined,
   error: null,
@@ -65,6 +70,12 @@ function dialogReducer(state: DialogState, action: DialogAction): DialogState {
       return { ...state, draftImage: action.payload }
     case "SET_ERROR":
       return { ...state, error: action.payload }
+    case "SET_HISTORY":
+      return {
+        ...state,
+        canClear: action.payload.canClear,
+        canUndo: action.payload.canUndo,
+      }
     case "SET_IS_EDITING_IMAGE":
       return { ...state, isEditingImage: action.payload }
     case "SET_TOOL":
@@ -72,17 +83,6 @@ function dialogReducer(state: DialogState, action: DialogAction): DialogState {
     default:
       return state
   }
-}
-
-/** Resets dialog editing state when the scene changes or the dialog closes. */
-function resetEditSceneDialogState(
-  dispatch: React.Dispatch<DialogAction>,
-  setCanClear: React.Dispatch<React.SetStateAction<boolean>>,
-  setCanUndo: React.Dispatch<React.SetStateAction<boolean>>
-): void {
-  dispatch({ type: "RESET" })
-  setCanClear(false)
-  setCanUndo(false)
 }
 
 /** Props for {@link EditSceneDialog}. */
@@ -124,12 +124,19 @@ function EditSceneDialog({
 }: EditSceneDialogProps) {
   const imageModel = useAtomValue(imageModelAtom)
   const imageResolution = useAtomValue(imageResolutionAtom)
-  const [canClear, setCanClear] = React.useState(false)
-  const [canUndo, setCanUndo] = React.useState(false)
   const drawingCanvasRef = React.useRef<DrawingCanvasHandle>(null)
   const fileInputRef = React.useRef<HTMLInputElement>(null)
   const [state, dispatch] = React.useReducer(dialogReducer, initialDialogState)
-  const { brushSize, color, draftImage, error, isEditingImage, tool } = state
+  const {
+    brushSize,
+    canClear,
+    canUndo,
+    color,
+    draftImage,
+    error,
+    isEditingImage,
+    tool,
+  } = state
   const previousSceneIdRef = React.useRef<string | null>(null)
   const previewImage = draftImage === undefined ? scene?.image : draftImage
 
@@ -166,7 +173,7 @@ function EditSceneDialog({
     }
 
     if (!nextOpen) {
-      resetEditSceneDialogState(dispatch, setCanClear, setCanUndo)
+      dispatch({ type: "RESET" })
     }
 
     onOpenChange(nextOpen)
@@ -197,28 +204,26 @@ function EditSceneDialog({
     dispatch({ payload: null, type: "SET_ERROR" })
     dispatch({ payload: true, type: "SET_IS_EDITING_IMAGE" })
 
-    const editResult = await requestSceneImageEdit({
-      imageModel,
-      prompt,
-      resolution: imageResolution,
-      sourceImage: previewImage,
-    })
-      .then((image) => ({ image, ok: true as const }))
-      .catch((error: unknown) => ({
-        error:
-          error instanceof Error
-            ? error.message
+    try {
+      const image = await requestSceneImageEdit({
+        imageModel,
+        prompt,
+        resolution: imageResolution,
+        sourceImage: previewImage,
+      })
+
+      dispatch({ payload: image, type: "SET_DRAFT_IMAGE" })
+    } catch (editError) {
+      dispatch({
+        payload:
+          editError instanceof Error
+            ? editError.message
             : "The scene image could not be edited.",
-        ok: false as const,
-      }))
-
-    dispatch({ payload: false, type: "SET_IS_EDITING_IMAGE" })
-
-    if (!editResult.ok) {
-      throw new Error(editResult.error)
+        type: "SET_ERROR",
+      })
+    } finally {
+      dispatch({ payload: false, type: "SET_IS_EDITING_IMAGE" })
     }
-
-    dispatch({ payload: editResult.image, type: "SET_DRAFT_IMAGE" })
   }
 
   async function handleSave() {
@@ -235,7 +240,7 @@ function EditSceneDialog({
       onSave({ image: draftImage ?? undefined })
     }
 
-    resetEditSceneDialogState(dispatch, setCanClear, setCanUndo)
+    dispatch({ type: "RESET" })
     onOpenChange(false)
   }
 
@@ -250,7 +255,7 @@ function EditSceneDialog({
     }
 
     if (previousSceneIdRef.current !== null && previousSceneIdRef.current !== scene.id) {
-      resetEditSceneDialogState(dispatch, setCanClear, setCanUndo)
+      dispatch({ type: "RESET" })
     }
 
     previousSceneIdRef.current = scene.id
@@ -358,10 +363,12 @@ function EditSceneDialog({
               image={previewImage}
               isDisabled={isEditingImage}
               onFile={handleFile}
-              onHistoryChange={({ canClear: nextCanClear, canUndo: nextCanUndo }) => {
-                setCanClear(nextCanClear)
-                setCanUndo(nextCanUndo)
-              }}
+              onHistoryChange={({ canClear: nextCanClear, canUndo: nextCanUndo }) =>
+                dispatch({
+                  payload: { canClear: nextCanClear, canUndo: nextCanUndo },
+                  type: "SET_HISTORY",
+                })
+              }
               sceneNumber={sceneNumber}
               tool={tool}
             />
