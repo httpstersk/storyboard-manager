@@ -21,12 +21,22 @@ export interface Board {
 export interface GeneratedBoardScene {
   /** Visual action planned for the frame. */
   action: string
+  /** Planned camera body. */
+  camera: string
   /** Essential dialogue context, empty when the scene is silent. */
   dialogue: string
   /** Generated frame encoded as an image data URL. */
   image: string
+  /** Planned lens. */
+  lens: string
+  /** Planned lighting condition. */
+  lighting: string
+  /** Planned camera movement. */
+  movement: string
   /** Planned shot size. */
   shot: ShotSize
+  /** Planned scene duration in seconds. */
+  timeSeconds: number
 }
 
 /** A single storyboard scene and all of its editable parameters. */

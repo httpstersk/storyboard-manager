@@ -1,6 +1,6 @@
 import { fal } from "@ai-sdk/fal"
 import { openai } from "@ai-sdk/openai"
-import { generateImage, generateObject } from "ai"
+import { generateImage, generateText, Output } from "ai"
 
 import {
   layoutForSceneCount,
@@ -19,6 +19,18 @@ export const maxDuration = 300
 
 /** Ensures sharp and the provider SDK run in a full Node.js environment. */
 export const runtime = "nodejs"
+
+/** Director persona and craft rules that shape every scene plan. */
+const DIRECTOR_SYSTEM_PROMPT = `You are a veteran storyboard director. Your boards are judged on followability, not completeness: a reader must grasp the story from the frames alone, in order, at a glance.
+
+Craft rules, applied to every plan:
+- One beat per scene. Each action is a single concise clause with exactly one subject performing one action. No compound actions, no montage descriptions.
+- Every scene must be visually distinct from its neighbours and must advance the story. Cut anything that repeats information.
+- Compose deliberately. At most 2 scenes in the whole board may place the subject dead-center. Spread the rest across rule-of-thirds placements, negative space, foreground occlusion, over-the-shoulder framings, and low or high angles.
+- Choose shot sizes for narrative function: WS to establish geography, MS for interaction, MCU for reaction, CU for decision or detail. Alternate sizes so no three consecutive scenes share one.
+- Keep a coherent lighting grammar. Light follows the story's time and mood arc; adjacent scenes in the same location and moment share the same lighting condition, and lighting changes mark story turns.
+- Pace with intent. Scene durations form a rhythm: longer establishing and emotional beats, shorter action and reaction beats.
+- Bind characters by appearance. When character material exists, actions reference subjects with concrete identifiers (wardrobe, hair, silhouette), never bare pronouns.`
 
 /**
  * Plans a storyline, generates one Nano Banana Lite contact sheet, then
@@ -48,17 +60,23 @@ export async function POST(request: Request): Promise<Response> {
     }
 
     const { characterSheets, imageRefs, prompt } = parsedRequest.data
-    const { object: plan } = await generateObject({
+    const { output: plan } = await generateText({
       maxRetries: 1,
-      model: openai("gpt-5-mini"),
+      model: openai("gpt-5.4-mini"),
+      output: Output.object({
+        description:
+          "A concise cinematic storyboard plan with a dynamic number of ordered scenes.",
+        name: "storyboard_plan",
+        schema: storyboardPlanSchema,
+      }),
       prompt: buildPlanningPrompt(prompt, characterSheets),
-      schema: storyboardPlanSchema,
-      schemaDescription:
-        "A concise cinematic storyboard plan with a dynamic number of ordered scenes.",
-      schemaName: "storyboard_plan",
-      system:
-        "You are a film director and storyboard artist. Convert story material into the fewest clear visual beats needed to tell it cinematically while preserving continuity.",
+      system: DIRECTOR_SYSTEM_PROMPT,
     })
+
+    if (plan === undefined) {
+      throw new Error("The planner returned no structured storyboard plan.")
+    }
+
     const layout = layoutForSceneCount(plan.scenes.length)
     const compositePrompt = buildCompositePrompt({
       characterSheets,
@@ -83,7 +101,8 @@ export async function POST(request: Request): Promise<Response> {
         fal: {
           aspect_ratio: chooseCompositeAspectRatio(layout),
           limit_generations: true,
-          outputFormat: "png",
+          outputFormat: "jpeg",
+          resolution: "2K",
           useMultipleImages: imageRefs.length > 1,
         },
       },
@@ -121,16 +140,23 @@ function buildPlanningPrompt(
   const characterContext =
     characterSheets.length === 0
       ? "No separate character sheets were supplied."
-      : `Character sheets:\n${characterSheets.join("\n\n---\n\n")}`
+      : `Character sheets — every scene's action must re-bind its subject to one of these characters using concrete identifiers (wardrobe, hair, silhouette), never pronouns:\n${characterSheets.join(
+        "\n\n---\n\n"
+      )}`
 
   return `Plan a cinematic storyboard from this story material.
 
-Choose a dynamic scene count from 3 to 12 based on narrative complexity. A short logline should use fewer beats; a full storyline should use more. Every scene must be visually distinct and advance the story.
+Choose a dynamic scene count from 3 to 12 based on narrative complexity. A short logline should use fewer beats; a full storyline should use more.
 
 For every scene:
-- action: one concise, drawable visual beat (140 characters maximum)
+- action: one concise, drawable visual beat with exactly one subject action (140 characters maximum)
 - dialogue: only essential spoken context, otherwise an empty string
-- shot: one of WS, MS, MCU, or CU
+- shot: one of WS, MS, MCU, or CU, chosen for narrative function
+- camera: the camera body whose character suits the beat
+- lens: the focal length that produces the intended framing and compression
+- movement: the camera movement that serves the beat, Static when stillness is stronger
+- lighting: the lighting condition continuing the board's light-and-mood arc
+- timeSeconds: the planned duration in whole seconds (1 to 60), paced for rhythm
 
 Create a concise board title (60 characters maximum).
 

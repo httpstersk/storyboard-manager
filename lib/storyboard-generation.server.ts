@@ -1,6 +1,6 @@
 import sharp from "sharp"
 
-import { STORYBOARD_CELL_GAP, type StoryboardLayout } from "@/lib/generation"
+import { type StoryboardLayout } from "@/lib/generation"
 
 /** Width of every normalized storyboard frame in pixels. */
 const FRAME_WIDTH = 640
@@ -34,7 +34,11 @@ interface CompositePromptOptions {
   /** Ordered visual beats assigned to grid cells. */
   scenes: Array<{
     action: string
+    camera: string
     dialogue: string
+    lens: string
+    lighting: string
+    movement: string
     shot: string
   }>
   /** Original logline or full story material. */
@@ -54,7 +58,7 @@ export function buildCompositePrompt({
   const sceneList = scenes
     .map(
       (scene, index) =>
-        `${index + 1}. [${scene.shot}] ${scene.action}${
+        `${index + 1}. [${scene.shot} | ${scene.camera} | ${scene.lens} | ${scene.movement} | ${scene.lighting}] ${scene.action}${
           scene.dialogue === "" ? "" : ` Dialogue context: ${scene.dialogue}`
         }`
     )
@@ -62,8 +66,8 @@ export function buildCompositePrompt({
   const emptyCellCount = rows * columns - scenes.length
   const continuity =
     characterSheets.length === 0
-      ? "Infer consistent character appearances and wardrobe from the storyline."
-      : `Maintain these character designs exactly across every frame:\n${characterSheets.join(
+      ? "Infer consistent character appearances and wardrobe from the storyline and keep them identical in every cell."
+      : `Maintain these character designs exactly across every frame. Re-assert each character's identity inside every cell they appear in — same face, hair, wardrobe, and silhouette:\n${characterSheets.join(
           "\n\n---\n\n"
         )}`
 
@@ -73,13 +77,18 @@ GRID SPECIFICATION:
 - Exactly ${columns} columns by ${rows} rows.
 - Read left-to-right, then top-to-bottom.
 - Every cell has the same dimensions and a cinematic 16:9 composition.
-- Separate adjacent cells with exactly ${STORYBOARD_CELL_GAP}px solid black lines.
-- No outer border, captions, labels, scene numbers, text, watermarks, or margins.
-- Keep each shot entirely inside its own cell. Never blend imagery across separators.
+- Cells are rendered edge-to-edge with ZERO gap: no separator lines, no borders, no gutters, no margins, no frames anywhere on the sheet.
+- Keep each shot fully contained in its own cell with a clean hard boundary between adjacent shots. Never blend imagery across cell boundaries.
 ${emptyCellCount > 0 ? `- Leave the final ${emptyCellCount} unused cell${emptyCellCount === 1 ? "" : "s"} solid black.` : ""}
 
+REALISM (hard requirement):
+Every cell is photorealistic live-action cinematography — real human skin texture, real fabric and materials, natural depth of field, and the optical character of the camera body and lens named for that cell. Absolutely no illustration, storyboard sketch, pencil or ink drawing, comic art, anime, cel-shading, watercolor, concept-art painting, or 3D cartoon rendering.
+
+CONTAINMENT (hard requirement):
+Absolutely no text anywhere on the sheet — no shot numbers, labels, captions, titles, subtitles, borders, watermarks, or UI chrome. Pure imagery only.
+
 VISUAL DIRECTION:
-Premium live-action film previsualization, coherent production design, realistic lighting, intentional lens language, rich cinematic contrast, and strong visual continuity. Each cell must be immediately readable as a distinct story beat.
+Premium live-action film previsualization with coherent production design and strong visual continuity. Each cell follows its bracketed [shot size | camera | lens | movement | lighting] specification: frame the subject at the stated shot size, render the lens's field of view and compression, imply the movement through motion blur or composition energy, and light the cell with the stated condition. Compose with variety — at most 2 cells on the whole sheet may center the subject; vary blocking, angle, and depth layering between adjacent cells so no two neighbours read the same.
 
 STORYLINE:
 ${storyline}
@@ -116,16 +125,15 @@ export function chooseCompositeAspectRatio({
 }
 
 /**
- * Normalizes a received contact sheet into equal 16:9 cells separated by
- * exact 1px gaps, then extracts one PNG per requested scene.
+ * Slices a zero-gap contact sheet into equal cells and normalizes each
+ * one into a 640×360 PNG frame, one per requested scene.
  */
 export async function normalizeAndSliceComposite(
   composite: Uint8Array,
   layout: StoryboardLayout,
   sceneCount: number
 ): Promise<Buffer[]> {
-  const source = sharp(composite)
-  const metadata = await source.metadata()
+  const metadata = await sharp(composite).metadata()
 
   if (metadata.width === undefined || metadata.height === undefined) {
     throw new Error("The generated storyboard has no readable dimensions.")
@@ -138,8 +146,8 @@ export async function normalizeAndSliceComposite(
     throw new Error("The generated storyboard is too small to slice.")
   }
 
-  const normalizedFrames = await Promise.all(
-    Array.from({ length: layout.columns * layout.rows }, async (_, index) => {
+  return Promise.all(
+    Array.from({ length: sceneCount }, (_, index) => {
       const column = index % layout.columns
       const row = Math.floor(index / layout.columns)
 
@@ -151,46 +159,6 @@ export async function normalizeAndSliceComposite(
           width: sourceCellWidth,
         })
         .resize(FRAME_WIDTH, FRAME_HEIGHT, { fit: "cover" })
-        .png()
-        .toBuffer()
-    })
-  )
-  const normalizedWidth =
-    layout.columns * FRAME_WIDTH + (layout.columns - 1) * STORYBOARD_CELL_GAP
-  const normalizedHeight =
-    layout.rows * FRAME_HEIGHT + (layout.rows - 1) * STORYBOARD_CELL_GAP
-  const normalizedComposite = await sharp({
-    create: {
-      background: "#000000",
-      channels: 4,
-      height: normalizedHeight,
-      width: normalizedWidth,
-    },
-  })
-    .composite(
-      normalizedFrames.map((input, index) => ({
-        input,
-        left: (index % layout.columns) * (FRAME_WIDTH + STORYBOARD_CELL_GAP),
-        top:
-          Math.floor(index / layout.columns) *
-          (FRAME_HEIGHT + STORYBOARD_CELL_GAP),
-      }))
-    )
-    .png()
-    .toBuffer()
-
-  return Promise.all(
-    Array.from({ length: sceneCount }, (_, index) => {
-      const column = index % layout.columns
-      const row = Math.floor(index / layout.columns)
-
-      return sharp(normalizedComposite)
-        .extract({
-          height: FRAME_HEIGHT,
-          left: column * (FRAME_WIDTH + STORYBOARD_CELL_GAP),
-          top: row * (FRAME_HEIGHT + STORYBOARD_CELL_GAP),
-          width: FRAME_WIDTH,
-        })
         .png()
         .toBuffer()
     })

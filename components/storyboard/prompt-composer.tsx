@@ -54,6 +54,8 @@ interface PromptComposerRootProps extends Omit<
 > {
   /** Disables generation and all attachment controls. */
   disabled?: boolean
+  /** Reports whether the composer currently holds focus. */
+  onActiveChange?: (isActive: boolean) => void
   /** Sends a validated generation request to the workspace. */
   onSubmit: (request: StoryboardGenerationRequest) => Promise<void>
 }
@@ -73,6 +75,7 @@ function PromptComposerRoot({
   children,
   className,
   disabled = false,
+  onActiveChange,
   onSubmit,
   ...props
 }: PromptComposerRootProps) {
@@ -150,6 +153,12 @@ function PromptComposerRoot({
           "group/composer mx-auto w-full max-w-3xl shrink-0 overflow-hidden rounded-2xl border border-edge bg-surface-panel shadow-popover transition-[border-color,box-shadow] duration-200 ease-out focus-within:border-edge-strong focus-within:ring-1 focus-within:ring-ring/30 motion-reduce:transition-none",
           className
         )}
+        onBlurCapture={(event) => {
+          if (!event.currentTarget.contains(event.relatedTarget)) {
+            onActiveChange?.(false)
+          }
+        }}
+        onFocusCapture={() => onActiveChange?.(true)}
         onSubmit={(event) => {
           event.preventDefault()
           void submit()

@@ -50,6 +50,8 @@ interface WorkspaceState {
   editingSceneId: string | null
   hydrated: boolean
   ioError: string | null
+  /** Whether the prompt composer currently holds focus. */
+  isComposerActive: boolean
   isGenerating: boolean
   /** Reference time for relative "edited" labels, refreshed per action. */
   now: number
@@ -67,6 +69,7 @@ type WorkspaceAction =
   | { boardId: string; type: "selectBoard" }
   | { columns: number; type: "setColumns" }
   | { boardId: string | null; type: "setDeleteRequest" }
+  | { isComposerActive: boolean; type: "setComposerActive" }
   | { error: string | null; type: "setIoError" }
   | { isGenerating: boolean; type: "setIsGenerating" }
   | { query: string; type: "setQuery" }
@@ -141,6 +144,8 @@ function workspaceReducer(
       return { ...state, columns: clampInteger(action.columns, COLUMN_LIMITS) }
     case "setDeleteRequest":
       return { ...state, deleteRequestBoardId: action.boardId }
+    case "setComposerActive":
+      return { ...state, isComposerActive: action.isComposerActive }
     case "setEditingScene":
       return { ...state, editingSceneId: action.sceneId }
     case "setIoError":
@@ -186,6 +191,7 @@ function createInitialState(): WorkspaceState {
     editingSceneId: null,
     hydrated: false,
     ioError: null,
+    isComposerActive: false,
     isGenerating: false,
     now: board.updatedAt,
     query: "",
@@ -367,8 +373,9 @@ function StoryboardWorkspace() {
       </div>
       {/* <main> is a plain flex child: the sidebar now floats above it
           (see the overlay below), so nothing shifts or resizes the
-          content and no layout animation is needed here. */}
-      <main className="flex min-w-0 flex-1 flex-col gap-3.5">
+          content and no layout animation is needed here. It is `relative`
+          so the prompt composer and its focus backdrop can pin to it. */}
+      <main className="relative flex min-w-0 flex-1 flex-col gap-3.5">
         <BoardToolbar>
           <BoardToolbar.Brand name="Boooards" version="v1.3" />
           <BoardToolbar.Controls>
@@ -441,14 +448,42 @@ function StoryboardWorkspace() {
           scenes={selectedBoard.scenes}
           showParameters={state.showParameters}
         />
-        <PromptComposer.Root
-          disabled={state.isGenerating}
-          onSubmit={handleGenerateStoryboard}
-        >
-          <PromptComposer.Input />
-          <PromptComposer.Attachments />
-          <PromptComposer.Actions />
-        </PromptComposer.Root>
+        {/* Focus backdrop for the composer. Sits above the board content
+            (z-40) but below the composer (z-50), dimming and blurring the
+            storyboards while the user is writing a prompt. A mousedown on
+            it naturally blurs the composer, which clears the active flag. */}
+        <AnimatePresence>
+          {state.isComposerActive && (
+            <m.div
+              animate={{ opacity: 1 }}
+              aria-hidden
+              className="absolute inset-0 z-40 bg-[oklch(0_0_0_/_0.32)] backdrop-blur-sm"
+              exit={{ opacity: 0 }}
+              initial={{ opacity: 0 }}
+              key="composer-backdrop"
+              onClick={() =>
+                dispatch({ isComposerActive: false, type: "setComposerActive" })
+              }
+              transition={SIDEBAR_CONTENT_TRANSITION}
+            />
+          )}
+        </AnimatePresence>
+        {/* Composer pinned above the storyboards. Fixed to the bottom of
+            <main> so the grid scrolls beneath it; the grid carries bottom
+            padding so its last row can clear the composer. */}
+        <div className="absolute inset-x-0 bottom-10 z-50 mx-auto w-full max-w-3xl px-4">
+          <PromptComposer.Root
+            disabled={state.isGenerating}
+            onActiveChange={(isComposerActive) =>
+              dispatch({ isComposerActive, type: "setComposerActive" })
+            }
+            onSubmit={handleGenerateStoryboard}
+          >
+            <PromptComposer.Input />
+            <PromptComposer.Attachments />
+            <PromptComposer.Actions />
+          </PromptComposer.Root>
+        </div>
         <BoardStatusBar>
           <BoardStatusBar.Summary>
             {visibleScenes.length} scenes · {runtime} total
