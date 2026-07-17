@@ -8,6 +8,44 @@ interface PromptComposerAttachmentGroupProps {
   onRemove: (index: number) => void
 }
 
+interface PromptComposerAttachmentThumbnailProps {
+  file: File
+  label: string
+  onRemove: () => void
+}
+
+/** Single image reference rendered as a square preview chip. */
+function PromptComposerAttachmentThumbnail({
+  file,
+  label,
+  onRemove,
+}: PromptComposerAttachmentThumbnailProps) {
+  const objectUrl = React.useMemo(() => URL.createObjectURL(file), [file])
+
+  React.useEffect(() => () => URL.revokeObjectURL(objectUrl), [objectUrl])
+
+  return (
+    <li className="group/thumb relative size-14 shrink-0">
+      {/* Local blob object URLs cannot be optimised by next/image. */}
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img
+        alt={file.name}
+        className="size-full rounded-xl object-cover ring-1 ring-edge ring-inset"
+        src={objectUrl}
+      />
+      <button
+        aria-label={`Remove ${file.name} from ${label.toLowerCase()} references`}
+        className="absolute -top-1.5 -right-1.5 grid size-5 place-items-center rounded-full bg-emphasis text-emphasis-foreground shadow-knob transition-[opacity,transform] outline-none hover:brightness-110 focus-visible:opacity-100 focus-visible:ring-2 focus-visible:ring-ring active:scale-90 sm:opacity-0 sm:group-hover/thumb:opacity-100"
+        onClick={onRemove}
+        title={file.name}
+        type="button"
+      >
+        <SFXmark aria-hidden className="size-2.5" />
+      </button>
+    </li>
+  )
+}
+
 /** One labelled reference-image group inside the prompt composer shelf. */
 function PromptComposerAttachmentGroup({
   files,
@@ -20,27 +58,19 @@ function PromptComposerAttachmentGroup({
   }
 
   return (
-    <div className="flex min-w-0 items-center gap-2">
-      <div className="flex w-24 shrink-0 items-center gap-1.5 text-caption font-medium text-ink-muted">
+    <div className="flex min-w-0 flex-col gap-2">
+      <div className="flex items-center gap-1.5 text-caption font-medium tracking-wide text-ink-muted">
         {icon}
         <span>{label}</span>
       </div>
-      <ul aria-label={`${label} references`} className="flex gap-1.5">
+      <ul aria-label={`${label} references`} className="flex flex-wrap gap-2">
         {files.map((file, index) => (
-          <li
-            className="flex max-w-40 shrink-0 items-center gap-1.5 rounded-lg border border-edge bg-surface-panel py-1 pr-1 pl-2 text-caption text-ink"
+          <PromptComposerAttachmentThumbnail
+            file={file}
             key={`${file.name}-${file.lastModified}-${index}`}
-          >
-            <span className="truncate">{file.name}</span>
-            <button
-              aria-label={`Remove ${file.name} from ${label.toLowerCase()} references`}
-              className="grid size-6 shrink-0 place-items-center rounded-md text-ink-muted transition-colors outline-none hover:bg-surface-raised hover:text-ink-strong focus-visible:ring-2 focus-visible:ring-ring"
-              onClick={() => onRemove(index)}
-              type="button"
-            >
-              <SFXmark aria-hidden className="size-2.5" />
-            </button>
-          </li>
+            label={label}
+            onRemove={() => onRemove(index)}
+          />
         ))}
       </ul>
     </div>

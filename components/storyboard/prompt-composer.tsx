@@ -215,7 +215,7 @@ function PromptComposerRoot({
     <PromptComposerContext.Provider value={contextValue}>
       <form
         className={cn(
-          "group/composer mx-auto max-h-[min(28rem,calc(100svh-8rem))] w-full max-w-3xl shrink-0 overflow-y-auto rounded-2xl border border-edge bg-surface-panel shadow-modal transition-[border-color,box-shadow] duration-200 ease-out focus-within:border-edge-strong focus-within:ring-1 focus-within:ring-ring/30 motion-reduce:transition-none",
+          "group/composer mx-auto max-h-[min(28rem,calc(100svh-8rem))] w-full max-w-3xl shrink-0 overflow-y-auto rounded-2xl border border-edge bg-surface-panel shadow-popover transition-[border-color,box-shadow] duration-200 ease-out focus-within:border-edge-strong focus-within:shadow-modal focus-within:ring-1 focus-within:ring-ring/25 motion-reduce:transition-none",
           className
         )}
         onBlurCapture={(event) => {
@@ -283,7 +283,7 @@ function PromptComposerInput() {
         value={prompt}
       />
       {isCharacterSheetOpen ? (
-        <div className="mx-3 mb-3 rounded-xl border border-edge bg-surface-inset p-3">
+        <div className="mx-4 mb-3 rounded-xl border border-edge bg-surface-inset p-3">
           <label
             className="mb-2 flex items-center gap-1.5 text-caption font-medium text-ink"
             htmlFor="character-sheet"
@@ -324,7 +324,7 @@ function PromptComposerAttachments() {
   }
 
   return (
-    <div className="space-y-2 overflow-x-auto border-y border-edge bg-surface-inset px-3 py-2.5">
+    <div className="flex flex-col gap-3 border-y border-edge bg-surface-inset px-4 py-3">
       <PromptComposerAttachmentGroup
         files={characterImageReferences}
         icon={
@@ -395,7 +395,7 @@ function PromptComposerActions() {
   }
 
   return (
-    <div className="sticky bottom-0 z-10 flex items-center justify-between gap-3 bg-surface-panel px-3 py-2.5">
+    <div className="sticky bottom-0 z-10 flex items-center justify-between gap-3 bg-surface-panel px-4 py-3">
       <div
         aria-label="Prompt attachments"
         className="flex min-w-0 items-center gap-1"
@@ -535,7 +535,7 @@ function PromptComposerImageEditActions() {
   const { isDisabled, isSubmitting, prompt } = usePromptComposer()
 
   return (
-    <div className="sticky bottom-0 z-10 flex items-center justify-end gap-2 bg-surface-panel px-3 py-2.5">
+    <div className="sticky bottom-0 z-10 flex items-center justify-end gap-2 bg-surface-panel px-4 py-3">
       {isSubmitting ? (
         <span
           aria-live="polite"
