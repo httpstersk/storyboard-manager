@@ -13,16 +13,21 @@ import { PromptComposerAttachmentGroup } from "@/components/storyboard/prompt-co
 import {
   MAX_CHARACTER_SHEET_LENGTH,
   MAX_IMAGE_REFERENCES,
+  MAX_IMAGE_REFERENCES_ERROR,
   type StoryboardGenerationRequest,
 } from "@/lib/generation"
 import { cn } from "@/lib/utils"
-import { validateImageFile } from "@/lib/validation"
+import { IMAGE_UPLOAD_RULES, validateImageFile } from "@/lib/validation"
+
+/** Maximum bytes read from a character text file before character truncation. */
+const MAX_CHARACTER_SHEET_FILE_BYTES = MAX_CHARACTER_SHEET_LENGTH * 4
 
 interface PromptComposerContextValue {
   characterImageReferences: File[]
   characterSheetText: string
   error: string | null
   isCharacterSheetOpen: boolean
+  isDisabled: boolean
   isSubmitting: boolean
   prompt: string
   removeCharacterImageReference: (index: number) => void
@@ -156,6 +161,7 @@ function PromptComposerRoot({
     characterSheetText,
     error,
     isCharacterSheetOpen,
+    isDisabled: disabled || isSubmitting,
     isSubmitting,
     prompt,
     removeCharacterImageReference,
@@ -174,7 +180,7 @@ function PromptComposerRoot({
     <PromptComposerContext.Provider value={contextValue}>
       <form
         className={cn(
-          "group/composer mx-auto w-full max-w-3xl shrink-0 overflow-hidden rounded-2xl border border-edge bg-surface-panel shadow-modal transition-[border-color,box-shadow] duration-200 ease-out focus-within:border-edge-strong focus-within:ring-1 focus-within:ring-ring/30 motion-reduce:transition-none",
+          "group/composer mx-auto max-h-[min(28rem,calc(100svh-8rem))] w-full max-w-3xl shrink-0 overflow-y-auto rounded-2xl border border-edge bg-surface-panel shadow-modal transition-[border-color,box-shadow] duration-200 ease-out focus-within:border-edge-strong focus-within:ring-1 focus-within:ring-ring/30 motion-reduce:transition-none",
           className
         )}
         onBlurCapture={(event) => {
