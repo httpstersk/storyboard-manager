@@ -1,7 +1,9 @@
 "use client"
+import { m, useReducedMotion } from "motion/react"
 
 import { Dialog as DialogPrimitive } from "radix-ui"
 import * as React from "react"
+import { TRANSITION_FADE_STANDARD, TRANSITION_MODAL } from "@/lib/motion"
 
 import { cn } from "@/lib/utils"
 
@@ -29,19 +31,37 @@ function DialogContent({
   className,
   ...props
 }: React.ComponentProps<typeof DialogPrimitive.Content>) {
+  const shouldReduceMotion = Boolean(useReducedMotion())
   return (
     <DialogPrimitive.Portal>
-      <DialogPrimitive.Overlay className="fixed inset-0 z-50 bg-scrim backdrop-blur-md data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=closed]:duration-150 data-[state=closed]:ease-out data-[state=open]:animate-in data-[state=open]:fade-in-0 data-[state=open]:duration-200 data-[state=open]:ease-out" />
+      <DialogPrimitive.Overlay asChild>
+        <m.div
+          animate={{ opacity: 1 }}
+          className="fixed inset-0 z-50 bg-scrim backdrop-blur-md"
+          initial={shouldReduceMotion ? false : { opacity: 0 }}
+          transition={shouldReduceMotion ? { duration: 0 } : TRANSITION_FADE_STANDARD}
+        />
+      </DialogPrimitive.Overlay>
       <DialogPrimitive.Content
-        className={cn(
-          "fixed top-1/2 left-1/2 z-50 flex max-h-[var(--height-shell)] w-[calc(100vw-2rem)] max-w-3xl -translate-x-1/2 -translate-y-1/2 flex-col overflow-clip rounded-2xl border border-edge bg-surface-panel shadow-modal outline-none",
-          "data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=closed]:zoom-out-95 data-[state=closed]:duration-150 data-[state=closed]:ease-out",
-          "data-[state=open]:animate-in data-[state=open]:fade-in-0 data-[state=open]:zoom-in-95 data-[state=open]:duration-200 data-[state=open]:ease-out",
-          className
-        )}
+        asChild
+        forceMount
         {...props}
       >
+        <m.div
+          animate={{ opacity: 1, scale: 1 }}
+          initial={
+            shouldReduceMotion
+              ? false
+              : { opacity: 0, scale: 0.96 }
+          }
+          transition={shouldReduceMotion ? { duration: 0 } : TRANSITION_MODAL}
+        className={cn(
+          "fixed top-1/2 left-1/2 z-50 flex max-h-[var(--height-shell)] w-[calc(100vw-2rem)] max-w-3xl -translate-x-1/2 -translate-y-1/2 flex-col overflow-clip rounded-2xl border border-edge bg-surface-panel shadow-modal outline-none",
+          className
+        )}
+      >
         {children}
+        </m.div>
       </DialogPrimitive.Content>
     </DialogPrimitive.Portal>
   )

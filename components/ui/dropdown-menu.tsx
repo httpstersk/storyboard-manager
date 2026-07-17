@@ -1,8 +1,10 @@
 "use client"
 
 import { cva, type VariantProps } from "class-variance-authority"
+import { m, useReducedMotion } from "motion/react"
 import { DropdownMenu as DropdownMenuPrimitive } from "radix-ui"
 import * as React from "react"
+import { TRANSITION_POPOVER } from "@/lib/motion"
 
 import { cn } from "@/lib/utils"
 
@@ -31,19 +33,25 @@ function DropdownMenuContent({
   sideOffset = 5,
   ...props
 }: React.ComponentProps<typeof DropdownMenuPrimitive.Content>) {
+  const shouldReduceMotion = Boolean(useReducedMotion())
   return (
     <DropdownMenuPrimitive.Portal>
       <DropdownMenuPrimitive.Content
-        className={cn(
-          "z-50 min-w-36 origin-[var(--radix-popper-transform-origin)] rounded-xl border border-edge bg-surface-raised p-1 shadow-popover",
-          "data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=closed]:zoom-out-95 data-[state=closed]:duration-125 data-[state=closed]:ease-out",
-          "data-[state=open]:animate-in data-[state=open]:fade-in-0 data-[state=open]:zoom-in-95 data-[state=open]:duration-150 data-[state=open]:ease-out",
-          className
-        )}
+        asChild
         sideOffset={sideOffset}
         {...props}
       >
-        {children}
+        <m.div
+          animate={{ opacity: 1, scale: 1 }}
+          className={cn(
+            "z-50 min-w-36 origin-[var(--radix-popper-transform-origin)] rounded-xl border border-edge bg-surface-raised p-1 shadow-popover",
+            className
+          )}
+          initial={shouldReduceMotion ? false : { opacity: 0, scale: 0.96 }}
+          transition={shouldReduceMotion ? { duration: 0 } : TRANSITION_POPOVER}
+        >
+          {children}
+        </m.div>
       </DropdownMenuPrimitive.Content>
     </DropdownMenuPrimitive.Portal>
   )

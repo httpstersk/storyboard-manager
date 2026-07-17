@@ -26,13 +26,13 @@ import {
   storyboardGenerationResponseSchema,
 } from "@/lib/generation"
 import { imageModelAtom } from "@/lib/image-model-settings"
-import { EASE_OUT } from "@/lib/motion"
 import {
   loadStoredWorkspace,
   saveStoredWorkspace,
   type StoredWorkspace,
   WORKSPACE_SAVE_DEBOUNCE_MS,
 } from "@/lib/persistence"
+import { EASE_OUT, SPRING_LAYOUT } from "@/lib/motion"
 import {
   type Board,
   COLUMN_LIMITS,
@@ -251,7 +251,7 @@ function withViewTransition(update: () => void): void {
 
 /** Shared spring for the sidebar collapse/expand transition; interruptible
  * so rapid toggling doesn't fight itself. */
-const SIDEBAR_SPRING = { type: "spring", duration: 0.4, bounce: 0.1 } as const
+const SIDEBAR_SPRING = { ...SPRING_LAYOUT } as const
 
 /** Quick fade/scale used for cross-fading the sidebar/rail contents. */
 const SIDEBAR_CONTENT_TRANSITION = { duration: 0.15, ease: EASE_OUT } as const

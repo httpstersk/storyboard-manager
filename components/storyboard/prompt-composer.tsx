@@ -1,6 +1,7 @@
 "use client"
 
 import { useAtomValue } from "jotai"
+import { AnimatePresence, m } from "motion/react"
 import {
   SFArrowUp,
   SFArrowUpDocument,
@@ -18,6 +19,7 @@ import {
   type StoryboardGenerationRequest,
 } from "@/lib/generation"
 import { imageModelAtom } from "@/lib/image-model-settings"
+import { EASE_OUT, TRANSITION_FADE_FAST } from "@/lib/motion"
 import { cn } from "@/lib/utils"
 import { IMAGE_UPLOAD_RULES, validateImageFile } from "@/lib/validation"
 
@@ -299,17 +301,24 @@ function PromptComposerRoot({
         {...props}
       >
         {children}
-        {state.error !== null ? (
-          <p
-            className={cn(
-              "text-caption text-destructive",
-              isImageEdit ? "w-full basis-full px-3 pb-1.5" : "px-4 pb-3"
-            )}
-            role="alert"
-          >
-            {state.error}
-          </p>
-        ) : null}
+        <AnimatePresence initial={false}>
+          {state.error !== null ? (
+            <m.p
+              animate={{ opacity: 1, y: 0 }}
+              className={cn(
+                "text-caption text-destructive",
+                isImageEdit ? "w-full basis-full px-3 pb-1.5" : "px-4 pb-3"
+              )}
+              exit={{ opacity: 0, y: -2 }}
+              initial={{ opacity: 0, y: -2 }}
+              key="composer-error"
+              role="alert"
+              transition={TRANSITION_FADE_FAST}
+            >
+              {state.error}
+            </m.p>
+          ) : null}
+        </AnimatePresence>
       </form>
     </PromptComposerContext.Provider>
   )
@@ -397,30 +406,40 @@ function PromptComposerAttachments() {
     styleImageReferences,
   } = usePromptComposer()
 
-  if (
+  const hasAttachments =
     mode === "image-edit" ||
     (characterImageReferences.length === 0 && styleImageReferences.length === 0)
-  ) {
-    return null
-  }
 
   return (
-    <div className="flex flex-col gap-3 border-y border-edge bg-surface-inset px-4 py-3">
-      <PromptComposerAttachmentGroup
-        files={characterImageReferences}
-        icon={
-          <SFPerson2CropSquareStack aria-hidden className="size-3.5 shrink-0" />
-        }
-        label="Characters"
-        onRemove={removeCharacterImageReference}
-      />
-      <PromptComposerAttachmentGroup
-        files={styleImageReferences}
-        icon={<SFPaintbrush aria-hidden className="size-3.5 shrink-0" />}
-        label="Visual style"
-        onRemove={removeStyleImageReference}
-      />
-    </div>
+    <AnimatePresence initial={false}>
+      {!hasAttachments ? (
+        <m.div
+          animate={{ opacity: 1, height: "auto" }}
+          className="overflow-hidden"
+          exit={{ opacity: 0, height: 0 }}
+          initial={{ opacity: 0, height: 0 }}
+          key="composer-attachments"
+          transition={{ duration: 0.2, ease: EASE_OUT }}
+        >
+          <div className="flex flex-col gap-3 border-y border-edge bg-surface-inset px-4 py-3">
+            <PromptComposerAttachmentGroup
+              files={characterImageReferences}
+              icon={
+                <SFPerson2CropSquareStack aria-hidden className="size-3.5 shrink-0" />
+              }
+              label="Characters"
+              onRemove={removeCharacterImageReference}
+            />
+            <PromptComposerAttachmentGroup
+              files={styleImageReferences}
+              icon={<SFPaintbrush aria-hidden className="size-3.5 shrink-0" />}
+              label="Visual style"
+              onRemove={removeStyleImageReference}
+            />
+          </div>
+        </m.div>
+      ) : null}
+    </AnimatePresence>
   )
 }
 
@@ -592,15 +611,22 @@ function PromptComposerActions() {
         />
       </div>
       <div className="flex shrink-0 items-center gap-2">
-        {isSubmitting ? (
-          <span
-            aria-live="polite"
-            className="hidden text-caption text-ink-muted sm:inline"
-            role="status"
-          >
-            Directing scenes…
-          </span>
-        ) : null}
+        <AnimatePresence initial={false}>
+          {isSubmitting ? (
+            <m.span
+              animate={{ opacity: 1, y: 0 }}
+              aria-live="polite"
+              className="hidden text-caption text-ink-muted sm:inline"
+              exit={{ opacity: 0, y: -2 }}
+              initial={{ opacity: 0, y: -2 }}
+              key="composer-submitting"
+              role="status"
+              transition={TRANSITION_FADE_FAST}
+            >
+              Directing scenes…
+            </m.span>
+          ) : null}
+        </AnimatePresence>
         <button
           aria-label="Generate storyboard"
           className="grid size-9 place-items-center rounded-full bg-emphasis text-emphasis-foreground transition-[filter,transform] outline-none hover:brightness-105 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 active:scale-[0.94] disabled:cursor-not-allowed disabled:opacity-40"
@@ -620,15 +646,22 @@ function PromptComposerImageEditActions() {
 
   return (
     <div className="flex shrink-0 items-center gap-1.5 pr-1">
-      {isSubmitting ? (
-        <span
-          aria-live="polite"
-          className="text-caption text-ink-muted"
-          role="status"
-        >
-          Editing image…
-        </span>
-      ) : null}
+      <AnimatePresence initial={false}>
+        {isSubmitting ? (
+          <m.span
+            animate={{ opacity: 1, y: 0 }}
+            aria-live="polite"
+            className="text-caption text-ink-muted"
+            exit={{ opacity: 0, y: -2 }}
+            initial={{ opacity: 0, y: -2 }}
+            key="composer-image-edit-submitting"
+            role="status"
+            transition={TRANSITION_FADE_FAST}
+          >
+            Editing image…
+          </m.span>
+        ) : null}
+      </AnimatePresence>
       <button
         aria-label="Apply image edit"
         className="flex h-8 items-center gap-1.5 rounded-full bg-emphasis px-3 text-label font-medium text-emphasis-foreground transition-[filter,transform] outline-none hover:brightness-105 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 active:scale-[0.97] disabled:cursor-not-allowed disabled:opacity-40"

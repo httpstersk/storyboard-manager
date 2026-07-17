@@ -1,7 +1,9 @@
 "use client"
+import { m, useReducedMotion } from "motion/react"
 
 import { Tooltip as TooltipPrimitive } from "radix-ui"
 import * as React from "react"
+import { TRANSITION_POPOVER } from "@/lib/motion"
 
 import { cn } from "@/lib/utils"
 
@@ -51,21 +53,26 @@ function TooltipContent({
   sideOffset = 7,
   ...props
 }: React.ComponentProps<typeof TooltipPrimitive.Content>) {
+  const shouldReduceMotion = Boolean(useReducedMotion())
   return (
     <TooltipPrimitive.Portal>
       <TooltipPrimitive.Content
-        className={cn(
-          "z-50 origin-[var(--radix-popper-transform-origin)] rounded-full bg-emphasis px-2.5 py-1 text-caption text-emphasis-foreground",
-          "data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=closed]:zoom-out-95 data-[state=closed]:duration-100 data-[state=closed]:ease-out",
-          "data-[state=delayed-open]:animate-in data-[state=delayed-open]:fade-in-0 data-[state=delayed-open]:zoom-in-95 data-[state=delayed-open]:duration-125 data-[state=delayed-open]:ease-out",
-          "data-[state=instant-open]:animate-in data-[state=instant-open]:fade-in-0 data-[state=instant-open]:zoom-in-95 data-[state=instant-open]:duration-125 data-[state=instant-open]:ease-out",
-          className
-        )}
+        asChild
         sideOffset={sideOffset}
         {...props}
       >
-        {children}
-        <TooltipPrimitive.Arrow className="fill-emphasis" height={5} width={10} />
+        <m.div
+          animate={{ opacity: 1, scale: 1 }}
+          className={cn(
+            "z-50 origin-[var(--radix-popper-transform-origin)] rounded-full bg-emphasis px-2.5 py-1 text-caption text-emphasis-foreground",
+            className
+          )}
+          initial={shouldReduceMotion ? false : { opacity: 0, scale: 0.97 }}
+          transition={shouldReduceMotion ? { duration: 0 } : TRANSITION_POPOVER}
+        >
+          {children}
+          <TooltipPrimitive.Arrow className="fill-emphasis" height={5} width={10} />
+        </m.div>
       </TooltipPrimitive.Content>
     </TooltipPrimitive.Portal>
   )

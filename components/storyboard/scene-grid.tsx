@@ -8,7 +8,7 @@ import { PillSelect } from "@/components/ui/pill-select"
 import { SegmentedControl } from "@/components/ui/segmented-control"
 import { Stepper } from "@/components/ui/stepper"
 import { Tooltip } from "@/components/ui/tooltip"
-import { EASE_OUT } from "@/lib/motion"
+import { EASE_OUT, SPRING_LAYOUT } from "@/lib/motion"
 import {
   CAMERA_OPTIONS,
   formatSceneNumber,
@@ -32,9 +32,7 @@ const SCENE_EXIT_TRANSITION = { duration: 0.15, ease: EASE_OUT } as const
 /** Reflow (rows/columns changes) uses a spring so it feels alive rather
  * than mechanical, consistent with the other layout transitions. */
 const SCENE_LAYOUT_TRANSITION = {
-  type: "spring",
-  duration: 0.35,
-  bounce: 0.1,
+  ...SPRING_LAYOUT,
 } as const
 
 /** Stagger step between card entrances, capped so large grids don't feel

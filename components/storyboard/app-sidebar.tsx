@@ -15,6 +15,7 @@ import { flushSync } from "react-dom"
 
 import { DropdownMenu } from "@/components/ui/dropdown-menu"
 import { IconButton } from "@/components/ui/icon-button"
+import { SPRING_SNAPPY } from "@/lib/motion"
 import { cn } from "@/lib/utils"
 
 /**
@@ -298,7 +299,7 @@ function SidebarBoardItem({
           <m.div
             className="absolute inset-0 rounded-xl bg-surface-raised"
             layoutId="active-board"
-            transition={{ type: "spring", duration: 0.4, bounce: 0.1 }}
+            transition={SPRING_SNAPPY}
           />
         )}
         {isEditing ? (

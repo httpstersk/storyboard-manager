@@ -1,8 +1,10 @@
 "use client"
+import { m, useReducedMotion } from "motion/react"
 
 import { SFCheckmark, SFChevronDown } from "sf-symbols-lib/monochrome"
 import { Select } from "radix-ui"
 import * as React from "react"
+import { TRANSITION_POPOVER } from "@/lib/motion"
 
 import { cn } from "@/lib/utils"
 
@@ -71,22 +73,28 @@ function PillSelectContent({
   className,
   ...props
 }: React.ComponentProps<typeof Select.Content>) {
+  const shouldReduceMotion = Boolean(useReducedMotion())
   return (
     <Select.Portal>
       <Select.Content
-        className={cn(
-          "z-50 min-w-28 origin-[var(--radix-popper-transform-origin)] rounded-xl border border-edge bg-surface-raised p-1 shadow-popover",
-          "data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=closed]:zoom-out-95 data-[state=closed]:duration-125 data-[state=closed]:ease-out",
-          "data-[state=open]:animate-in data-[state=open]:fade-in-0 data-[state=open]:zoom-in-95 data-[state=open]:duration-150 data-[state=open]:ease-out",
-          className
-        )}
+        asChild
         position="popper"
         sideOffset={5}
         {...props}
       >
-        <Select.Viewport className="flex flex-col gap-px">
-          {children}
-        </Select.Viewport>
+        <m.div
+          animate={{ opacity: 1, scale: 1 }}
+          className={cn(
+            "z-50 min-w-28 origin-[var(--radix-popper-transform-origin)] rounded-xl border border-edge bg-surface-raised p-1 shadow-popover",
+            className
+          )}
+          initial={shouldReduceMotion ? false : { opacity: 0, scale: 0.96 }}
+          transition={shouldReduceMotion ? { duration: 0 } : TRANSITION_POPOVER}
+        >
+          <Select.Viewport className="flex flex-col gap-px">
+            {children}
+          </Select.Viewport>
+        </m.div>
       </Select.Content>
     </Select.Portal>
   )
