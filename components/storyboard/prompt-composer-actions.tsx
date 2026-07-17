@@ -76,7 +76,7 @@ function PromptComposerActions() {
     <div className="sticky bottom-0 z-10 flex items-center justify-between gap-3 bg-surface-panel px-3 pt-2 pb-3">
       <div
         aria-label="Prompt attachments"
-        className="flex min-w-0 items-center gap-1"
+        className="flex min-w-0 flex-wrap items-center gap-1"
         role="group"
       >
         <button

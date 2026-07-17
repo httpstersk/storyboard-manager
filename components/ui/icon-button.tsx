@@ -12,6 +12,7 @@ const iconButtonVariants = cva(
     },
     variants: {
       size: {
+        label: "h-7 gap-1.5 px-3 text-label font-medium [&_svg]:size-3.5",
         md: "size-7 [&_svg]:size-3.5",
         sm: "size-6 [&_svg]:size-3",
       },
@@ -35,7 +36,7 @@ interface IconButtonProps
 }
 
 /**
- * A circular icon-only button with a mandatory accessible name.
+ * A circular icon button, or a labeled pill when `size="label"`.
  */
 function IconButton({
   className,
@@ -55,4 +56,4 @@ function IconButton({
   )
 }
 
-export { IconButton, type IconButtonProps }
+export { IconButton, iconButtonVariants, type IconButtonProps }

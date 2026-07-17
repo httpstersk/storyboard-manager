@@ -13,6 +13,7 @@ import {
   type PromptComposerContextValue,
   type PromptComposerRootProps,
   readFileAsDataUrl,
+  serializeCharacterNote,
 } from "@/components/storyboard/prompt-composer-context"
 import { PromptComposerInput } from "@/components/storyboard/prompt-composer-input"
 import { imageModelAtom } from "@/lib/image-model-settings"
@@ -120,12 +121,13 @@ function PromptComposerRoot({
             state.styleImageReferences.map((file) => readFileAsDataUrl(file))
           ),
         ])
-        const trimmedCharacterSheet = state.characterSheetText.trim()
+        const characterSheets = state.characterNotes
+          .map(serializeCharacterNote)
+          .filter(Boolean)
 
         await onSubmit({
           characterImageRefs,
-          characterSheets:
-            trimmedCharacterSheet === "" ? [] : [trimmedCharacterSheet],
+          characterSheets,
           imageModel,
           prompt: trimmedPrompt,
           styleImageRefs,
@@ -145,8 +147,9 @@ function PromptComposerRoot({
   }
 
   const contextValue: PromptComposerContextValue = {
+    addCharacterNote: () => dispatch({ type: "addCharacterNote" }),
     characterImageReferences: state.characterImageReferences,
-    characterSheetText: state.characterSheetText,
+    characterNotes: state.characterNotes,
     error: state.error,
     inputId,
     isCharacterSheetOpen: state.isCharacterSheetOpen,
@@ -155,14 +158,15 @@ function PromptComposerRoot({
     mode,
     prompt: state.prompt,
     removeCharacterImageReference,
+    removeCharacterNote: (id) => dispatch({ id, type: "removeCharacterNote" }),
     removeStyleImageReference,
     setCharacterImageReferences: (characterImageReferences) =>
       dispatch({
         characterImageReferences,
         type: "setCharacterImageReferences",
       }),
-    setCharacterSheetText: (text) =>
-      dispatch({ text, type: "setCharacterSheetText" }),
+    setCharacterNote: (characterNote) =>
+      dispatch({ characterNote, type: "setCharacterNote" }),
     setError: (error) => dispatch({ error, type: "setError" }),
     setIsCharacterSheetOpen: (isCharacterSheetOpen) =>
       dispatch({ isCharacterSheetOpen, type: "setCharacterSheetOpen" }),
@@ -179,7 +183,9 @@ function PromptComposerRoot({
     <PromptComposerContext.Provider value={contextValue}>
       <div
         aria-label={
-          isImageEdit ? "Image edit prompt composer" : "Storyboard prompt composer"
+          isImageEdit
+            ? "Image edit prompt composer"
+            : "Storyboard prompt composer"
         }
         className={cn(
           "group/composer mx-auto w-full max-w-3xl shrink-0 transition-[box-shadow] duration-200 ease-out focus-within:ring-2 focus-within:ring-ring motion-reduce:transition-none",

@@ -12,7 +12,7 @@ import {
 import { EditSceneDialogFooter } from "@/components/storyboard/edit-scene-dialog-footer"
 import { EditSceneDialogHeader } from "@/components/storyboard/edit-scene-dialog-header"
 import { EditSceneDialogToolbar } from "@/components/storyboard/edit-scene-dialog-toolbar"
-import { PromptComposer } from "@/components/storyboard/prompt-composer"
+import { EditSceneImagePrompt } from "@/components/storyboard/edit-scene-image-prompt"
 import { Dialog } from "@/components/ui/dialog"
 import { requestSceneImageEdit } from "@/lib/edit-scene-image-client"
 import { imageModelAtom } from "@/lib/image-model-settings"
@@ -212,8 +212,7 @@ function EditSceneDialog({
     dispatch({ payload: false, type: "SET_IS_EDITING_IMAGE" })
 
     if (!editResult.ok) {
-      dispatch({ payload: editResult.error, type: "SET_ERROR" })
-      return
+      throw new Error(editResult.error)
     }
 
     dispatch({ payload: editResult.image, type: "SET_DRAFT_IMAGE" })
@@ -347,35 +346,32 @@ function EditSceneDialog({
           tool={tool}
         />
         <div className="flex w-full px-5 pb-1">
-          <SceneCanvas
-            brushSize={brushSize}
-            color={color}
-            drawingCanvasRef={drawingCanvasRef}
-            fileInputRef={fileInputRef}
-            image={previewImage}
-            isDisabled={isEditingImage}
-            onFile={handleFile}
-            onHistoryChange={({ canClear: nextCanClear, canUndo: nextCanUndo }) => {
-              setCanClear(nextCanClear)
-              setCanUndo(nextCanUndo)
-            }}
-            sceneNumber={sceneNumber}
-            tool={tool}
-          />
-        </div>
-        {scene.image ? (
-          <div className="px-5 pb-1">
-            <PromptComposer.Root
-              disabled={isEditingImage}
-              inputId={`scene-${scene.id}-image-edit-prompt`}
-              mode="image-edit"
-              onImageEditSubmit={handleImageEdit}
-            >
-              <PromptComposer.Input />
-              <PromptComposer.Actions />
-            </PromptComposer.Root>
+          <div className="relative w-full">
+            <SceneCanvas
+              brushSize={brushSize}
+              color={color}
+              drawingCanvasRef={drawingCanvasRef}
+              fileInputRef={fileInputRef}
+              image={previewImage}
+              isDisabled={isEditingImage}
+              onFile={handleFile}
+              onHistoryChange={({ canClear: nextCanClear, canUndo: nextCanUndo }) => {
+                setCanClear(nextCanClear)
+                setCanUndo(nextCanUndo)
+              }}
+              sceneNumber={sceneNumber}
+              tool={tool}
+            />
+            {scene.image ? (
+              <EditSceneImagePrompt.Root
+                key={`${scene.id}-${String(open)}`}
+                disabled={isEditingImage}
+                inputId={`scene-${scene.id}-image-edit-prompt`}
+                onImageEditSubmit={handleImageEdit}
+              />
+            ) : null}
           </div>
-        ) : null}
+        </div>
         <EditSceneDialogFooter
           isEditingImage={isEditingImage}
           onSave={() => void handleSave()}
