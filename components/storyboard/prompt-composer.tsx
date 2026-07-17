@@ -274,11 +274,16 @@ function PromptComposerRoot({
     submit,
   }
 
+  const isImageEdit = mode === "image-edit"
+
   return (
     <PromptComposerContext.Provider value={contextValue}>
       <form
         className={cn(
-          "group/composer mx-auto max-h-[min(28rem,calc(100svh-8rem))] w-full max-w-3xl shrink-0 overflow-y-auto rounded-2xl border border-edge bg-surface-panel shadow-popover transition-[border-color,box-shadow] duration-200 ease-out focus-within:border-edge-strong focus-within:shadow-modal focus-within:ring-1 focus-within:ring-ring/25 motion-reduce:transition-none",
+          "group/composer mx-auto w-full max-w-3xl shrink-0 border border-edge transition-[border-color,box-shadow] duration-200 ease-out focus-within:border-edge-strong focus-within:ring-1 focus-within:ring-ring/25 motion-reduce:transition-none",
+          isImageEdit
+            ? "flex flex-wrap items-center gap-1.5 rounded-full bg-surface-raised py-1 pl-1 shadow-sm focus-within:shadow-popover"
+            : "max-h-[min(28rem,calc(100svh-8rem))] overflow-y-auto rounded-3xl bg-surface-raised shadow-sm focus-within:shadow-popover",
           className
         )}
         onBlurCapture={(event) => {
@@ -295,7 +300,13 @@ function PromptComposerRoot({
       >
         {children}
         {state.error !== null ? (
-          <p className="px-4 pb-3 text-caption text-destructive" role="alert">
+          <p
+            className={cn(
+              "text-caption text-destructive",
+              isImageEdit ? "w-full basis-full px-3 pb-1.5" : "px-4 pb-3"
+            )}
+            role="alert"
+          >
             {state.error}
           </p>
         ) : null}
@@ -318,15 +329,22 @@ function PromptComposerInput() {
     submit,
   } = usePromptComposer()
 
+  const isImageEdit = mode === "image-edit"
+
   return (
-    <div className="grid">
+    <div className={isImageEdit ? "flex min-w-0 flex-1" : "grid"}>
       <label className="sr-only" htmlFor={inputId}>
-        {mode === "image-edit"
+        {isImageEdit
           ? "Describe the image changes"
           : "Movie logline or storyline"}
       </label>
       <textarea
-        className="field-sizing-content max-h-44 min-h-14 resize-none bg-transparent px-4 pt-4 pb-3 text-body text-ink-strong outline-none placeholder:text-ink-faint disabled:cursor-not-allowed disabled:opacity-60"
+        className={cn(
+          "field-sizing-content w-full resize-none bg-transparent text-body text-ink-strong outline-none placeholder:text-ink-faint disabled:cursor-not-allowed disabled:opacity-60",
+          isImageEdit
+            ? "max-h-28 min-h-8 px-3 py-1.5"
+            : "max-h-44 min-h-14 px-4 pt-4 pb-3"
+        )}
         disabled={isDisabled}
         id={inputId}
         maxLength={12_000}
@@ -338,7 +356,7 @@ function PromptComposerInput() {
           }
         }}
         placeholder={
-          mode === "image-edit"
+          isImageEdit
             ? "Describe how to change this scene…"
             : "Describe a film, sequence, or complete storyline…"
         }
@@ -459,7 +477,7 @@ function PromptComposerActions() {
   }
 
   return (
-    <div className="sticky bottom-0 z-10 flex items-center justify-between gap-3 bg-surface-panel px-4 py-3">
+    <div className="sticky bottom-0 z-10 flex items-center justify-between gap-3 bg-surface-raised px-3 pt-2 pb-3">
       <div
         aria-label="Prompt attachments"
         className="flex min-w-0 items-center gap-1"
@@ -601,7 +619,7 @@ function PromptComposerImageEditActions() {
   const { isDisabled, isSubmitting, prompt } = usePromptComposer()
 
   return (
-    <div className="sticky bottom-0 z-10 flex items-center justify-end gap-2 bg-surface-panel px-4 py-3">
+    <div className="flex shrink-0 items-center gap-1.5 pr-1">
       {isSubmitting ? (
         <span
           aria-live="polite"
@@ -613,7 +631,7 @@ function PromptComposerImageEditActions() {
       ) : null}
       <button
         aria-label="Apply image edit"
-        className="flex h-9 items-center gap-1.5 rounded-full bg-emphasis px-3 text-label font-medium text-emphasis-foreground transition-[filter,transform] outline-none hover:brightness-105 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 active:scale-[0.97] disabled:cursor-not-allowed disabled:opacity-40"
+        className="flex h-8 items-center gap-1.5 rounded-full bg-emphasis px-3 text-label font-medium text-emphasis-foreground transition-[filter,transform] outline-none hover:brightness-105 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 active:scale-[0.97] disabled:cursor-not-allowed disabled:opacity-40"
         disabled={isDisabled || prompt.trim() === ""}
         type="submit"
       >
