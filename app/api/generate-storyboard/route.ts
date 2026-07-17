@@ -59,7 +59,9 @@ export async function POST(request: Request): Promise<Response> {
       )
     }
 
-    const { characterSheets, imageRefs, prompt } = parsedRequest.data
+    const { characterImageRefs, characterSheets, prompt, styleImageRefs } =
+      parsedRequest.data
+    const referenceImages = [...characterImageRefs, ...styleImageRefs]
     const { output: plan } = await generateText({
       maxRetries: 1,
       model: openai("gpt-5.4-mini"),
@@ -69,7 +71,11 @@ export async function POST(request: Request): Promise<Response> {
         name: "storyboard_plan",
         schema: storyboardPlanSchema,
       }),
-      prompt: buildPlanningPrompt(prompt, characterSheets),
+      prompt: buildPlanningPrompt(
+        characterImageRefs.length,
+        characterSheets,
+        prompt
+      ),
       system: DIRECTOR_SYSTEM_PROMPT,
     })
 
@@ -79,20 +85,22 @@ export async function POST(request: Request): Promise<Response> {
 
     const layout = layoutForSceneCount(plan.scenes.length)
     const compositePrompt = buildCompositePrompt({
+      characterImageCount: characterImageRefs.length,
       characterSheets,
       columns: layout.columns,
       rows: layout.rows,
       scenes: plan.scenes,
       storyline: prompt,
+      styleImageCount: styleImageRefs.length,
     })
     const modelId =
-      imageRefs.length === 0
+      referenceImages.length === 0
         ? "google/nano-banana-lite"
         : "google/nano-banana-lite/edit"
     const imagePrompt =
-      imageRefs.length === 0
+      referenceImages.length === 0
         ? compositePrompt
-        : { images: imageRefs, text: compositePrompt }
+        : { images: referenceImages, text: compositePrompt }
     const { image } = await generateImage({
       model: fal.image(modelId),
       n: 1,
@@ -103,7 +111,7 @@ export async function POST(request: Request): Promise<Response> {
           limit_generations: true,
           outputFormat: "jpeg",
           resolution: "2K",
-          useMultipleImages: imageRefs.length > 1,
+          useMultipleImages: referenceImages.length > 1,
         },
       },
     })
@@ -134,15 +142,20 @@ export async function POST(request: Request): Promise<Response> {
 
 /** Builds the structured scene-planning brief sent to OpenAI. */
 function buildPlanningPrompt(
-  storyline: string,
-  characterSheets: string[]
+  characterImageCount: number,
+  characterSheets: string[],
+  storyline: string
 ): string {
-  const characterContext =
+  const writtenCharacterContext =
     characterSheets.length === 0
       ? "No separate character sheets were supplied."
       : `Character sheets — every scene's action must re-bind its subject to one of these characters using concrete identifiers (wardrobe, hair, silhouette), never pronouns:\n${characterSheets.join(
-        "\n\n---\n\n"
-      )}`
+          "\n\n---\n\n"
+        )}`
+  const visualCharacterContext =
+    characterImageCount === 0
+      ? "No character reference images were supplied."
+      : `${characterImageCount} character reference image${characterImageCount === 1 ? " was" : "s were"} supplied for the renderer. Use names and concrete identifiers available in the story or written sheets; do not invent unseen visual details solely to describe those images.`
 
   return `Plan a cinematic storyboard from this story material.
 
@@ -160,7 +173,9 @@ For every scene:
 
 Create a concise board title (60 characters maximum).
 
-${characterContext}
+${writtenCharacterContext}
+
+${visualCharacterContext}
 
 Story material:
 ${storyline}`

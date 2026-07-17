@@ -350,7 +350,7 @@ function StoryboardWorkspace() {
   }
 
   return (
-    <div className="relative flex min-h-svh gap-3.5 bg-surface-app p-4.5">
+    <div className="relative flex h-svh gap-3.5 overflow-hidden bg-surface-app p-4.5">
       {/* Persistent slim rail. It always occupies layout space so <main>
           keeps a constant position and size whether the full sidebar is
           open or closed -- opening the sidebar overlays the content (see
@@ -375,7 +375,7 @@ function StoryboardWorkspace() {
           (see the overlay below), so nothing shifts or resizes the
           content and no layout animation is needed here. It is `relative`
           so the prompt composer and its focus backdrop can pin to it. */}
-      <main className="relative flex min-w-0 flex-1 flex-col gap-3.5">
+      <main className="relative flex min-h-0 min-w-0 flex-1 flex-col gap-3.5 overflow-hidden">
         <BoardToolbar>
           <BoardToolbar.Brand name="Boooards" version="v1.3" />
           <BoardToolbar.Controls>

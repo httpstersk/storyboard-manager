@@ -84,7 +84,7 @@ function SceneGrid({
     // height -- exports therefore still include every visible row.
     <div
       aria-busy={isGenerating}
-      className="[container-type:inline-size] relative min-h-0 flex-1 overflow-x-hidden overflow-y-auto rounded-2xl bg-grid-line pb-28 [container-name:scene-grid]"
+      className="[container-type:inline-size] relative min-h-0 flex-1 overflow-x-hidden overflow-y-auto rounded-2xl bg-grid-line pb-112 [container-name:scene-grid]"
     >
       <section
         aria-label="Scenes"

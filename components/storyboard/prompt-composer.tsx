@@ -1,14 +1,15 @@
 "use client"
 
 import {
-  SFArrowUpCircleFill,
-  SFPaperclip,
-  SFPhoto,
+  SFArrowUp,
+  SFArrowUpDocument,
+  SFPaintbrush,
+  SFPerson2CropSquareStack,
   SFTextDocument,
-  SFXmark,
 } from "sf-symbols-lib/monochrome"
 import * as React from "react"
 
+import { PromptComposerAttachmentGroup } from "@/components/storyboard/prompt-composer-attachment-group"
 import {
   MAX_CHARACTER_SHEET_LENGTH,
   MAX_IMAGE_REFERENCES,
@@ -18,18 +19,21 @@ import { cn } from "@/lib/utils"
 import { validateImageFile } from "@/lib/validation"
 
 interface PromptComposerContextValue {
+  characterImageReferences: File[]
   characterSheetText: string
   error: string | null
-  imageReferences: File[]
   isCharacterSheetOpen: boolean
   isSubmitting: boolean
   prompt: string
-  removeImageReference: (index: number) => void
+  removeCharacterImageReference: (index: number) => void
+  removeStyleImageReference: (index: number) => void
+  setCharacterImageReferences: React.Dispatch<React.SetStateAction<File[]>>
   setCharacterSheetText: (value: string) => void
   setError: (error: string | null) => void
-  setImageReferences: React.Dispatch<React.SetStateAction<File[]>>
   setIsCharacterSheetOpen: (isOpen: boolean) => void
   setPrompt: (value: string) => void
+  setStyleImageReferences: React.Dispatch<React.SetStateAction<File[]>>
+  styleImageReferences: File[]
   submit: () => Promise<void>
 }
 
@@ -79,15 +83,25 @@ function PromptComposerRoot({
   onSubmit,
   ...props
 }: PromptComposerRootProps) {
+  const [characterImageReferences, setCharacterImageReferences] =
+    React.useState<File[]>([])
   const [characterSheetText, setCharacterSheetText] = React.useState("")
   const [error, setError] = React.useState<string | null>(null)
-  const [imageReferences, setImageReferences] = React.useState<File[]>([])
   const [isCharacterSheetOpen, setIsCharacterSheetOpen] = React.useState(false)
   const [isSubmitting, setIsSubmitting] = React.useState(false)
   const [prompt, setPrompt] = React.useState("")
+  const [styleImageReferences, setStyleImageReferences] = React.useState<
+    File[]
+  >([])
 
-  const removeImageReference = (index: number) => {
-    setImageReferences((current) =>
+  const removeCharacterImageReference = (index: number) => {
+    setCharacterImageReferences((current) =>
+      current.filter((unusedFile, fileIndex) => fileIndex !== index)
+    )
+  }
+
+  const removeStyleImageReference = (index: number) => {
+    setStyleImageReferences((current) =>
       current.filter((unusedFile, fileIndex) => fileIndex !== index)
     )
   }
@@ -103,22 +117,29 @@ function PromptComposerRoot({
     setIsSubmitting(true)
 
     try {
-      const imageRefs = await Promise.all(
-        imageReferences.map((file) => readFileAsDataUrl(file))
-      )
+      const [characterImageRefs, styleImageRefs] = await Promise.all([
+        Promise.all(
+          characterImageReferences.map((file) => readFileAsDataUrl(file))
+        ),
+        Promise.all(
+          styleImageReferences.map((file) => readFileAsDataUrl(file))
+        ),
+      ])
       const trimmedCharacterSheet = characterSheetText.trim()
 
       await onSubmit({
+        characterImageRefs,
         characterSheets:
           trimmedCharacterSheet === "" ? [] : [trimmedCharacterSheet],
-        imageRefs,
         prompt: trimmedPrompt,
+        styleImageRefs,
       })
 
+      setCharacterImageReferences([])
       setCharacterSheetText("")
-      setImageReferences([])
       setIsCharacterSheetOpen(false)
       setPrompt("")
+      setStyleImageReferences([])
     } catch (submissionError) {
       setError(
         submissionError instanceof Error
@@ -131,18 +152,21 @@ function PromptComposerRoot({
   }
 
   const contextValue: PromptComposerContextValue = {
+    characterImageReferences,
     characterSheetText,
     error,
-    imageReferences,
     isCharacterSheetOpen,
     isSubmitting,
     prompt,
-    removeImageReference,
+    removeCharacterImageReference,
+    removeStyleImageReference,
+    setCharacterImageReferences,
     setCharacterSheetText,
     setError,
-    setImageReferences,
     setIsCharacterSheetOpen,
     setPrompt,
+    setStyleImageReferences,
+    styleImageReferences,
     submit,
   }
 
@@ -150,7 +174,7 @@ function PromptComposerRoot({
     <PromptComposerContext.Provider value={contextValue}>
       <form
         className={cn(
-          "group/composer mx-auto w-full max-w-3xl shrink-0 overflow-hidden rounded-2xl border border-edge bg-surface-panel shadow-popover transition-[border-color,box-shadow] duration-200 ease-out focus-within:border-edge-strong focus-within:ring-1 focus-within:ring-ring/30 motion-reduce:transition-none",
+          "group/composer mx-auto w-full max-w-3xl shrink-0 overflow-hidden rounded-2xl border border-edge bg-surface-panel shadow-modal transition-[border-color,box-shadow] duration-200 ease-out focus-within:border-edge-strong focus-within:ring-1 focus-within:ring-ring/30 motion-reduce:transition-none",
           className
         )}
         onBlurCapture={(event) => {
@@ -194,7 +218,7 @@ function PromptComposerInput() {
         Movie logline or storyline
       </label>
       <textarea
-        className="max-h-40 min-h-12 resize-none bg-transparent px-4 pt-3.5 pb-2 text-body text-ink-strong transition-[min-height] duration-200 ease-out outline-none placeholder:text-ink-faint focus:min-h-20 disabled:cursor-not-allowed disabled:opacity-60"
+        className="max-h-44 min-h-14 resize-none bg-transparent px-4 pt-4 pb-3 text-body text-ink-strong transition-[min-height] duration-200 ease-out outline-none placeholder:text-ink-faint focus:min-h-24 disabled:cursor-not-allowed disabled:opacity-60"
         disabled={isSubmitting}
         id="storyboard-prompt"
         maxLength={12_000}
@@ -210,15 +234,16 @@ function PromptComposerInput() {
         value={prompt}
       />
       {isCharacterSheetOpen ? (
-        <div className="mx-3 mb-2 border-t border-edge pt-2">
+        <div className="mx-3 mb-3 rounded-xl border border-edge bg-surface-inset p-3">
           <label
-            className="mb-1.5 block text-caption font-medium text-ink-muted"
+            className="mb-2 flex items-center gap-1.5 text-caption font-medium text-ink"
             htmlFor="character-sheet"
           >
+            <SFTextDocument aria-hidden className="size-3.5 text-ink-muted" />
             Character sheet
           </label>
           <textarea
-            className="max-h-28 min-h-16 w-full resize-y bg-surface-inset px-3 py-2 text-label text-ink ring-1 ring-edge transition-shadow outline-none focus:ring-2 focus:ring-ring"
+            className="max-h-28 min-h-16 w-full resize-y rounded-lg bg-surface-panel px-3 py-2 text-label text-ink ring-1 ring-edge transition-shadow outline-none placeholder:text-ink-faint focus:ring-2 focus:ring-ring"
             disabled={isSubmitting}
             id="character-sheet"
             maxLength={MAX_CHARACTER_SHEET_LENGTH}
@@ -232,57 +257,68 @@ function PromptComposerInput() {
   )
 }
 
-/** Selected visual references shown above the action row. */
+/** Character and visual-style references shown in distinct labelled groups. */
 function PromptComposerAttachments() {
-  const { imageReferences, removeImageReference } = usePromptComposer()
+  const {
+    characterImageReferences,
+    removeCharacterImageReference,
+    removeStyleImageReference,
+    styleImageReferences,
+  } = usePromptComposer()
 
-  if (imageReferences.length === 0) {
+  if (
+    characterImageReferences.length === 0 &&
+    styleImageReferences.length === 0
+  ) {
     return null
   }
 
   return (
-    <ul
-      aria-label="Visual references"
-      className="flex gap-2 overflow-x-auto px-3 pb-2"
-    >
-      {imageReferences.map((file, index) => (
-        <li
-          className="flex max-w-44 shrink-0 items-center gap-2 rounded-lg bg-surface-inset px-2.5 py-1.5 text-caption text-ink"
-          key={`${file.name}-${file.lastModified}`}
-        >
-          <SFPhoto aria-hidden className="size-3.5 shrink-0 text-ink-muted" />
-          <span className="truncate">{file.name}</span>
-          <button
-            aria-label={`Remove ${file.name}`}
-            className="grid size-5 shrink-0 place-items-center rounded-md text-ink-muted transition-colors outline-none hover:bg-surface-raised hover:text-ink-strong focus-visible:ring-2 focus-visible:ring-ring"
-            onClick={() => removeImageReference(index)}
-            type="button"
-          >
-            <SFXmark aria-hidden className="size-2.5" />
-          </button>
-        </li>
-      ))}
-    </ul>
+    <div className="space-y-2 overflow-x-auto border-y border-edge bg-surface-inset px-3 py-2.5">
+      <PromptComposerAttachmentGroup
+        files={characterImageReferences}
+        icon={
+          <SFPerson2CropSquareStack aria-hidden className="size-3.5 shrink-0" />
+        }
+        label="Characters"
+        onRemove={removeCharacterImageReference}
+      />
+      <PromptComposerAttachmentGroup
+        files={styleImageReferences}
+        icon={<SFPaintbrush aria-hidden className="size-3.5 shrink-0" />}
+        label="Visual style"
+        onRemove={removeStyleImageReference}
+      />
+    </div>
   )
 }
 
 /** Attachment affordances and generation submit control. */
 function PromptComposerActions() {
   const {
-    imageReferences,
+    characterImageReferences,
     isCharacterSheetOpen,
     isSubmitting,
     prompt,
+    setCharacterImageReferences,
     setCharacterSheetText,
     setError,
-    setImageReferences,
     setIsCharacterSheetOpen,
+    setStyleImageReferences,
+    styleImageReferences,
   } = usePromptComposer()
-  const characterFileInputRef = React.useRef<HTMLInputElement>(null)
-  const imageInputRef = React.useRef<HTMLInputElement>(null)
+  const characterImageInputRef = React.useRef<HTMLInputElement>(null)
+  const characterTextInputRef = React.useRef<HTMLInputElement>(null)
+  const styleImageInputRef = React.useRef<HTMLInputElement>(null)
+  const referenceCount =
+    characterImageReferences.length + styleImageReferences.length
+  const hasAvailableReferenceSlot = referenceCount < MAX_IMAGE_REFERENCES
 
-  const addImageReferences = (files: File[]) => {
-    const availableSlots = MAX_IMAGE_REFERENCES - imageReferences.length
+  const addImageReferences = (
+    files: File[],
+    setReferences: React.Dispatch<React.SetStateAction<File[]>>
+  ) => {
+    const availableSlots = MAX_IMAGE_REFERENCES - referenceCount
     const validationResults = files.map((file) => ({
       file,
       validation: validateImageFile(file),
@@ -295,22 +331,27 @@ function PromptComposerActions() {
       .map(({ file }) => file)
       .slice(0, availableSlots)
 
-    setImageReferences((current) => [...current, ...acceptedFiles])
+    setReferences((current) => [...current, ...acceptedFiles])
     setError(
       firstError ??
         (files.length > availableSlots
-          ? `Attach up to ${MAX_IMAGE_REFERENCES} visual references.`
+          ? `Attach up to ${MAX_IMAGE_REFERENCES} reference images in total.`
           : null)
     )
   }
 
   return (
-    <div className="flex items-center justify-between gap-3 px-3 pb-3">
-      <div className="flex min-w-0 items-center gap-1">
+    <div className="flex items-center justify-between gap-3 px-3 py-2.5">
+      <div
+        aria-label="Prompt attachments"
+        className="flex min-w-0 items-center gap-1"
+        role="group"
+      >
         <button
           aria-expanded={isCharacterSheetOpen}
+          aria-label="Toggle written character sheet"
           className={cn(
-            "flex h-8 items-center gap-1.5 rounded-lg px-2.5 text-caption text-ink-muted transition-[background-color,color,transform] outline-none hover:bg-surface-inset hover:text-ink-strong focus-visible:ring-2 focus-visible:ring-ring active:scale-[0.97]",
+            "flex h-9 items-center gap-1.5 rounded-lg px-2.5 text-caption font-medium text-ink-muted transition-[background-color,color,transform] outline-none hover:bg-surface-inset hover:text-ink-strong focus-visible:ring-2 focus-visible:ring-ring active:scale-[0.97]",
             isCharacterSheetOpen && "bg-surface-inset text-ink-strong"
           )}
           disabled={isSubmitting}
@@ -318,55 +359,90 @@ function PromptComposerActions() {
           type="button"
         >
           <SFTextDocument aria-hidden className="size-3.5" />
+          <span className="hidden sm:inline">Character notes</span>
+        </button>
+        <button
+          aria-label="Upload character sheet text file"
+          className="grid size-9 place-items-center rounded-lg text-ink-muted transition-[background-color,color,transform] outline-none hover:bg-surface-inset hover:text-ink-strong focus-visible:ring-2 focus-visible:ring-ring active:scale-[0.97]"
+          disabled={isSubmitting}
+          onClick={() => characterTextInputRef.current?.click()}
+          type="button"
+        >
+          <SFArrowUpDocument aria-hidden className="size-3.5" />
+        </button>
+        <button
+          aria-label="Attach character reference images"
+          className="flex h-9 items-center gap-1.5 rounded-lg px-2.5 text-caption font-medium text-ink-muted transition-[background-color,color,transform] outline-none hover:bg-surface-inset hover:text-ink-strong focus-visible:ring-2 focus-visible:ring-ring active:scale-[0.97] disabled:cursor-not-allowed disabled:opacity-45"
+          disabled={isSubmitting || !hasAvailableReferenceSlot}
+          onClick={() => characterImageInputRef.current?.click()}
+          type="button"
+        >
+          <SFPerson2CropSquareStack aria-hidden className="size-3.5" />
           <span className="hidden sm:inline">Characters</span>
         </button>
         <button
-          aria-label="Attach a character sheet file"
-          className="grid size-8 place-items-center rounded-lg text-ink-muted transition-[background-color,color,transform] outline-none hover:bg-surface-inset hover:text-ink-strong focus-visible:ring-2 focus-visible:ring-ring active:scale-[0.97]"
-          disabled={isSubmitting}
-          onClick={() => characterFileInputRef.current?.click()}
+          aria-label="Attach visual style reference images"
+          className="flex h-9 items-center gap-1.5 rounded-lg px-2.5 text-caption font-medium text-ink-muted transition-[background-color,color,transform] outline-none hover:bg-surface-inset hover:text-ink-strong focus-visible:ring-2 focus-visible:ring-ring active:scale-[0.97] disabled:cursor-not-allowed disabled:opacity-45"
+          disabled={isSubmitting || !hasAvailableReferenceSlot}
+          onClick={() => styleImageInputRef.current?.click()}
           type="button"
         >
-          <SFPaperclip aria-hidden className="size-3.5" />
-        </button>
-        <button
-          className="flex h-8 items-center gap-1.5 rounded-lg px-2.5 text-caption text-ink-muted transition-[background-color,color,transform] outline-none hover:bg-surface-inset hover:text-ink-strong focus-visible:ring-2 focus-visible:ring-ring active:scale-[0.97] disabled:cursor-not-allowed disabled:opacity-45"
-          disabled={
-            isSubmitting || imageReferences.length >= MAX_IMAGE_REFERENCES
-          }
-          onClick={() => imageInputRef.current?.click()}
-          type="button"
-        >
-          <SFPhoto aria-hidden className="size-3.5" />
-          <span className="hidden sm:inline">Visuals</span>
+          <SFPaintbrush aria-hidden className="size-3.5" />
+          <span className="hidden sm:inline">Visual style</span>
         </button>
         <input
+          accept="image/jpeg,image/png"
+          aria-label="Character reference images"
+          className="sr-only"
+          multiple
+          onChange={(event) => {
+            addImageReferences(
+              Array.from(event.target.files ?? []),
+              setCharacterImageReferences
+            )
+            event.target.value = ""
+          }}
+          ref={characterImageInputRef}
+          type="file"
+        />
+        <input
           accept=".md,.txt,text/markdown,text/plain"
+          aria-label="Character sheet text file"
           className="sr-only"
           onChange={(event) => {
             const file = event.target.files?.[0]
 
             if (file) {
-              void file.text().then((text) => {
-                setCharacterSheetText(text.slice(0, MAX_CHARACTER_SHEET_LENGTH))
-                setIsCharacterSheetOpen(true)
-              })
+              void file
+                .text()
+                .then((text) => {
+                  setCharacterSheetText(
+                    text.slice(0, MAX_CHARACTER_SHEET_LENGTH)
+                  )
+                  setError(null)
+                  setIsCharacterSheetOpen(true)
+                })
+                .catch(() => setError(`Could not read ${file.name}.`))
             }
 
             event.target.value = ""
           }}
-          ref={characterFileInputRef}
+          ref={characterTextInputRef}
           type="file"
         />
         <input
           accept="image/jpeg,image/png"
+          aria-label="Visual style reference images"
           className="sr-only"
           multiple
           onChange={(event) => {
-            addImageReferences(Array.from(event.target.files ?? []))
+            addImageReferences(
+              Array.from(event.target.files ?? []),
+              setStyleImageReferences
+            )
             event.target.value = ""
           }}
-          ref={imageInputRef}
+          ref={styleImageInputRef}
           type="file"
         />
       </div>
@@ -374,7 +450,7 @@ function PromptComposerActions() {
         {isSubmitting ? (
           <span
             aria-live="polite"
-            className="text-caption text-ink-muted"
+            className="hidden text-caption text-ink-muted sm:inline"
             role="status"
           >
             Directing scenes…
@@ -382,11 +458,11 @@ function PromptComposerActions() {
         ) : null}
         <button
           aria-label="Generate storyboard"
-          className="grid size-8 place-items-center rounded-lg bg-emphasis text-emphasis-foreground transition-[filter,transform] outline-none hover:brightness-105 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 active:scale-[0.94] disabled:cursor-not-allowed disabled:opacity-40"
+          className="grid size-9 place-items-center rounded-full bg-emphasis text-emphasis-foreground transition-[filter,transform] outline-none hover:brightness-105 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 active:scale-[0.94] disabled:cursor-not-allowed disabled:opacity-40"
           disabled={isSubmitting || prompt.trim() === ""}
           type="submit"
         >
-          <SFArrowUpCircleFill aria-hidden className="size-5" />
+          <SFArrowUp aria-hidden className="size-4" />
         </button>
       </div>
     </div>

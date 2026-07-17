@@ -25,6 +25,8 @@ const SUPPORTED_ASPECT_RATIOS = [
 ] as const
 
 interface CompositePromptOptions {
+  /** Number of leading input images that define character identity. */
+  characterImageCount: number
   /** Character continuity instructions supplied by the user. */
   characterSheets: string[]
   /** Number of cells across the composite. */
@@ -43,17 +45,21 @@ interface CompositePromptOptions {
   }>
   /** Original logline or full story material. */
   storyline: string
+  /** Number of trailing input images that define visual treatment. */
+  styleImageCount: number
 }
 
 /**
  * Builds one production prompt that maps ordered beats to exact grid cells.
  */
 export function buildCompositePrompt({
+  characterImageCount,
   characterSheets,
   columns,
   rows,
   scenes,
   storyline,
+  styleImageCount,
 }: CompositePromptOptions): string {
   const sceneList = scenes
     .map(
@@ -64,12 +70,25 @@ export function buildCompositePrompt({
     )
     .join("\n")
   const emptyCellCount = rows * columns - scenes.length
-  const continuity =
-    characterSheets.length === 0
-      ? "Infer consistent character appearances and wardrobe from the storyline and keep them identical in every cell."
-      : `Maintain these character designs exactly across every frame. Re-assert each character's identity inside every cell they appear in — same face, hair, wardrobe, and silhouette:\n${characterSheets.join(
-          "\n\n---\n\n"
-        )}`
+  const hasCharacterReferences =
+    characterImageCount > 0 || characterSheets.length > 0
+  const continuity = !hasCharacterReferences
+    ? "Infer consistent character appearances and wardrobe from the storyline and keep them identical in every cell."
+    : `Maintain the supplied character designs exactly across every frame. Re-assert each character's identity inside every cell they appear in — same face, hair, wardrobe, and silhouette.${
+        characterSheets.length === 0
+          ? ""
+          : `\n\nWritten character sheets:\n${characterSheets.join(
+              "\n\n---\n\n"
+            )}`
+      }`
+  const referenceDirections = buildReferenceDirections(
+    characterImageCount,
+    styleImageCount
+  )
+  const renderingDirection =
+    styleImageCount === 0
+      ? "Every cell is photorealistic live-action cinematography — real human skin texture, real fabric and materials, natural depth of field, and the optical character of the camera body and lens named for that cell. Absolutely no illustration, storyboard sketch, pencil or ink drawing, comic art, anime, cel-shading, watercolor, concept-art painting, or 3D cartoon rendering."
+      : "Match the visual-style reference images across every cell: preserve their medium, palette, contrast, lighting language, texture, production design, and image-making treatment. Apply that treatment to this story rather than copying any referenced person, pose, composition, location, or narrative event."
 
   return `Create ONE finished cinematic storyboard contact sheet, not separate images.
 
@@ -81,14 +100,17 @@ GRID SPECIFICATION:
 - Keep each shot fully contained in its own cell with a clean hard boundary between adjacent shots. Never blend imagery across cell boundaries.
 ${emptyCellCount > 0 ? `- Leave the final ${emptyCellCount} unused cell${emptyCellCount === 1 ? "" : "s"} solid black.` : ""}
 
-REALISM (hard requirement):
-Every cell is photorealistic live-action cinematography — real human skin texture, real fabric and materials, natural depth of field, and the optical character of the camera body and lens named for that cell. Absolutely no illustration, storyboard sketch, pencil or ink drawing, comic art, anime, cel-shading, watercolor, concept-art painting, or 3D cartoon rendering.
+RENDERING (hard requirement):
+${renderingDirection}
 
 CONTAINMENT (hard requirement):
 Absolutely no text anywhere on the sheet — no shot numbers, labels, captions, titles, subtitles, borders, watermarks, or UI chrome. Pure imagery only.
 
 VISUAL DIRECTION:
-Premium live-action film previsualization with coherent production design and strong visual continuity. Each cell follows its bracketed [shot size | camera | lens | movement | lighting] specification: frame the subject at the stated shot size, render the lens's field of view and compression, imply the movement through motion blur or composition energy, and light the cell with the stated condition. Compose with variety — at most 2 cells on the whole sheet may center the subject; vary blocking, angle, and depth layering between adjacent cells so no two neighbours read the same.
+Premium cinematic previsualization with coherent production design and strong visual continuity. Each cell follows its bracketed [shot size | camera | lens | movement | lighting] specification: frame the subject at the stated shot size, render the lens's field of view and compression, imply the movement through motion blur or composition energy, and light the cell with the stated condition. Compose with variety — at most 2 cells on the whole sheet may center the subject; vary blocking, angle, and depth layering between adjacent cells so no two neighbours read the same.
+
+REFERENCE IMAGE MAP:
+${referenceDirections}
 
 STORYLINE:
 ${storyline}
@@ -98,6 +120,44 @@ ${continuity}
 
 ORDERED CELLS:
 ${sceneList}`
+}
+
+/** Maps ordered model input images to their distinct continuity and style roles. */
+function buildReferenceDirections(
+  characterImageCount: number,
+  styleImageCount: number
+): string {
+  if (characterImageCount === 0 && styleImageCount === 0) {
+    return "No reference images were supplied."
+  }
+
+  const directions: string[] = []
+
+  if (characterImageCount > 0) {
+    const characterImageRange =
+      characterImageCount === 1
+        ? "Input image 1"
+        : `Input images 1–${characterImageCount}`
+
+    directions.push(
+      `${characterImageRange}: CHARACTER REFERENCES. Use only for face, hair, body, wardrobe, and silhouette continuity. Do not inherit their composition, background, or visual style.`
+    )
+  }
+
+  if (styleImageCount > 0) {
+    const firstStyleImage = characterImageCount + 1
+    const lastStyleImage = characterImageCount + styleImageCount
+    const styleImageRange =
+      styleImageCount === 1
+        ? `Input image ${firstStyleImage}`
+        : `Input images ${firstStyleImage}–${lastStyleImage}`
+
+    directions.push(
+      `${styleImageRange}: VISUAL STYLE REFERENCES. Use only for medium, palette, lighting, texture, production design, and cinematic treatment. Do not copy people, wardrobe, poses, locations, compositions, or story content from them.`
+    )
+  }
+
+  return directions.join("\n")
 }
 
 /**

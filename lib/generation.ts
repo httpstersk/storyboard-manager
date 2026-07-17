@@ -20,10 +20,13 @@ export const MAX_CHARACTER_SHEETS = 4
 export const MAX_CHARACTER_SHEET_LENGTH = 20_000
 
 /**
- * Maximum number of visual references accepted per generation request.
+ * Maximum number of image references accepted per generation request.
  * Nano Banana Lite edit supports up to 14 input images; keep headroom below that.
  */
 export const MAX_IMAGE_REFERENCES = 9
+
+/** User-facing message shared by client and server image-count validation. */
+export const MAX_IMAGE_REFERENCES_ERROR = `Attach up to ${MAX_IMAGE_REFERENCES} reference images in total.`
 
 /** Maximum number of planned scenes, balancing story coverage and frame detail. */
 export const MAX_GENERATED_SCENES = 12
@@ -49,17 +52,27 @@ const dataUrlSchema = z
   .max(MAX_DATA_URL_LENGTH)
   .refine(
     (value) => /^data:image\/(?:jpeg|png);base64,[a-z0-9+/=\s]+$/i.test(value),
-    "Visual references must be PNG or JPEG data URLs."
+    "Reference images must be PNG or JPEG data URLs."
   )
 
 /** Runtime schema for requests entering the generation API boundary. */
-export const storyboardGenerationRequestSchema = z.object({
-  characterSheets: z
-    .array(z.string().trim().min(1).max(MAX_CHARACTER_SHEET_LENGTH))
-    .max(MAX_CHARACTER_SHEETS),
-  imageRefs: z.array(dataUrlSchema).max(MAX_IMAGE_REFERENCES),
-  prompt: z.string().trim().min(1).max(MAX_PROMPT_LENGTH),
-})
+export const storyboardGenerationRequestSchema = z
+  .object({
+    characterImageRefs: z.array(dataUrlSchema).max(MAX_IMAGE_REFERENCES),
+    characterSheets: z
+      .array(z.string().trim().min(1).max(MAX_CHARACTER_SHEET_LENGTH))
+      .max(MAX_CHARACTER_SHEETS),
+    prompt: z.string().trim().min(1).max(MAX_PROMPT_LENGTH),
+    styleImageRefs: z.array(dataUrlSchema).max(MAX_IMAGE_REFERENCES),
+  })
+  .refine(
+    ({ characterImageRefs, styleImageRefs }) =>
+      characterImageRefs.length + styleImageRefs.length <= MAX_IMAGE_REFERENCES,
+    {
+      message: MAX_IMAGE_REFERENCES_ERROR,
+      path: ["styleImageRefs"],
+    }
+  )
 
 const generatedShotSchema = z.enum(["CU", "MCU", "MS", "WS"])
 
@@ -120,9 +133,10 @@ export const storyboardGenerationResponseSchema = z.object({
 
 /** Client request submitted by the prompt composer. */
 export interface StoryboardGenerationRequest {
+  characterImageRefs: string[]
   characterSheets: string[]
-  imageRefs: string[]
   prompt: string
+  styleImageRefs: string[]
 }
 
 /** Planned scene metadata returned alongside each sliced frame. */
