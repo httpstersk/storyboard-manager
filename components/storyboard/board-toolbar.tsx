@@ -2,47 +2,12 @@
 
 import { cva, type VariantProps } from "class-variance-authority"
 import { SFMoon, SFSunMax } from "sf-symbols-lib/monochrome"
-import { AnimatePresence, m } from "motion/react"
+import { m } from "motion/react"
 import { useTheme } from "next-themes"
 import * as React from "react"
 import { SPRING_SNAPPY } from "@/lib/motion"
 
 import { cn } from "@/lib/utils"
-
-/**
- * Number of extra repeated letters that playfully pop into the brand name
- * while it is hovered (e.g. `Boooards` -> `Booooooooards`).
- */
-const BRAND_EXTRA_LETTERS = 5
-
-/** Per-letter stagger (seconds) for the brand hover reveal. */
-const BRAND_LETTER_STAGGER = 0.05
-
-/**
- * Quick fade applied to a letter's `opacity`. Kept much shorter than the
- * width spring so the clipped box is fully transparent before it finishes
- * collapsing — otherwise a half-clipped glyph would jam against the next
- * letter while the word closes back up.
- */
-const BRAND_LETTER_FADE_DURATION = 0.18
-
-/**
- * Bouncy spring shared by every inserted brand letter. Springs the letter's
- * `width` open so the surrounding text is pushed apart with a lively wobble.
- */
-const BRAND_LETTER_TRANSITION = {
-  bounce: 0.5,
-  duration: 0.5,
-  type: "spring",
-} as const
-
-/**
- * Vertical nudge (em) applied to each inserted letter. An `inline-block`
- * with `overflow: hidden` (required to clip the width reveal) is baseline-
- * aligned by its bottom edge rather than the text baseline, which lifts the
- * glyph; this pushes it back down so it sits level with the static letters.
- */
-const BRAND_LETTER_BASELINE_NUDGE = "0.22em"
 
 /**
  * The board header toolbar.
@@ -82,80 +47,15 @@ interface BoardToolbarBrandProps {
   version: string
 }
 
-/**
- * Splits a product name around its first run of two-or-more identical
- * letters so that run can be playfully extended on hover. For `Boooards`
- * this yields `{ prefix: "B", repeated: "o", suffix: "ards" }`. Names
- * without a repeated run animate nothing (`repeated` is `null`).
- */
-function splitRepeatedRun(name: string): {
-  prefix: string
-  repeated: string | null
-  suffix: string
-} {
-  const match = name.match(/(.)\1+/)
-  if (!match || match.index === undefined) {
-    return { prefix: name, repeated: null, suffix: "" }
-  }
-  const start = match.index
-  return {
-    prefix: name.slice(0, start + match[0].length),
-    repeated: match[1],
-    suffix: name.slice(start + match[0].length),
-  }
-}
-
 /** Product name and version of the {@link BoardToolbar}. */
 function BoardToolbarBrand({
   className,
   name,
   version,
 }: BoardToolbarBrandProps) {
-  const [hovered, setHovered] = React.useState(false)
-  const { prefix, repeated, suffix } = splitRepeatedRun(name)
-
   return (
     <div className={cn("flex shrink-0 items-baseline gap-1.5", className)}>
-      <span
-        className="text-heading font-medium text-ink-strong"
-        onPointerEnter={() => setHovered(true)}
-        onPointerLeave={() => setHovered(false)}
-      >
-        {repeated === null ? (
-          name
-        ) : (
-          <>
-            {prefix}
-            <AnimatePresence initial={false}>
-              {hovered &&
-                Array.from({ length: BRAND_EXTRA_LETTERS }, (_, index) => (
-                  <m.span
-                    animate={{ opacity: 1, scaleX: 1 }}
-                    className="inline-block overflow-hidden whitespace-pre align-baseline"
-                    exit={{ opacity: 0, scaleX: 0 }}
-                    initial={{ opacity: 0, scaleX: 0 }}
-                    key={index}
-                    style={{
-                      transformOrigin: "left",
-                      y: BRAND_LETTER_BASELINE_NUDGE,
-                    }}
-                    transition={{
-                      ...BRAND_LETTER_TRANSITION,
-                      delay: index * BRAND_LETTER_STAGGER,
-                      opacity: {
-                        delay: index * BRAND_LETTER_STAGGER,
-                        duration: BRAND_LETTER_FADE_DURATION,
-                      },
-                    }}
-                  >
-                    {repeated}
-                  </m.span>
-                ))}
-            </AnimatePresence>
-            {suffix}
-          </>
-        )}
-      </span>
+      <span className="text-heading font-medium text-ink-strong">{name}</span>
       <span className="text-caption text-ink-muted">{version}</span>
     </div>
   )
@@ -210,7 +110,7 @@ const boardToolbarActionVariants = cva(
 /** Props for {@link BoardToolbarAction}. */
 interface BoardToolbarActionProps
   extends React.ComponentProps<"button">,
-    VariantProps<typeof boardToolbarActionVariants> {}
+  VariantProps<typeof boardToolbarActionVariants> { }
 
 /** A pill action button inside {@link BoardToolbarActions}. */
 function BoardToolbarAction({
@@ -228,7 +128,7 @@ function BoardToolbarAction({
   )
 }
 
-const emptySubscribe = () => () => {}
+const emptySubscribe = () => () => { }
 
 /**
  * Light/dark theme switcher. Active-segment styling is driven by CSS
