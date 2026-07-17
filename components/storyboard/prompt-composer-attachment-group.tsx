@@ -3,7 +3,6 @@ import { SFXmark } from "sf-symbols-lib/monochrome"
 
 interface PromptComposerAttachmentGroupProps {
   files: File[]
-  icon: React.ReactNode
   label: string
   onRemove: (index: number) => void
 }
@@ -49,7 +48,6 @@ function PromptComposerAttachmentThumbnail({
 /** One labelled reference-image group inside the prompt composer shelf. */
 function PromptComposerAttachmentGroup({
   files,
-  icon,
   label,
   onRemove,
 }: PromptComposerAttachmentGroupProps) {
@@ -59,8 +57,7 @@ function PromptComposerAttachmentGroup({
 
   return (
     <div className="flex min-w-0 flex-col gap-2">
-      <div className="flex items-center gap-1.5 text-caption font-medium tracking-wide text-ink-muted">
-        {icon}
+      <div className="flex items-center text-caption tracking-wide text-ink-muted">
         <span>{label}</span>
       </div>
       <ul aria-label={`${label} references`} className="flex flex-wrap gap-2">
