@@ -31,6 +31,9 @@ export const MAX_IMAGE_REFERENCES_ERROR = `Attach up to ${MAX_IMAGE_REFERENCES} 
 /** Maximum number of planned scenes, balancing story coverage and frame detail. */
 export const MAX_GENERATED_SCENES = 12
 
+/** Maximum length of a single-scene image editing instruction. */
+export const MAX_SCENE_IMAGE_EDIT_PROMPT_LENGTH = 2_000
+
 /** Minimum number of beats produced for even a short logline. */
 export const MIN_GENERATED_SCENES = 3
 
@@ -131,12 +134,29 @@ export const storyboardGenerationResponseSchema = z.object({
   title: z.string().trim().min(1).max(60),
 })
 
+/** Runtime schema for requests that modify one existing scene image. */
+export const sceneImageEditRequestSchema = z.object({
+  prompt: z.string().trim().min(1).max(MAX_SCENE_IMAGE_EDIT_PROMPT_LENGTH),
+  sourceImage: dataUrlSchema,
+})
+
+/** Runtime schema for a successful single-scene image editing response. */
+export const sceneImageEditResponseSchema = z.object({
+  image: dataUrlSchema,
+})
+
 /** Client request submitted by the prompt composer. */
 export interface StoryboardGenerationRequest {
   characterImageRefs: string[]
   characterSheets: string[]
   prompt: string
   styleImageRefs: string[]
+}
+
+/** Client request submitted to modify one generated scene image. */
+export interface SceneImageEditRequest {
+  prompt: string
+  sourceImage: string
 }
 
 /** Planned scene metadata returned alongside each sliced frame. */

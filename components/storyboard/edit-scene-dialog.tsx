@@ -9,26 +9,25 @@ import {
   SFTrash,
   SFXmark,
 } from "sf-symbols-lib/monochrome"
-import NextImage from "next/image"
 import * as React from "react"
 
+import {
+  type DrawTool,
+  type DrawingCanvasHandle,
+  SceneCanvas,
+} from "@/components/storyboard/scene-canvas"
+import { PromptComposer } from "@/components/storyboard/prompt-composer"
 import { Dialog } from "@/components/ui/dialog"
 import { IconButton } from "@/components/ui/icon-button"
 import { SegmentedControl } from "@/components/ui/segmented-control"
 import { Slider } from "@/components/ui/slider"
-import { useMountEffect } from "@/hooks/use-mount-effect"
+import { sceneImageEditResponseSchema } from "@/lib/generation"
 import { formatSeconds, type Scene, type ValueLimits } from "@/lib/storyboard"
 import { cn } from "@/lib/utils"
-import { IMAGE_UPLOAD_RULES, validateImageFile } from "@/lib/validation"
+import { validateImageFile } from "@/lib/validation"
 
 /** Allowed range for the drawing brush size. */
 const BRUSH_SIZE_LIMITS: ValueLimits = { max: 10, min: 1 }
-
-/**
- * Brush strokes render this many times wider than the pencil at the same
- * size, giving the brush its heavier, softer mark.
- */
-const BRUSH_WIDTH_SCALE = 2.5
 
 /** Named swatches offered by the drawing colour picker. */
 const DRAW_COLORS = [
@@ -46,8 +45,6 @@ const DRAW_TOOLS = [
   { icon: SFEraser, label: "Eraser", value: "eraser" },
 ] as const
 
-type DrawTool = (typeof DRAW_TOOLS)[number]["value"]
-
 /**
  * New reference image state for the scene being edited:
  * `undefined` = untouched, `null` = removed, string = new data URL.
@@ -59,16 +56,17 @@ interface DialogState {
   color: string
   draftImage: DraftImage
   error: string | null
+  isEditingImage: boolean
   tool: DrawTool
 }
 
 type DialogAction =
-  | { type: "CLEAR_IMAGE" }
   | { type: "RESET" }
   | { payload: number; type: "SET_BRUSH_SIZE" }
   | { payload: string; type: "SET_COLOR" }
   | { payload: DraftImage; type: "SET_DRAFT_IMAGE" }
   | { payload: string | null; type: "SET_ERROR" }
+  | { payload: boolean; type: "SET_IS_EDITING_IMAGE" }
   | { payload: DrawTool; type: "SET_TOOL" }
 
 const initialDialogState: DialogState = {
@@ -76,17 +74,12 @@ const initialDialogState: DialogState = {
   color: DRAW_COLORS[0].value,
   draftImage: undefined,
   error: null,
+  isEditingImage: false,
   tool: "pencil",
 }
 
 function dialogReducer(state: DialogState, action: DialogAction): DialogState {
   switch (action.type) {
-    case "CLEAR_IMAGE":
-      return {
-        ...state,
-        draftImage: null,
-        error: null,
-      }
     case "RESET":
       return initialDialogState
     case "SET_BRUSH_SIZE":
@@ -97,6 +90,8 @@ function dialogReducer(state: DialogState, action: DialogAction): DialogState {
       return { ...state, draftImage: action.payload }
     case "SET_ERROR":
       return { ...state, error: action.payload }
+    case "SET_IS_EDITING_IMAGE":
+      return { ...state, isEditingImage: action.payload }
     case "SET_TOOL":
       return { ...state, tool: action.payload }
     default:
@@ -134,7 +129,7 @@ function EditSceneDialog({
   const drawingCanvasRef = React.useRef<DrawingCanvasHandle>(null)
   const fileInputRef = React.useRef<HTMLInputElement>(null)
   const [state, dispatch] = React.useReducer(dialogReducer, initialDialogState)
-  const { brushSize, color, draftImage, error, tool } = state
+  const { brushSize, color, draftImage, error, isEditingImage, tool } = state
 
   if (scene === null) {
     return null
@@ -150,7 +145,10 @@ function EditSceneDialog({
     const result = validateImageFile(file)
 
     if (!result.ok) {
-      dispatch({ payload: result.error ?? "This file cannot be used.", type: "SET_ERROR" })
+      dispatch({
+        payload: result.error ?? "This file cannot be used.",
+        type: "SET_ERROR",
+      })
       return
     }
 
@@ -168,6 +166,10 @@ function EditSceneDialog({
   }
 
   function handleOpenChange(nextOpen: boolean) {
+    if (!nextOpen && isEditingImage) {
+      return
+    }
+
     if (!nextOpen) {
       resetState()
     }
@@ -175,11 +177,59 @@ function EditSceneDialog({
     onOpenChange(nextOpen)
   }
 
-  function handleRemoveImage() {
-    dispatch({ type: "CLEAR_IMAGE" })
+  async function handleImageEdit(prompt: string) {
+    if (!previewImage) {
+      dispatch({
+        payload: "Add an image before requesting an edit.",
+        type: "SET_ERROR",
+      })
+
+      return
+    }
+
+    dispatch({ payload: null, type: "SET_ERROR" })
+    dispatch({ payload: true, type: "SET_IS_EDITING_IMAGE" })
+
+    try {
+      const response = await fetch("/api/edit-scene-image", {
+        body: JSON.stringify({ prompt, sourceImage: previewImage }),
+        headers: { "Content-Type": "application/json" },
+        method: "POST",
+      })
+      const responseBody: unknown = await response.json()
+
+      if (!response.ok) {
+        const message =
+          typeof responseBody === "object" &&
+          responseBody !== null &&
+          "error" in responseBody &&
+          typeof responseBody.error === "string"
+            ? responseBody.error
+            : "The scene image could not be edited."
+
+        throw new Error(message)
+      }
+
+      const result = sceneImageEditResponseSchema.parse(responseBody)
+      dispatch({ payload: result.image, type: "SET_DRAFT_IMAGE" })
+    } catch (imageEditError) {
+      const message =
+        imageEditError instanceof Error
+          ? imageEditError.message
+          : "The scene image could not be edited."
+
+      dispatch({ payload: message, type: "SET_ERROR" })
+      throw new Error(message)
+    } finally {
+      dispatch({ payload: false, type: "SET_IS_EDITING_IMAGE" })
+    }
   }
 
   async function handleSave() {
+    if (isEditingImage) {
+      return
+    }
+
     const drawing = drawingCanvasRef.current?.getDrawing() ?? null
 
     if (drawing !== null) {
@@ -226,7 +276,8 @@ function EditSceneDialog({
         <div className="flex h-12 shrink-0 items-center justify-between gap-2 px-5">
           <div className="flex items-center gap-2.5">
             <button
-              className="flex h-7 items-center gap-1.5 rounded-full bg-emphasis px-3 text-label font-medium text-emphasis-foreground outline-none transition-[background-color,transform] duration-150 ease-out hover:bg-emphasis/85 active:scale-[0.97] focus-visible:ring-2 focus-visible:ring-ring"
+              className="flex h-7 items-center gap-1.5 rounded-full bg-emphasis px-3 text-label font-medium text-emphasis-foreground transition-[background-color,transform] duration-150 ease-out outline-none hover:bg-emphasis/85 focus-visible:ring-2 focus-visible:ring-ring active:scale-[0.97]"
+              disabled={isEditingImage}
               onClick={() => fileInputRef.current?.click()}
               type="button"
             >
@@ -236,7 +287,9 @@ function EditSceneDialog({
             <UploadError error={error} />
             <SegmentedControl
               label="Drawing tool"
-              onValueChange={(value) => dispatch({ payload: value as DrawTool, type: "SET_TOOL" })}
+              onValueChange={(value) =>
+                dispatch({ payload: value as DrawTool, type: "SET_TOOL" })
+              }
               value={tool}
               variant="raised"
             >
@@ -256,23 +309,30 @@ function EditSceneDialog({
                 label="Brush size"
                 max={BRUSH_SIZE_LIMITS.max}
                 min={BRUSH_SIZE_LIMITS.min}
-                onValueChange={([value]) => dispatch({ payload: value, type: "SET_BRUSH_SIZE" })}
+                onValueChange={([value]) =>
+                  dispatch({ payload: value, type: "SET_BRUSH_SIZE" })
+                }
                 value={[brushSize]}
               />
               <span className="text-label text-ink">{brushSize}</span>
             </div>
-            <DrawColorPicker color={color} onColorChange={(nextColor) => dispatch({ payload: nextColor, type: "SET_COLOR" })} />
+            <DrawColorPicker
+              color={color}
+              onColorChange={(nextColor) =>
+                dispatch({ payload: nextColor, type: "SET_COLOR" })
+              }
+            />
           </div>
           <div className="flex items-center gap-1.5">
             <IconButton
-              disabled={!canUndo}
+              disabled={isEditingImage || !canUndo}
               label="Undo"
               onClick={handleUndo}
             >
               <SFArrowCounterclockwise aria-hidden />
             </IconButton>
             <IconButton
-              disabled={!canClear}
+              disabled={isEditingImage || !canClear}
               label="Clear all"
               onClick={handleClearDrawing}
             >
@@ -287,6 +347,7 @@ function EditSceneDialog({
             drawingCanvasRef={drawingCanvasRef}
             fileInputRef={fileInputRef}
             image={previewImage}
+            isDisabled={isEditingImage}
             onFile={handleFile}
             onHistoryChange={({ canClear, canUndo }) => {
               setCanClear(canClear)
@@ -296,6 +357,19 @@ function EditSceneDialog({
             tool={tool}
           />
         </div>
+        {scene.image ? (
+          <div className="px-5 pb-1">
+            <PromptComposer.Root
+              disabled={isEditingImage}
+              inputId={`scene-${scene.id}-image-edit-prompt`}
+              mode="image-edit"
+              onImageEditSubmit={handleImageEdit}
+            >
+              <PromptComposer.Input />
+              <PromptComposer.Actions />
+            </PromptComposer.Root>
+          </div>
+        ) : null}
         <Dialog.Footer>
           <p className="text-caption text-ink-muted">
             Changes apply to scene {sceneNumber} only
@@ -303,14 +377,16 @@ function EditSceneDialog({
           <div className="flex items-center gap-2">
             <Dialog.Close asChild>
               <button
-                className="flex h-7.5 items-center rounded-full bg-surface-inset px-4 text-label text-ink outline-none transition-[color,transform] duration-150 ease-out hover:text-ink-strong active:scale-[0.97] focus-visible:ring-2 focus-visible:ring-ring"
+                className="flex h-7.5 items-center rounded-full bg-surface-inset px-4 text-label text-ink transition-[color,transform] duration-150 ease-out outline-none hover:text-ink-strong focus-visible:ring-2 focus-visible:ring-ring active:scale-[0.97]"
+                disabled={isEditingImage}
                 type="button"
               >
                 Cancel
               </button>
             </Dialog.Close>
             <button
-              className="flex h-7.5 items-center rounded-full bg-emphasis px-4 text-label font-medium text-emphasis-foreground outline-none transition-[background-color,transform] duration-150 ease-out hover:bg-emphasis/85 active:scale-[0.97] focus-visible:ring-2 focus-visible:ring-ring"
+              className="flex h-7.5 items-center rounded-full bg-emphasis px-4 text-label font-medium text-emphasis-foreground transition-[background-color,transform] duration-150 ease-out outline-none hover:bg-emphasis/85 focus-visible:ring-2 focus-visible:ring-ring active:scale-[0.97]"
+              disabled={isEditingImage}
               onClick={() => void handleSave()}
               type="button"
             >
@@ -341,9 +417,9 @@ function DrawColorPicker({ color, onColorChange }: DrawColorPickerProps) {
           aria-checked={color === swatch.value}
           aria-label={swatch.label}
           className={cn(
-            "size-4 rounded-full border border-edge-strong outline-none transition-[box-shadow,transform] duration-150 ease-out active:scale-90 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1",
+            "size-4 rounded-full border border-edge-strong transition-[box-shadow,transform] duration-150 ease-out outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1 active:scale-90",
             color === swatch.value &&
-            "ring-2 ring-emphasis ring-offset-2 ring-offset-surface-panel"
+              "ring-2 ring-emphasis ring-offset-2 ring-offset-surface-panel"
           )}
           key={swatch.value}
           onClick={() => onColorChange(swatch.value)}
@@ -354,246 +430,6 @@ function DrawColorPicker({ color, onColorChange }: DrawColorPickerProps) {
       ))}
     </div>
   )
-}
-
-interface SceneCanvasProps {
-  brushSize: number
-  color: string
-  drawingCanvasRef: React.RefObject<DrawingCanvasHandle | null>
-  fileInputRef: React.RefObject<HTMLInputElement | null>
-  image: string | undefined | null
-  onFile: (file: File) => void
-  onHistoryChange?: (state: { canClear: boolean; canUndo: boolean }) => void
-  sceneNumber: string
-  tool: DrawTool
-}
-
-/**
- * Canvas area with the scene numeral, freehand drawing surface, and image
- * drop target.
- */
-function SceneCanvas({
-  brushSize,
-  color,
-  drawingCanvasRef,
-  fileInputRef,
-  image,
-  onFile,
-  onHistoryChange,
-  sceneNumber,
-  tool,
-}: SceneCanvasProps) {
-  const handleDrop = (event: React.DragEvent) => {
-    event.preventDefault()
-    const file = event.dataTransfer.files[0]
-
-    if (file) {
-      onFile(file)
-    }
-  }
-
-  return (
-    <div
-      className="relative flex w-full aspect-video items-center justify-center overflow-clip rounded-xl bg-surface-thumb"
-      onDragOver={(event) => event.preventDefault()}
-      onDrop={handleDrop}
-    >
-      {!image && (
-        <span className="text-canvas leading-none font-extralight tracking-display text-ink-on-media select-none dark:text-emphasis-foreground/80 sm:text-canvas-lg">
-          {sceneNumber}
-        </span>
-      )}
-      <CanvasImage image={image} />
-      <DrawingCanvas
-        brushSize={brushSize}
-        color={color}
-        onHistoryChange={onHistoryChange}
-        ref={drawingCanvasRef}
-        tool={tool}
-      />
-      <input
-        accept={IMAGE_UPLOAD_RULES.acceptedTypes.join(",")}
-        aria-label="Upload scene image"
-        className="sr-only"
-        onChange={(event) => {
-          const file = event.target.files?.[0]
-
-          if (file) {
-            onFile(file)
-          }
-
-          event.target.value = ""
-        }}
-        ref={fileInputRef}
-        type="file"
-      />
-      <span className="absolute right-3 bottom-2.5 z-20 rounded-full bg-ink-strong/55 px-2.5 py-[3px] text-caption text-ink-on-media">
-        100%
-      </span>
-    </div>
-  )
-}
-
-/** Uploaded image preview shown behind the drop zone. */
-function CanvasImage({ image }: { image: string | undefined | null }) {
-  if (!image) {
-    return null
-  }
-
-  return (
-    <NextImage
-      alt="Uploaded scene reference"
-      className="absolute inset-0 z-10 size-full object-cover"
-      fill
-      src={image}
-      unoptimized
-    />
-  )
-}
-
-/** A pointer position in CSS pixels, relative to the canvas top-left. */
-interface Point {
-  x: number
-  y: number
-}
-
-/** Returns the pointer position within the canvas, in CSS pixels. */
-function getCanvasPoint(
-  canvas: HTMLCanvasElement,
-  event: React.PointerEvent<HTMLCanvasElement>
-): Point {
-  const rect = canvas.getBoundingClientRect()
-
-  return { x: event.clientX - rect.left, y: event.clientY - rect.top }
-}
-
-/**
- * Matches the canvas backing store to its rendered size scaled by the
- * device pixel ratio (so strokes stay crisp) and scales the context so
- * drawing code can work in CSS-pixel coordinates. Any existing drawing is
- * preserved across the resize.
- *
- * The layout size (`clientWidth`/`clientHeight`) is used rather than
- * `getBoundingClientRect`, so the open/close zoom transform on the dialog
- * can't make the backing store settle at the wrong size.
- */
-function syncCanvasSize(canvas: HTMLCanvasElement): void {
-  const context = canvas.getContext("2d")
-
-  if (context === null) {
-    return
-  }
-
-  const ratio = window.devicePixelRatio || 1
-  const cssWidth = canvas.clientWidth
-  const cssHeight = canvas.clientHeight
-  const width = Math.round(cssWidth * ratio)
-  const height = Math.round(cssHeight * ratio)
-
-  if (width === 0 || height === 0) {
-    return
-  }
-
-  if (canvas.width === width && canvas.height === height) {
-    return
-  }
-
-  // Resizing the backing store clears it, so copy the current drawing out
-  // first and scale it back in afterwards.
-  let previous: HTMLCanvasElement | null = null
-
-  if (canvas.width > 0 && canvas.height > 0) {
-    previous = document.createElement("canvas")
-    previous.width = canvas.width
-    previous.height = canvas.height
-    previous.getContext("2d")?.drawImage(canvas, 0, 0)
-  }
-
-  canvas.width = width
-  canvas.height = height
-  context.setTransform(ratio, 0, 0, ratio, 0, 0)
-
-  if (previous !== null) {
-    context.drawImage(previous, 0, 0, cssWidth, cssHeight)
-  }
-}
-
-/** Applies the stroke settings for the active tool to the context. */
-function configureStroke(
-  context: CanvasRenderingContext2D,
-  tool: DrawTool,
-  color: string,
-  brushSize: number
-): void {
-  context.lineCap = "round"
-  context.lineJoin = "round"
-
-  if (tool === "eraser") {
-    context.globalCompositeOperation = "destination-out"
-    context.strokeStyle = "#000000"
-    context.lineWidth = brushSize * BRUSH_WIDTH_SCALE
-
-    return
-  }
-
-  context.globalCompositeOperation = "source-over"
-  context.strokeStyle = color
-  context.lineWidth =
-    tool === "brush" ? brushSize * BRUSH_WIDTH_SCALE : brushSize
-}
-
-/** Strokes a line between two points; a zero-length line draws a dot. */
-function drawSegment(
-  context: CanvasRenderingContext2D,
-  from: Point,
-  to: Point
-): void {
-  context.beginPath()
-  context.moveTo(from.x, from.y)
-  context.lineTo(to.x, to.y)
-  context.stroke()
-}
-
-/**
- * Returns a standalone copy of the drawing when the overlay holds any
- * painted pixels, or null when it is still blank. The copy is detached
- * from the live element so it survives the dialog closing after a save.
- */
-function captureDrawing(
-  canvas: HTMLCanvasElement | null
-): HTMLCanvasElement | null {
-  if (canvas === null || canvas.width === 0 || canvas.height === 0) {
-    return null
-  }
-
-  const context = canvas.getContext("2d")
-
-  if (context === null) {
-    return null
-  }
-
-  // The overlay starts fully transparent, so any non-zero alpha byte means
-  // the user has drawn at least one mark.
-  const { data } = context.getImageData(0, 0, canvas.width, canvas.height)
-  let hasStrokes = false
-
-  for (let index = 3; index < data.length; index += 4) {
-    if (data[index] !== 0) {
-      hasStrokes = true
-      break
-    }
-  }
-
-  if (!hasStrokes) {
-    return null
-  }
-
-  const copy = document.createElement("canvas")
-  copy.width = canvas.width
-  copy.height = canvas.height
-  copy.getContext("2d")?.drawImage(canvas, 0, 0)
-
-  return copy
 }
 
 /** Loads an image element from a URL, rejecting if it cannot decode. */
@@ -663,174 +499,6 @@ async function composeSceneImage(
   context.drawImage(drawing, 0, 0)
 
   return output.toDataURL("image/png")
-}
-
-/** Imperative handle exposed by {@link DrawingCanvas}. */
-interface DrawingCanvasHandle {
-  clear: () => void
-  getDrawing: () => HTMLCanvasElement | null
-  undo: () => void
-}
-
-interface DrawingCanvasProps {
-  brushSize: number
-  color: string
-  onHistoryChange?: (state: { canClear: boolean; canUndo: boolean }) => void
-  ref?: React.Ref<DrawingCanvasHandle>
-  tool: DrawTool
-}
-
-/**
- * Transparent overlay that captures pointer input and renders freehand
- * strokes for the active tool. Sits above the reference image so drawings
- * annotate it, and keeps the in-progress stroke in refs to avoid
- * re-rendering on every pointer move. Exposes {@link DrawingCanvasHandle}
- * so the editor can capture the finished artwork on save.
- */
-function DrawingCanvas({
-  brushSize,
-  color,
-  onHistoryChange,
-  ref,
-  tool,
-}: DrawingCanvasProps) {
-  const canvasRef = React.useRef<HTMLCanvasElement>(null)
-  const drawingRef = React.useRef(false)
-  const historyRef = React.useRef<HTMLCanvasElement[]>([])
-  const lastPointRef = React.useRef<Point | null>(null)
-
-  React.useImperativeHandle(
-    ref,
-    () => ({
-      clear: () => {
-        const canvas = canvasRef.current
-        const context = canvas?.getContext("2d")
-        if (!canvas || !context) {
-          return
-        }
-
-        context.clearRect(0, 0, canvas.clientWidth, canvas.clientHeight)
-        historyRef.current = []
-        triggerHistoryChange()
-      },
-      getDrawing: () => captureDrawing(canvasRef.current),
-      undo: () => {
-        const canvas = canvasRef.current
-        const context = canvas?.getContext("2d")
-        if (!canvas || !context || historyRef.current.length === 0) {
-          return
-        }
-
-        const prevState = historyRef.current.pop()
-        if (prevState) {
-          context.clearRect(0, 0, canvas.clientWidth, canvas.clientHeight)
-          context.drawImage(prevState, 0, 0, canvas.clientWidth, canvas.clientHeight)
-        }
-        triggerHistoryChange()
-      },
-    }),
-    [onHistoryChange]
-  )
-
-  useMountEffect(() => {
-    const canvas = canvasRef.current
-
-    if (canvas === null) {
-      return
-    }
-
-    syncCanvasSize(canvas)
-    triggerHistoryChange()
-
-    const observer = new ResizeObserver(() => syncCanvasSize(canvas))
-    observer.observe(canvas)
-
-    return () => observer.disconnect()
-  })
-
-  function handlePointerDown(event: React.PointerEvent<HTMLCanvasElement>) {
-    const canvas = canvasRef.current
-    const context = canvas?.getContext("2d")
-
-    if (!canvas || !context) {
-      return
-    }
-
-    canvas.setPointerCapture(event.pointerId)
-    drawingRef.current = true
-
-    saveStateToHistory()
-
-    const point = getCanvasPoint(canvas, event)
-    lastPointRef.current = point
-    configureStroke(context, tool, color, brushSize)
-    drawSegment(context, point, point)
-  }
-
-  function handlePointerMove(event: React.PointerEvent<HTMLCanvasElement>) {
-    const canvas = canvasRef.current
-    const context = canvas?.getContext("2d")
-
-    if (!drawingRef.current || !canvas || !context) {
-      return
-    }
-
-    const point = getCanvasPoint(canvas, event)
-    drawSegment(context, lastPointRef.current ?? point, point)
-    lastPointRef.current = point
-  }
-
-  function handlePointerUp(event: React.PointerEvent<HTMLCanvasElement>) {
-    const canvas = canvasRef.current
-
-    if (!drawingRef.current) {
-      return
-    }
-
-    drawingRef.current = false
-    lastPointRef.current = null
-
-    if (canvas?.hasPointerCapture(event.pointerId)) {
-      canvas.releasePointerCapture(event.pointerId)
-    }
-  }
-
-  function saveStateToHistory() {
-    const canvas = canvasRef.current
-    if (!canvas) {
-      return
-    }
-
-    const copy = document.createElement("canvas")
-    copy.width = canvas.width
-    copy.height = canvas.height
-    const copyContext = copy.getContext("2d")
-    if (copyContext) {
-      copyContext.drawImage(canvas, 0, 0)
-    }
-    historyRef.current.push(copy)
-    triggerHistoryChange()
-  }
-
-  function triggerHistoryChange() {
-    if (onHistoryChange) {
-      onHistoryChange({
-        canClear: historyRef.current.length > 0,
-        canUndo: historyRef.current.length > 0,
-      })
-    }
-  }
-
-  return (
-    <canvas
-      className="absolute inset-0 z-10 size-full cursor-crosshair touch-none"
-      onPointerCancel={handlePointerUp}
-      onPointerDown={handlePointerDown}
-      onPointerMove={handlePointerMove}
-      onPointerUp={handlePointerUp}
-      ref={canvasRef}
-    />
-  )
 }
 
 /** Validation error line for the upload drop zone. */

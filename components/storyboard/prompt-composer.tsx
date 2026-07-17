@@ -26,9 +26,11 @@ interface PromptComposerContextValue {
   characterImageReferences: File[]
   characterSheetText: string
   error: string | null
+  inputId: string
   isCharacterSheetOpen: boolean
   isDisabled: boolean
   isSubmitting: boolean
+  mode: PromptComposerMode
   prompt: string
   removeCharacterImageReference: (index: number) => void
   removeStyleImageReference: (index: number) => void
@@ -41,6 +43,9 @@ interface PromptComposerContextValue {
   styleImageReferences: File[]
   submit: () => Promise<void>
 }
+
+/** Supported request modes for the reusable prompt composer. */
+type PromptComposerMode = "image-edit" | "storyboard"
 
 const PromptComposerContext =
   React.createContext<PromptComposerContextValue | null>(null)
@@ -63,10 +68,16 @@ interface PromptComposerRootProps extends Omit<
 > {
   /** Disables generation and all attachment controls. */
   disabled?: boolean
+  /** Unique HTML id used to connect the primary input with its label. */
+  inputId?: string
+  /** Presents a concise image-editing input without storyboard attachments. */
+  mode?: PromptComposerMode
   /** Reports whether the composer currently holds focus. */
   onActiveChange?: (isActive: boolean) => void
+  /** Sends a validated scene image editing instruction to the dialog. */
+  onImageEditSubmit?: (prompt: string) => Promise<void>
   /** Sends a validated generation request to the workspace. */
-  onSubmit: (request: StoryboardGenerationRequest) => Promise<void>
+  onSubmit?: (request: StoryboardGenerationRequest) => Promise<void>
 }
 
 /**
@@ -84,7 +95,10 @@ function PromptComposerRoot({
   children,
   className,
   disabled = false,
+  inputId = "storyboard-prompt",
+  mode = "storyboard",
   onActiveChange,
+  onImageEditSubmit,
   onSubmit,
   ...props
 }: PromptComposerRootProps) {
@@ -122,6 +136,21 @@ function PromptComposerRoot({
     setIsSubmitting(true)
 
     try {
+      if (mode === "image-edit") {
+        if (onImageEditSubmit === undefined) {
+          throw new Error("Image editing is unavailable.")
+        }
+
+        await onImageEditSubmit(trimmedPrompt)
+        setPrompt("")
+
+        return
+      }
+
+      if (onSubmit === undefined) {
+        throw new Error("Storyboard generation is unavailable.")
+      }
+
       const [characterImageRefs, styleImageRefs] = await Promise.all([
         Promise.all(
           characterImageReferences.map((file) => readFileAsDataUrl(file))
@@ -160,9 +189,11 @@ function PromptComposerRoot({
     characterImageReferences,
     characterSheetText,
     error,
+    inputId,
     isCharacterSheetOpen,
     isDisabled: disabled || isSubmitting,
     isSubmitting,
+    mode,
     prompt,
     removeCharacterImageReference,
     removeStyleImageReference,
@@ -210,8 +241,10 @@ function PromptComposerRoot({
 function PromptComposerInput() {
   const {
     characterSheetText,
+    inputId,
     isCharacterSheetOpen,
     isDisabled,
+    mode,
     prompt,
     setCharacterSheetText,
     setPrompt,
@@ -220,13 +253,15 @@ function PromptComposerInput() {
 
   return (
     <div className="grid">
-      <label className="sr-only" htmlFor="storyboard-prompt">
-        Movie logline or storyline
+      <label className="sr-only" htmlFor={inputId}>
+        {mode === "image-edit"
+          ? "Describe the image changes"
+          : "Movie logline or storyline"}
       </label>
       <textarea
         className="max-h-44 min-h-14 resize-none bg-transparent px-4 pt-4 pb-3 text-body text-ink-strong transition-[min-height] duration-200 ease-out outline-none placeholder:text-ink-faint focus:min-h-24 disabled:cursor-not-allowed disabled:opacity-60"
         disabled={isDisabled}
-        id="storyboard-prompt"
+        id={inputId}
         maxLength={12_000}
         onChange={(event) => setPrompt(event.target.value)}
         onKeyDown={(event) => {
@@ -235,7 +270,11 @@ function PromptComposerInput() {
             void submit()
           }
         }}
-        placeholder="Describe a film, sequence, or complete storyline…"
+        placeholder={
+          mode === "image-edit"
+            ? "Describe how to change this scene…"
+            : "Describe a film, sequence, or complete storyline…"
+        }
         rows={1}
         value={prompt}
       />
@@ -267,14 +306,15 @@ function PromptComposerInput() {
 function PromptComposerAttachments() {
   const {
     characterImageReferences,
+    mode,
     removeCharacterImageReference,
     removeStyleImageReference,
     styleImageReferences,
   } = usePromptComposer()
 
   if (
-    characterImageReferences.length === 0 &&
-    styleImageReferences.length === 0
+    mode === "image-edit" ||
+    (characterImageReferences.length === 0 && styleImageReferences.length === 0)
   ) {
     return null
   }
@@ -306,6 +346,7 @@ function PromptComposerActions() {
     isCharacterSheetOpen,
     isDisabled,
     isSubmitting,
+    mode,
     prompt,
     setCharacterImageReferences,
     setCharacterSheetText,
@@ -320,6 +361,10 @@ function PromptComposerActions() {
   const referenceCount =
     characterImageReferences.length + styleImageReferences.length
   const hasAvailableReferenceSlot = referenceCount < MAX_IMAGE_REFERENCES
+
+  if (mode === "image-edit") {
+    return <PromptComposerImageEditActions />
+  }
 
   const addImageReferences = (
     files: File[],
@@ -477,6 +522,34 @@ function PromptComposerActions() {
           <SFArrowUp aria-hidden className="size-4" />
         </button>
       </div>
+    </div>
+  )
+}
+
+/** Submit action shown when the composer is embedded in the scene editor. */
+function PromptComposerImageEditActions() {
+  const { isDisabled, isSubmitting, prompt } = usePromptComposer()
+
+  return (
+    <div className="sticky bottom-0 z-10 flex items-center justify-end gap-2 bg-surface-panel px-3 py-2.5">
+      {isSubmitting ? (
+        <span
+          aria-live="polite"
+          className="text-caption text-ink-muted"
+          role="status"
+        >
+          Editing image…
+        </span>
+      ) : null}
+      <button
+        aria-label="Apply image edit"
+        className="flex h-9 items-center gap-1.5 rounded-full bg-emphasis px-3 text-label font-medium text-emphasis-foreground transition-[filter,transform] outline-none hover:brightness-105 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 active:scale-[0.97] disabled:cursor-not-allowed disabled:opacity-40"
+        disabled={isDisabled || prompt.trim() === ""}
+        type="submit"
+      >
+        <SFArrowUp aria-hidden className="size-3.5" />
+        Apply edit
+      </button>
     </div>
   )
 }
