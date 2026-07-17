@@ -211,7 +211,7 @@ function PromptComposerInput() {
   const {
     characterSheetText,
     isCharacterSheetOpen,
-    isSubmitting,
+    isDisabled,
     prompt,
     setCharacterSheetText,
     setPrompt,
@@ -225,7 +225,7 @@ function PromptComposerInput() {
       </label>
       <textarea
         className="max-h-44 min-h-14 resize-none bg-transparent px-4 pt-4 pb-3 text-body text-ink-strong transition-[min-height] duration-200 ease-out outline-none placeholder:text-ink-faint focus:min-h-24 disabled:cursor-not-allowed disabled:opacity-60"
-        disabled={isSubmitting}
+        disabled={isDisabled}
         id="storyboard-prompt"
         maxLength={12_000}
         onChange={(event) => setPrompt(event.target.value)}
@@ -250,7 +250,7 @@ function PromptComposerInput() {
           </label>
           <textarea
             className="max-h-28 min-h-16 w-full resize-y rounded-lg bg-surface-panel px-3 py-2 text-label text-ink ring-1 ring-edge transition-shadow outline-none placeholder:text-ink-faint focus:ring-2 focus:ring-ring"
-            disabled={isSubmitting}
+            disabled={isDisabled}
             id="character-sheet"
             maxLength={MAX_CHARACTER_SHEET_LENGTH}
             onChange={(event) => setCharacterSheetText(event.target.value)}
@@ -304,6 +304,7 @@ function PromptComposerActions() {
   const {
     characterImageReferences,
     isCharacterSheetOpen,
+    isDisabled,
     isSubmitting,
     prompt,
     setCharacterImageReferences,
@@ -340,14 +341,12 @@ function PromptComposerActions() {
     setReferences((current) => [...current, ...acceptedFiles])
     setError(
       firstError ??
-        (files.length > availableSlots
-          ? `Attach up to ${MAX_IMAGE_REFERENCES} reference images in total.`
-          : null)
+        (files.length > availableSlots ? MAX_IMAGE_REFERENCES_ERROR : null)
     )
   }
 
   return (
-    <div className="flex items-center justify-between gap-3 px-3 py-2.5">
+    <div className="sticky bottom-0 z-10 flex items-center justify-between gap-3 bg-surface-panel px-3 py-2.5">
       <div
         aria-label="Prompt attachments"
         className="flex min-w-0 items-center gap-1"
@@ -360,7 +359,7 @@ function PromptComposerActions() {
             "flex h-9 items-center gap-1.5 rounded-lg px-2.5 text-caption font-medium text-ink-muted transition-[background-color,color,transform] outline-none hover:bg-surface-inset hover:text-ink-strong focus-visible:ring-2 focus-visible:ring-ring active:scale-[0.97]",
             isCharacterSheetOpen && "bg-surface-inset text-ink-strong"
           )}
-          disabled={isSubmitting}
+          disabled={isDisabled}
           onClick={() => setIsCharacterSheetOpen(!isCharacterSheetOpen)}
           type="button"
         >
@@ -370,7 +369,7 @@ function PromptComposerActions() {
         <button
           aria-label="Upload character sheet text file"
           className="grid size-9 place-items-center rounded-lg text-ink-muted transition-[background-color,color,transform] outline-none hover:bg-surface-inset hover:text-ink-strong focus-visible:ring-2 focus-visible:ring-ring active:scale-[0.97]"
-          disabled={isSubmitting}
+          disabled={isDisabled}
           onClick={() => characterTextInputRef.current?.click()}
           type="button"
         >
@@ -379,7 +378,7 @@ function PromptComposerActions() {
         <button
           aria-label="Attach character reference images"
           className="flex h-9 items-center gap-1.5 rounded-lg px-2.5 text-caption font-medium text-ink-muted transition-[background-color,color,transform] outline-none hover:bg-surface-inset hover:text-ink-strong focus-visible:ring-2 focus-visible:ring-ring active:scale-[0.97] disabled:cursor-not-allowed disabled:opacity-45"
-          disabled={isSubmitting || !hasAvailableReferenceSlot}
+          disabled={isDisabled || !hasAvailableReferenceSlot}
           onClick={() => characterImageInputRef.current?.click()}
           type="button"
         >
@@ -389,7 +388,7 @@ function PromptComposerActions() {
         <button
           aria-label="Attach visual style reference images"
           className="flex h-9 items-center gap-1.5 rounded-lg px-2.5 text-caption font-medium text-ink-muted transition-[background-color,color,transform] outline-none hover:bg-surface-inset hover:text-ink-strong focus-visible:ring-2 focus-visible:ring-ring active:scale-[0.97] disabled:cursor-not-allowed disabled:opacity-45"
-          disabled={isSubmitting || !hasAvailableReferenceSlot}
+          disabled={isDisabled || !hasAvailableReferenceSlot}
           onClick={() => styleImageInputRef.current?.click()}
           type="button"
         >
@@ -397,9 +396,10 @@ function PromptComposerActions() {
           <span className="hidden sm:inline">Visual style</span>
         </button>
         <input
-          accept="image/jpeg,image/png"
+          accept={IMAGE_UPLOAD_RULES.acceptedTypes.join(",")}
           aria-label="Character reference images"
           className="sr-only"
+          disabled={isDisabled}
           multiple
           onChange={(event) => {
             addImageReferences(
@@ -409,17 +409,20 @@ function PromptComposerActions() {
             event.target.value = ""
           }}
           ref={characterImageInputRef}
+          tabIndex={-1}
           type="file"
         />
         <input
           accept=".md,.txt,text/markdown,text/plain"
           aria-label="Character sheet text file"
           className="sr-only"
+          disabled={isDisabled}
           onChange={(event) => {
             const file = event.target.files?.[0]
 
             if (file) {
               void file
+                .slice(0, MAX_CHARACTER_SHEET_FILE_BYTES)
                 .text()
                 .then((text) => {
                   setCharacterSheetText(
@@ -434,12 +437,14 @@ function PromptComposerActions() {
             event.target.value = ""
           }}
           ref={characterTextInputRef}
+          tabIndex={-1}
           type="file"
         />
         <input
-          accept="image/jpeg,image/png"
+          accept={IMAGE_UPLOAD_RULES.acceptedTypes.join(",")}
           aria-label="Visual style reference images"
           className="sr-only"
+          disabled={isDisabled}
           multiple
           onChange={(event) => {
             addImageReferences(
@@ -449,6 +454,7 @@ function PromptComposerActions() {
             event.target.value = ""
           }}
           ref={styleImageInputRef}
+          tabIndex={-1}
           type="file"
         />
       </div>
@@ -465,7 +471,7 @@ function PromptComposerActions() {
         <button
           aria-label="Generate storyboard"
           className="grid size-9 place-items-center rounded-full bg-emphasis text-emphasis-foreground transition-[filter,transform] outline-none hover:brightness-105 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 active:scale-[0.94] disabled:cursor-not-allowed disabled:opacity-40"
-          disabled={isSubmitting || prompt.trim() === ""}
+          disabled={isDisabled || prompt.trim() === ""}
           type="submit"
         >
           <SFArrowUp aria-hidden className="size-4" />

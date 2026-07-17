@@ -29,7 +29,7 @@ function PromptComposerAttachmentGroup({
         {files.map((file, index) => (
           <li
             className="flex max-w-40 shrink-0 items-center gap-1.5 rounded-lg border border-edge bg-surface-panel py-1 pr-1 pl-2 text-caption text-ink"
-            key={`${file.name}-${file.lastModified}`}
+            key={`${file.name}-${file.lastModified}-${index}`}
           >
             <span className="truncate">{file.name}</span>
             <button
@@ -47,7 +47,4 @@ function PromptComposerAttachmentGroup({
   )
 }
 
-export {
-  PromptComposerAttachmentGroup,
-  type PromptComposerAttachmentGroupProps,
-}
+export { PromptComposerAttachmentGroup }

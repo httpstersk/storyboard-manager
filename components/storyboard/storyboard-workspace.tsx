@@ -448,29 +448,8 @@ function StoryboardWorkspace() {
           scenes={selectedBoard.scenes}
           showParameters={state.showParameters}
         />
-        {/* Focus backdrop for the composer. Sits above the board content
-            (z-40) but below the composer (z-50), dimming and blurring the
-            storyboards while the user is writing a prompt. A mousedown on
-            it naturally blurs the composer, which clears the active flag. */}
-        <AnimatePresence>
-          {state.isComposerActive && (
-            <m.div
-              animate={{ opacity: 1 }}
-              aria-hidden
-              className="absolute inset-0 z-40 bg-[oklch(0_0_0_/_0.32)] backdrop-blur-sm"
-              exit={{ opacity: 0 }}
-              initial={{ opacity: 0 }}
-              key="composer-backdrop"
-              onClick={() =>
-                dispatch({ isComposerActive: false, type: "setComposerActive" })
-              }
-              transition={SIDEBAR_CONTENT_TRANSITION}
-            />
-          )}
-        </AnimatePresence>
-        {/* Composer pinned above the storyboards. Fixed to the bottom of
-            <main> so the grid scrolls beneath it; the grid carries bottom
-            padding so its last row can clear the composer. */}
+        {/* The composer floats above the scene grid so it remains available
+            without turning the input into a separate layout section. */}
         <div className="absolute inset-x-0 bottom-10 z-50 mx-auto w-full max-w-3xl px-4">
           <PromptComposer.Root
             disabled={state.isGenerating}
@@ -498,6 +477,24 @@ function StoryboardWorkspace() {
           </BoardStatusBar.Autosave>
         </BoardStatusBar>
       </main>
+      {/* Workspace-wide focus backdrop. It covers the sidebar rail and main
+          canvas while remaining below the floating composer. */}
+      <AnimatePresence>
+        {state.isComposerActive && (
+          <m.div
+            animate={{ opacity: 1 }}
+            aria-hidden
+            className="absolute inset-0 z-40 bg-[oklch(0_0_0_/_0.32)] backdrop-blur-sm"
+            exit={{ opacity: 0 }}
+            initial={{ opacity: 0 }}
+            key="composer-backdrop"
+            onClick={() =>
+              dispatch({ isComposerActive: false, type: "setComposerActive" })
+            }
+            transition={SIDEBAR_CONTENT_TRANSITION}
+          />
+        )}
+      </AnimatePresence>
       {/* Floating sidebar overlay. Rendered above <main> and positioned to
           sit exactly over the rail, so opening it layers the sidebar on
           top of the content instead of pushing or resizing it. The
