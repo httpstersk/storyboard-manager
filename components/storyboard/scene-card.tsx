@@ -1,5 +1,6 @@
 "use client"
 
+import { m, useReducedMotion } from "motion/react"
 import Image from "next/image"
 import * as React from "react"
 
@@ -9,14 +10,15 @@ import { InlineInput } from "@/components/ui/inline-input"
 import type { Scene } from "@/lib/storyboard"
 import { cn } from "@/lib/utils"
 
+/** Image reveal timing used when a generated frame replaces its placeholder. */
+const IMAGE_REVEAL_TRANSITION = { duration: 0.45, ease: "easeOut" } as const
+
 interface SceneCardContextValue {
   scene: Scene
   sceneNumber: string
 }
 
-const SceneCardContext = React.createContext<SceneCardContextValue | null>(
-  null
-)
+const SceneCardContext = React.createContext<SceneCardContextValue | null>(null)
 
 function useSceneCard(): SceneCardContextValue {
   const context = React.use(SceneCardContext)
@@ -69,7 +71,7 @@ function SceneCard({
     <article
       aria-label={`Scene ${sceneNumber}`}
       className={cn(
-        "flex flex-col bg-surface-panel min-w-55 [container-type:inline-size] [container-name:scene-card]",
+        "[container-type:inline-size] flex min-w-55 flex-col bg-surface-panel [container-name:scene-card]",
         className
       )}
       {...props}
@@ -100,12 +102,12 @@ function SceneCardThumbnail({ className, onEdit }: SceneCardThumbnailProps) {
   return (
     <div
       className={cn(
-        "group relative flex aspect-video shrink-0 items-center justify-center overflow-clip bg-surface-thumb [container-type:size]",
+        "group [container-type:size] relative flex aspect-video shrink-0 items-center justify-center overflow-clip bg-surface-thumb",
         className
       )}
     >
       {!scene.image && <SceneThumbnailShader preset={scene.shader} />}
-      <SceneCardReferenceImage image={scene.image} />
+      <SceneCardReferenceImage image={scene.image} sceneNumber={sceneNumber} />
       {!scene.image && (
         <span className="relative z-10 grid w-full justify-items-center text-display font-extralight tracking-[-0.065em] text-ink-on-media/90 select-none">
           <span className="col-start-1 row-start-1 scale-100 opacity-100 blur-none transition-[opacity,filter,transform] duration-150 ease-out group-hover:scale-95 group-hover:opacity-0 group-hover:blur-[4px] dark:text-emphasis-foreground/80">
@@ -129,21 +131,49 @@ function SceneCardThumbnail({ className, onEdit }: SceneCardThumbnailProps) {
   )
 }
 
-/** Uploaded reference image overlay, rendered only when one exists. */
-function SceneCardReferenceImage({ image }: { image?: string }) {
+interface SceneCardReferenceImageProps {
+  image?: string
+  sceneNumber: string
+}
+
+/** Uploaded or generated image overlay, revealed smoothly when it appears. */
+function SceneCardReferenceImage({
+  image,
+  sceneNumber,
+}: SceneCardReferenceImageProps) {
+  const shouldReduceMotion = useReducedMotion()
+
   if (!image) {
     return null
   }
 
   return (
-    <Image
-      alt=""
-      className="absolute inset-0 z-10 size-full object-cover"
-      fill
-      sizes="(max-width: 768px) 50vw, 25vw"
-      src={image}
-      unoptimized
-    />
+    <m.div
+      animate={{ clipPath: "inset(0% 0% 0% 0%)", opacity: 1 }}
+      className="absolute inset-0 z-10"
+      initial={
+        shouldReduceMotion
+          ? false
+          : { clipPath: "inset(0% 0% 100% 0%)", opacity: 0 }
+      }
+      key={image}
+      transition={{
+        ...IMAGE_REVEAL_TRANSITION,
+        delay: shouldReduceMotion
+          ? 0
+          : Math.min(Number(sceneNumber) * 0.035, 0.35),
+        duration: shouldReduceMotion ? 0 : IMAGE_REVEAL_TRANSITION.duration,
+      }}
+    >
+      <Image
+        alt=""
+        className="object-cover"
+        fill
+        sizes="(max-width: 768px) 100vw, 25vw"
+        src={image}
+        unoptimized
+      />
+    </m.div>
   )
 }
 
@@ -153,7 +183,10 @@ function SceneCardDetails({
   ...props
 }: React.ComponentProps<"div">) {
   return (
-    <div className={cn("scene-card-details flex flex-col gap-2 p-3", className)} {...props} />
+    <div
+      className={cn("scene-card-details flex flex-col gap-2 p-3", className)}
+      {...props}
+    />
   )
 }
 
@@ -176,10 +209,7 @@ function SceneCardRow({ children, className, label }: SceneCardRowProps) {
 }
 
 /** Container for the note rows of a {@link SceneCard}. */
-function SceneCardNotes({
-  className,
-  ...props
-}: React.ComponentProps<"div">) {
+function SceneCardNotes({ className, ...props }: React.ComponentProps<"div">) {
   return (
     <div
       className={cn(

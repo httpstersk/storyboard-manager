@@ -15,12 +15,15 @@ All board data is automatically persisted locally and features interactive WebGL
 ## ✨ Core Features
 
 ### 📐 Workspace & Grid Layout
+
 - **Dynamic Dimensions**: Scale the board workspace grid up to **4 columns** and **9 rows** (minimum 1x1) using interactive steppers. Grid cells reflow smoothly using spring-based motion.
 - **Toggleable Parameters**: Show or hide granular parameters (like camera, lens, and movement) across all cards simultaneously to focus on visual layout or detailed notes.
 - **Searchable Sidebar**: Manage, search, and switch between multiple storyboard files. A responsive floating sidebar overlays the board, keeping workspace width constant.
 
 ### 🎥 Detailed Scene Customization
+
 Each scene card supports granular industry-standard parameters:
+
 - **Shot Size**: Segmented control for quick selection of **Wide Shot (WS)**, **Medium Shot (MS)**, **Medium Close-up (MCU)**, and **Close-up (CU)**.
 - **Camera Configurations**: Alexa 35, Sony Venice 2, and RED Komodo-X.
 - **Lens Selection**: Wide range of focal lengths (Signature 18mm, 21mm, 40mm, 75mm; Cooke S7 50mm, 75mm; Zeiss Supreme 29mm, 50mm).
@@ -30,6 +33,7 @@ Each scene card supports granular industry-standard parameters:
 - **Notes Suite**: Dedicated, inline-editable text fields for **Action**, **Dialogue**, and **Music** with character validation (up to 140 characters).
 
 ### 🎨 Drawing Canvas & Image References
+
 - **Upload References**: Drop or upload JPEG/PNG reference images (up to 10MB). Files are validated and converted to base64 Data URLs so they persist and export cleanly.
 - **Interactive Sketching Canvas**: Open the canvas modal to draw directly on the thumbnail. Includes:
   - Tools: Pencil, Brush, and Eraser.
@@ -37,13 +41,21 @@ Each scene card supports granular industry-standard parameters:
   - Action History: Undo support to step backward through drawing actions.
 - **Image Flattening**: Canvas sketches are composited and flattened over any uploaded or existing reference images when saved.
 
+### 🎞️ AI Storyboard Generation
+
+- **Story Planning**: Submit a logline or full storyline with optional character sheets and visual references. OpenAI converts it into a dynamic sequence of cinematic beats.
+- **Composite Generation**: Nano Banana Lite on fal.ai creates one ordered contact sheet; the server normalizes 1px cell gaps and slices the sheet into individual 16:9 scene frames.
+- **Non-destructive Boards**: Every generation creates and selects a new storyboard, preserving existing work.
+
 ### 🌌 Visuals, Sounds & UX Polish
+
 - **Cinematic WebGL Gradients**: Empty scene cards render an animated cinematic mesh gradient (via `@paper-design/shaders-react`). Shader renders are memoized to protect WebGL performance during note edits.
 - **Procedural Click Audio**: Click events synthesize soft, mechanical click sounds using the browser's Web Audio API. Volume levels and toggles are managed through a volume slider in the toolbar.
 - **Light & Dark Themes**: Full support for system, light, and dark modes.
 - **Local Persistence**: Workspace is autosaved to browser `localStorage` on every change. If data size exceeds browser quotas (due to large uploaded reference images), the persistent store safely strips image data to protect the text and structural boards.
 
 ### 📥 Import & Export Controls
+
 - **JSON Export & Import**: Save entire boards as versioned, portable JSON files, or import previously saved boards.
 - **PNG Grid Capture**: Export the active scene grid structure as a high-resolution PNG using `html-to-image`. Employs a dual-render process to guarantee that all embedded base64 reference images are cached and fully drawn.
 
@@ -62,10 +74,22 @@ Each scene card supports granular industry-standard parameters:
 ## 🚀 Getting Started
 
 ### Prerequisites
-- Node.js (v18+) or Bun installed.
+
+- Node.js (v22+) or Bun installed.
+
+Create `.env.local` with the server-only credentials used by storyboard generation:
+
+```bash
+OPENAI_API_KEY="your-openai-key"
+FAL_KEY="your-fal-key"
+```
+
+`FAL_API_KEY` is also supported in place of `FAL_KEY`. Never expose either key with a `NEXT_PUBLIC_` prefix.
 
 ### Installation
+
 Install workspace dependencies:
+
 ```bash
 bun install
 # or
@@ -73,15 +97,19 @@ npm install
 ```
 
 ### Run the Development Server
+
 ```bash
 bun dev
 # or
 npm run dev
 ```
+
 Open [http://localhost:3000](http://localhost:3000) in your browser to view the workspace.
 
 ### Production Build
+
 Create a optimized production bundle:
+
 ```bash
 bun run build
 # or

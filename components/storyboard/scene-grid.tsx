@@ -45,6 +45,8 @@ const SCENE_STAGGER_MAX = 0.3
 interface SceneGridProps {
   /** Number of grid columns. */
   columns: number
+  /** Whether a new board is currently being generated. */
+  isGenerating: boolean
   /** Called with a scene id when its thumbnail is activated. */
   onEditScene: (sceneId: string) => void
   /** Called with a partial update for the given scene. */
@@ -65,6 +67,7 @@ interface SceneGridProps {
  */
 function SceneGrid({
   columns,
+  isGenerating,
   onEditScene,
   onUpdateScene,
   ref,
@@ -79,7 +82,10 @@ function SceneGrid({
     // this wrapper owns the vertical scroll and rounded clipping while the
     // inner <section> (the PNG-capture target) keeps its natural full
     // height -- exports therefore still include every visible row.
-    <div className="min-h-0 flex-1 overflow-x-hidden overflow-y-auto rounded-2xl bg-grid-line [container-type:inline-size] [container-name:scene-grid]">
+    <div
+      aria-busy={isGenerating}
+      className="[container-type:inline-size] relative min-h-0 flex-1 overflow-x-hidden overflow-y-auto rounded-2xl bg-grid-line [container-name:scene-grid]"
+    >
       <section
         aria-label="Scenes"
         ref={ref}
@@ -115,6 +121,30 @@ function SceneGrid({
           ))}
         </AnimatePresence>
       </section>
+      <AnimatePresence>
+        {isGenerating ? (
+          <m.div
+            animate={{ opacity: 1 }}
+            aria-hidden
+            className="pointer-events-none absolute inset-0 z-30 overflow-hidden bg-surface-app/10"
+            exit={{ opacity: 0 }}
+            initial={{ opacity: 0 }}
+            key="generation-scan"
+            transition={{ duration: 0.2, ease: "easeOut" }}
+          >
+            <m.div
+              animate={{ top: ["0%", "100%"] }}
+              className="absolute inset-x-0 h-px bg-emphasis/80 motion-reduce:hidden"
+              transition={{
+                duration: 1.8,
+                ease: "easeInOut",
+                repeat: Number.POSITIVE_INFINITY,
+                repeatType: "mirror",
+              }}
+            />
+          </m.div>
+        ) : null}
+      </AnimatePresence>
     </div>
   )
 }

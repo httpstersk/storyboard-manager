@@ -17,6 +17,18 @@ export interface Board {
   updatedAt: number
 }
 
+/** Generated metadata used to populate a new storyboard scene. */
+export interface GeneratedBoardScene {
+  /** Visual action planned for the frame. */
+  action: string
+  /** Essential dialogue context, empty when the scene is silent. */
+  dialogue: string
+  /** Generated frame encoded as an image data URL. */
+  image: string
+  /** Planned shot size. */
+  shot: ShotSize
+}
+
 /** A single storyboard scene and all of its editable parameters. */
 export interface Scene {
   /** What happens on screen during the scene. */
@@ -282,6 +294,28 @@ export function createBlankBoard(id: string, title: string): Board {
     ),
     title,
     updatedAt: Date.now(),
+  }
+}
+
+/**
+ * Creates a full-capacity board populated with generated scenes at the start.
+ */
+export function createGeneratedBoard(
+  id: string,
+  scenes: GeneratedBoardScene[],
+  title: string
+): Board {
+  const board = createBlankBoard(id, title)
+
+  return {
+    ...board,
+    scenes: board.scenes.map((scene, index) => {
+      const generatedScene = scenes[index]
+
+      return generatedScene === undefined
+        ? scene
+        : { ...scene, ...generatedScene }
+    }),
   }
 }
 

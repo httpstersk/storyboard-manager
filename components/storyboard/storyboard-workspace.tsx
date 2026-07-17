@@ -8,6 +8,7 @@ import { Sidebar } from "@/components/storyboard/app-sidebar"
 import { BoardStatusBar } from "@/components/storyboard/board-status-bar"
 import { BoardToolbar } from "@/components/storyboard/board-toolbar"
 import { EditSceneDialog } from "@/components/storyboard/edit-scene-dialog"
+import { PromptComposer } from "@/components/storyboard/prompt-composer"
 import { SceneGrid } from "@/components/storyboard/scene-grid"
 import { SoundControl } from "@/components/storyboard/sound-control"
 import { Dialog } from "@/components/ui/dialog"
@@ -15,6 +16,10 @@ import { Field } from "@/components/ui/field"
 import { Stepper } from "@/components/ui/stepper"
 import { Switch } from "@/components/ui/switch"
 import { exportBoardJson, exportNodePng, parseBoardFile } from "@/lib/board-io"
+import {
+  type StoryboardGenerationRequest,
+  storyboardGenerationResponseSchema,
+} from "@/lib/generation"
 import {
   loadStoredWorkspace,
   saveStoredWorkspace,
@@ -24,6 +29,7 @@ import {
   type Board,
   COLUMN_LIMITS,
   createBlankBoard,
+  createGeneratedBoard,
   DEFAULT_ROWS,
   formatEditedAt,
   formatSceneNumber,
@@ -44,6 +50,7 @@ interface WorkspaceState {
   editingSceneId: string | null
   hydrated: boolean
   ioError: string | null
+  isGenerating: boolean
   /** Reference time for relative "edited" labels, refreshed per action. */
   now: number
   query: string
@@ -61,6 +68,7 @@ type WorkspaceAction =
   | { columns: number; type: "setColumns" }
   | { boardId: string | null; type: "setDeleteRequest" }
   | { error: string | null; type: "setIoError" }
+  | { isGenerating: boolean; type: "setIsGenerating" }
   | { query: string; type: "setQuery" }
   | { rows: number; type: "setRows" }
   | { sceneId: string | null; type: "setEditingScene" }
@@ -111,12 +119,12 @@ function workspaceReducer(
       return action.workspace === null
         ? { ...state, hydrated: true, now }
         : {
-          ...state,
-          boards: action.workspace.boards,
-          hydrated: true,
-          now,
-          selectedBoardId: action.workspace.selectedBoardId,
-        }
+            ...state,
+            boards: action.workspace.boards,
+            hydrated: true,
+            now,
+            selectedBoardId: action.workspace.selectedBoardId,
+          }
     case "renameBoard":
       return {
         ...state,
@@ -137,6 +145,8 @@ function workspaceReducer(
       return { ...state, editingSceneId: action.sceneId }
     case "setIoError":
       return { ...state, ioError: action.error }
+    case "setIsGenerating":
+      return { ...state, isGenerating: action.isGenerating }
     case "setQuery":
       return { ...state, query: action.query }
     case "setRows":
@@ -151,14 +161,14 @@ function workspaceReducer(
         boards: state.boards.map((board) =>
           board.id === state.selectedBoardId
             ? {
-              ...board,
-              scenes: board.scenes.map((scene) =>
-                scene.id === action.sceneId
-                  ? { ...scene, ...action.patch }
-                  : scene
-              ),
-              updatedAt: now,
-            }
+                ...board,
+                scenes: board.scenes.map((scene) =>
+                  scene.id === action.sceneId
+                    ? { ...scene, ...action.patch }
+                    : scene
+                ),
+                updatedAt: now,
+              }
             : board
         ),
         now,
@@ -176,6 +186,7 @@ function createInitialState(): WorkspaceState {
     editingSceneId: null,
     hydrated: false,
     ioError: null,
+    isGenerating: false,
     now: board.updatedAt,
     query: "",
     rows: DEFAULT_ROWS,
@@ -239,7 +250,10 @@ function StoryboardWorkspace() {
   )
   const editingScene =
     editingIndex === -1 ? null : selectedBoard.scenes[editingIndex]
-  const visibleScenes = selectedBoard.scenes.slice(0, state.rows * state.columns)
+  const visibleScenes = selectedBoard.scenes.slice(
+    0,
+    state.rows * state.columns
+  )
   const runtime = formatSeconds(totalRuntimeSeconds(visibleScenes))
   const deleteRequestBoard =
     state.boards.find((board) => board.id === state.deleteRequestBoardId) ??
@@ -278,6 +292,57 @@ function StoryboardWorkspace() {
     }
   }
 
+  const handleGenerateStoryboard = async (
+    generationRequest: StoryboardGenerationRequest
+  ) => {
+    dispatch({ error: null, type: "setIoError" })
+    dispatch({ isGenerating: true, type: "setIsGenerating" })
+
+    try {
+      const response = await fetch("/api/generate-storyboard", {
+        body: JSON.stringify(generationRequest),
+        headers: { "Content-Type": "application/json" },
+        method: "POST",
+      })
+      const responseBody: unknown = await response.json()
+
+      if (!response.ok) {
+        const message =
+          typeof responseBody === "object" &&
+          responseBody !== null &&
+          "error" in responseBody &&
+          typeof responseBody.error === "string"
+            ? responseBody.error
+            : "The storyboard could not be generated."
+
+        throw new Error(message)
+      }
+
+      const result = storyboardGenerationResponseSchema.parse(responseBody)
+      const board = createGeneratedBoard(
+        createBoardId(),
+        result.scenes,
+        result.title
+      )
+
+      React.startTransition(() => {
+        dispatch({ board, type: "addBoard" })
+        dispatch({ columns: result.columns, type: "setColumns" })
+        dispatch({ rows: result.rows, type: "setRows" })
+      })
+    } catch (error) {
+      const message =
+        error instanceof Error
+          ? error.message
+          : "The storyboard could not be generated."
+
+      dispatch({ error: message, type: "setIoError" })
+      throw error
+    } finally {
+      dispatch({ isGenerating: false, type: "setIsGenerating" })
+    }
+  }
+
   return (
     <div className="relative flex min-h-svh gap-3.5 bg-surface-app p-4.5">
       {/* Persistent slim rail. It always occupies layout space so <main>
@@ -286,7 +351,7 @@ function StoryboardWorkspace() {
           the floating panel below) instead of widening this column. Kept
           at a fixed viewport height rather than stretching to <main>'s
           natural height so a rows/columns edit can't distort it. */}
-      <div className="h-[calc(100svh_-_3rem)] shrink-0 mt-3">
+      <div className="mt-3 h-[calc(100svh_-_3rem)] shrink-0">
         <Sidebar.Rail
           boards={state.boards}
           className="h-full"
@@ -364,6 +429,7 @@ function StoryboardWorkspace() {
         />
         <SceneGrid
           columns={state.columns}
+          isGenerating={state.isGenerating}
           onEditScene={(sceneId) =>
             dispatch({ sceneId, type: "setEditingScene" })
           }
@@ -375,6 +441,14 @@ function StoryboardWorkspace() {
           scenes={selectedBoard.scenes}
           showParameters={state.showParameters}
         />
+        <PromptComposer.Root
+          disabled={state.isGenerating}
+          onSubmit={handleGenerateStoryboard}
+        >
+          <PromptComposer.Input />
+          <PromptComposer.Attachments />
+          <PromptComposer.Actions />
+        </PromptComposer.Root>
         <BoardStatusBar>
           <BoardStatusBar.Summary>
             {visibleScenes.length} scenes · {runtime} total
@@ -382,7 +456,11 @@ function StoryboardWorkspace() {
           {state.ioError !== null && (
             <BoardStatusBar.Error>{state.ioError}</BoardStatusBar.Error>
           )}
-          <BoardStatusBar.Autosave>Autosaved just now</BoardStatusBar.Autosave>
+          <BoardStatusBar.Autosave>
+            {state.isGenerating
+              ? "Generating storyboard"
+              : "Autosaved just now"}
+          </BoardStatusBar.Autosave>
         </BoardStatusBar>
       </main>
       {/* Floating sidebar overlay. Rendered above <main> and positioned to
@@ -531,14 +609,14 @@ function DeleteBoardConfirmDialog({
         <Dialog.Footer>
           <Dialog.Close asChild>
             <button
-              className="flex h-7.5 items-center rounded-full bg-surface-inset px-4 text-label text-ink outline-none transition-[color,transform] duration-150 ease-out hover:text-ink-strong active:scale-[0.97] focus-visible:ring-2 focus-visible:ring-ring"
+              className="flex h-7.5 items-center rounded-full bg-surface-inset px-4 text-label text-ink transition-[color,transform] duration-150 ease-out outline-none hover:text-ink-strong focus-visible:ring-2 focus-visible:ring-ring active:scale-[0.97]"
               type="button"
             >
               Cancel
             </button>
           </Dialog.Close>
           <button
-            className="flex h-7.5 items-center rounded-full bg-destructive px-4 text-label font-medium text-white outline-none transition-[background-color,transform] duration-150 ease-out hover:bg-destructive/85 active:scale-[0.97] focus-visible:ring-2 focus-visible:ring-ring"
+            className="flex h-7.5 items-center rounded-full bg-destructive px-4 text-label font-medium text-white transition-[background-color,transform] duration-150 ease-out outline-none hover:bg-destructive/85 focus-visible:ring-2 focus-visible:ring-ring active:scale-[0.97]"
             onClick={onConfirm}
             type="button"
           >
