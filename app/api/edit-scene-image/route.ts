@@ -2,9 +2,11 @@ import { fal } from "@ai-sdk/fal"
 import { generateImage } from "ai"
 
 import {
+  resolveNanoBananaEditModelId,
   sceneImageEditRequestSchema,
   sceneImageEditResponseSchema,
 } from "@/lib/generation"
+import { buildSceneImageEditPrompt } from "@/lib/storyboard-generation.server"
 
 /** Long-running media generation allowance for supported Next.js hosts. */
 export const maxDuration = 300
@@ -13,8 +15,8 @@ export const maxDuration = 300
 export const runtime = "nodejs"
 
 /**
- * Applies an instruction to one stored scene image using Nano Banana Lite.
- * The returned data URL is safe to persist in the browser workspace.
+ * Applies an instruction to one stored scene image using the selected Nano
+ * Banana model. The returned data URL is safe to persist in the workspace.
  */
 export async function POST(request: Request): Promise<Response> {
   if (
@@ -48,16 +50,22 @@ export async function POST(request: Request): Promise<Response> {
   }
 
   try {
-    const { prompt, sourceImage } = parsedRequest.data
+    const { imageModel, prompt, sourceImage } = parsedRequest.data
     const { image } = await generateImage({
-      model: fal.image("google/nano-banana-lite/edit"),
+      model: fal.image(resolveNanoBananaEditModelId(imageModel)),
       n: 1,
-      prompt: { images: [sourceImage], text: prompt },
+      prompt: {
+        images: [sourceImage],
+        text: buildSceneImageEditPrompt(prompt),
+      },
       providerOptions: {
         fal: {
           limit_generations: true,
           outputFormat: "png",
           resolution: "1K",
+          // This endpoint accepts image_urls, not the singular image_url that
+          // the Fal provider uses by default for a prompt image.
+          useMultipleImages: true,
         },
       },
     })

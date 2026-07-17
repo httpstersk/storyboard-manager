@@ -4,6 +4,7 @@ import { generateImage, generateText, Output } from "ai"
 
 import {
   layoutForSceneCount,
+  resolveNanoBananaModelId,
   storyboardGenerationRequestSchema,
   storyboardGenerationResponseSchema,
   storyboardPlanSchema,
@@ -33,8 +34,8 @@ Craft rules, applied to every plan:
 - Bind characters by appearance. When character material exists, actions reference subjects with concrete identifiers (wardrobe, hair, silhouette), never bare pronouns.`
 
 /**
- * Plans a storyline, generates one Nano Banana Lite contact sheet, then
- * returns its server-sliced scene frames.
+ * Plans a storyline, generates one Nano Banana contact sheet, then returns
+ * its server-sliced scene frames.
  */
 export async function POST(request: Request): Promise<Response> {
   if (
@@ -59,8 +60,13 @@ export async function POST(request: Request): Promise<Response> {
       )
     }
 
-    const { characterImageRefs, characterSheets, prompt, styleImageRefs } =
-      parsedRequest.data
+    const {
+      characterImageRefs,
+      characterSheets,
+      imageModel,
+      prompt,
+      styleImageRefs,
+    } = parsedRequest.data
     const referenceImages = [...characterImageRefs, ...styleImageRefs]
     const { output: plan } = await generateText({
       maxRetries: 1,
@@ -93,10 +99,10 @@ export async function POST(request: Request): Promise<Response> {
       storyline: prompt,
       styleImageCount: styleImageRefs.length,
     })
-    const modelId =
-      referenceImages.length === 0
-        ? "google/nano-banana-lite"
-        : "google/nano-banana-lite/edit"
+    const modelId = resolveNanoBananaModelId({
+      hasReferenceImages: referenceImages.length > 0,
+      imageModel,
+    })
     const imagePrompt =
       referenceImages.length === 0
         ? compositePrompt
@@ -111,7 +117,9 @@ export async function POST(request: Request): Promise<Response> {
           limit_generations: true,
           outputFormat: "jpeg",
           resolution: "2K",
-          useMultipleImages: referenceImages.length > 1,
+          // Nano Banana's edit endpoint requires image_urls even for one
+          // reference image.
+          useMultipleImages: referenceImages.length > 0,
         },
       },
     })

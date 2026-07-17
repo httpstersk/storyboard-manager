@@ -50,6 +50,17 @@ interface CompositePromptOptions {
 }
 
 /**
+ * Non-negotiable composition rules prepended to every single-frame edit.
+ * Nano Banana receives this as part of its image-editing prompt.
+ */
+const SCENE_IMAGE_EDIT_SYSTEM_PROMPT = `Edit the supplied storyboard frame while preserving its cinematic visual language.
+
+OUTPUT REQUIREMENTS (hard requirements):
+- Return exactly one cinematic 16:9 frame.
+- Keep the edited shot fully contained within the frame.
+- No text, typography, shot numbers, labels, captions, titles, subtitles, watermarks, borders, or UI chrome.`
+
+/**
  * Builds one production prompt that maps ordered beats to exact grid cells.
  */
 export function buildCompositePrompt({
@@ -120,6 +131,17 @@ ${continuity}
 
 ORDERED CELLS:
 ${sceneList}`
+}
+
+/**
+ * Combines an editor instruction with the mandatory single-frame composition
+ * constraints before sending it to Nano Banana.
+ */
+export function buildSceneImageEditPrompt(instruction: string): string {
+  return `${SCENE_IMAGE_EDIT_SYSTEM_PROMPT}
+
+EDIT INSTRUCTION:
+${instruction}`
 }
 
 /** Maps ordered model input images to their distinct continuity and style roles. */

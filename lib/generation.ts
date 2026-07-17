@@ -44,6 +44,27 @@ export const MIN_GENERATED_SCENES = 3
  */
 export const STORYBOARD_CELL_GAP = 0
 
+/**
+ * Supported Nano Banana image models for generation and scene editing.
+ * `lite` is the default fast path; `pro` uses fal's Nano Banana Pro endpoints.
+ */
+export const IMAGE_MODELS = ["lite", "pro"] as const
+
+/** Selected Nano Banana image model for fal generation and editing. */
+export type ImageModel = (typeof IMAGE_MODELS)[number]
+
+/** Fal model IDs for Nano Banana Lite text-to-image and edit. */
+const NANO_BANANA_LITE_MODEL_IDS = {
+  edit: "google/nano-banana-lite/edit",
+  generate: "google/nano-banana-lite",
+} as const
+
+/** Fal model IDs for Nano Banana Pro text-to-image and edit. */
+const NANO_BANANA_PRO_MODEL_IDS = {
+  edit: "fal-ai/nano-banana-pro/edit",
+  generate: "fal-ai/nano-banana-pro",
+} as const
+
 /** Maximum text length of the submitted logline or storyline. */
 const MAX_PROMPT_LENGTH = 12_000
 
@@ -58,6 +79,9 @@ const dataUrlSchema = z
     "Reference images must be PNG or JPEG data URLs."
   )
 
+/** Runtime schema for the Lite / Pro image model preference. */
+export const imageModelSchema = z.enum(IMAGE_MODELS).default("lite")
+
 /** Runtime schema for requests entering the generation API boundary. */
 export const storyboardGenerationRequestSchema = z
   .object({
@@ -65,6 +89,7 @@ export const storyboardGenerationRequestSchema = z
     characterSheets: z
       .array(z.string().trim().min(1).max(MAX_CHARACTER_SHEET_LENGTH))
       .max(MAX_CHARACTER_SHEETS),
+    imageModel: imageModelSchema,
     prompt: z.string().trim().min(1).max(MAX_PROMPT_LENGTH),
     styleImageRefs: z.array(dataUrlSchema).max(MAX_IMAGE_REFERENCES),
   })
@@ -136,6 +161,7 @@ export const storyboardGenerationResponseSchema = z.object({
 
 /** Runtime schema for requests that modify one existing scene image. */
 export const sceneImageEditRequestSchema = z.object({
+  imageModel: imageModelSchema,
   prompt: z.string().trim().min(1).max(MAX_SCENE_IMAGE_EDIT_PROMPT_LENGTH),
   sourceImage: dataUrlSchema,
 })
@@ -149,14 +175,44 @@ export const sceneImageEditResponseSchema = z.object({
 export interface StoryboardGenerationRequest {
   characterImageRefs: string[]
   characterSheets: string[]
+  imageModel: ImageModel
   prompt: string
   styleImageRefs: string[]
 }
 
 /** Client request submitted to modify one generated scene image. */
 export interface SceneImageEditRequest {
+  imageModel: ImageModel
   prompt: string
   sourceImage: string
+}
+
+/**
+ * Resolves the fal edit model ID for single-scene image editing.
+ */
+export function resolveNanoBananaEditModelId(imageModel: ImageModel): string {
+  return imageModel === "pro"
+    ? NANO_BANANA_PRO_MODEL_IDS.edit
+    : NANO_BANANA_LITE_MODEL_IDS.edit
+}
+
+/**
+ * Resolves the fal model ID for storyboard composite generation.
+ * Uses the edit endpoint whenever reference images are attached.
+ */
+export function resolveNanoBananaModelId({
+  hasReferenceImages,
+  imageModel,
+}: {
+  hasReferenceImages: boolean
+  imageModel: ImageModel
+}): string {
+  const modelIds =
+    imageModel === "pro"
+      ? NANO_BANANA_PRO_MODEL_IDS
+      : NANO_BANANA_LITE_MODEL_IDS
+
+  return hasReferenceImages ? modelIds.edit : modelIds.generate
 }
 
 /** Planned scene metadata returned alongside each sliced frame. */

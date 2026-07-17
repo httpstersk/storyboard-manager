@@ -1,5 +1,6 @@
 "use client"
 
+import { useAtomValue } from "jotai"
 import {
   SFArrowUp,
   SFArrowUpDocument,
@@ -16,6 +17,7 @@ import {
   MAX_IMAGE_REFERENCES_ERROR,
   type StoryboardGenerationRequest,
 } from "@/lib/generation"
+import { imageModelAtom } from "@/lib/image-model-settings"
 import { cn } from "@/lib/utils"
 import { IMAGE_UPLOAD_RULES, validateImageFile } from "@/lib/validation"
 
@@ -102,6 +104,7 @@ function PromptComposerRoot({
   onSubmit,
   ...props
 }: PromptComposerRootProps) {
+  const imageModel = useAtomValue(imageModelAtom)
   const [characterImageReferences, setCharacterImageReferences] =
     React.useState<File[]>([])
   const [characterSheetText, setCharacterSheetText] = React.useState("")
@@ -165,6 +168,7 @@ function PromptComposerRoot({
         characterImageRefs,
         characterSheets:
           trimmedCharacterSheet === "" ? [] : [trimmedCharacterSheet],
+        imageModel,
         prompt: trimmedPrompt,
         styleImageRefs,
       })

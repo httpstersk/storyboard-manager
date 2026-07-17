@@ -203,8 +203,7 @@
 /*
  * Column count is driven by the [data-cols] attribute (the value chosen by
  * the columns stepper). Named @container rules then clamp the column count
- * as the grid container narrows so that cards never drop below their
- * minimum comfortable reading width (≈ 220 px).
+ * as the grid container narrows so that image frames remain useful.
  *
  * Specificity note: all [data-cols] selectors share specificity (0,1,1).
  * Container query rules have the same selector specificity, so source order
@@ -227,14 +226,14 @@
   grid-template-columns: repeat(4, minmax(0, 1fr));
 }
 
-/* 4 → 3 cols: grid container too narrow for four 220 px cards + 3 px gaps. */
+/* 4 → 3 columns when four frames become too narrow. */
 @container scene-grid (max-width: 880px) {
   .scene-grid[data-cols="4"] {
     grid-template-columns: repeat(3, minmax(0, 1fr));
   }
 }
 
-/* 3 → 2 cols: grid container too narrow for three 220 px cards + 2 px gaps. */
+/* 3 → 2 columns when three frames become too narrow. */
 @container scene-grid (max-width: 660px) {
   .scene-grid[data-cols="3"],
   .scene-grid[data-cols="4"] {
@@ -242,26 +241,12 @@
   }
 }
 
-/* 2 → 1 col: grid container too narrow for two 220 px cards + 1 px gap. */
+/* 2 → 1 column when two frames become too narrow. */
 @container scene-grid (max-width: 440px) {
   .scene-grid[data-cols="2"],
   .scene-grid[data-cols="3"],
   .scene-grid[data-cols="4"] {
     grid-template-columns: repeat(1, minmax(0, 1fr));
-  }
-}
-
-/* ─── Scene card: container-driven detail tightening ──────────────────────── */
-/*
- * Below 230 px the details section reduces its padding and row gap slightly
- * so parameter text stays readable at the card's practical minimum width.
- * The card article carries container-type: inline-size (set via class), so
- * these rules respond to the card's own available width, not the viewport.
- */
-@container scene-card (max-width: 229px) {
-  .scene-card-details {
-    gap: 0.375rem;   /* ≈ gap-1.5 on the 4 px spacing scale */
-    padding: 0.625rem; /* ≈ p-2.5 */
   }
 }
 

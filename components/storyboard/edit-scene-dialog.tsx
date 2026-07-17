@@ -1,5 +1,6 @@
 "use client"
 
+import { useAtomValue } from "jotai"
 import {
   SFArrowCounterclockwise,
   SFEraser,
@@ -22,6 +23,7 @@ import { IconButton } from "@/components/ui/icon-button"
 import { SegmentedControl } from "@/components/ui/segmented-control"
 import { Slider } from "@/components/ui/slider"
 import { sceneImageEditResponseSchema } from "@/lib/generation"
+import { imageModelAtom } from "@/lib/image-model-settings"
 import { formatSeconds, type Scene, type ValueLimits } from "@/lib/storyboard"
 import { cn } from "@/lib/utils"
 import { validateImageFile } from "@/lib/validation"
@@ -124,6 +126,7 @@ function EditSceneDialog({
   scene,
   sceneNumber,
 }: EditSceneDialogProps) {
+  const imageModel = useAtomValue(imageModelAtom)
   const [canClear, setCanClear] = React.useState(false)
   const [canUndo, setCanUndo] = React.useState(false)
   const drawingCanvasRef = React.useRef<DrawingCanvasHandle>(null)
@@ -192,7 +195,7 @@ function EditSceneDialog({
 
     try {
       const response = await fetch("/api/edit-scene-image", {
-        body: JSON.stringify({ prompt, sourceImage: previewImage }),
+        body: JSON.stringify({ imageModel, prompt, sourceImage: previewImage }),
         headers: { "Content-Type": "application/json" },
         method: "POST",
       })

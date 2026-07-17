@@ -1,5 +1,6 @@
 "use client"
 
+import { useAtom } from "jotai"
 import { SFArrowDownToLine, SFArrowUpToLine } from "sf-symbols-lib/monochrome"
 import { AnimatePresence, m } from "motion/react"
 import * as React from "react"
@@ -13,17 +14,21 @@ import { SceneGrid } from "@/components/storyboard/scene-grid"
 import { SoundControl } from "@/components/storyboard/sound-control"
 import { Dialog } from "@/components/ui/dialog"
 import { Field } from "@/components/ui/field"
+import { SegmentedControl } from "@/components/ui/segmented-control"
 import { Stepper } from "@/components/ui/stepper"
-import { Switch } from "@/components/ui/switch"
 import { exportBoardJson, exportNodePng, parseBoardFile } from "@/lib/board-io"
 import {
+  IMAGE_MODELS,
+  type ImageModel,
   type StoryboardGenerationRequest,
   storyboardGenerationResponseSchema,
 } from "@/lib/generation"
+import { imageModelAtom } from "@/lib/image-model-settings"
 import {
   loadStoredWorkspace,
   saveStoredWorkspace,
   type StoredWorkspace,
+  WORKSPACE_SAVE_DEBOUNCE_MS,
 } from "@/lib/persistence"
 import {
   type Board,
@@ -58,7 +63,6 @@ interface WorkspaceState {
   query: string
   rows: number
   selectedBoardId: string
-  showParameters: boolean
   sidebarCollapsed: boolean
 }
 
@@ -75,7 +79,6 @@ type WorkspaceAction =
   | { query: string; type: "setQuery" }
   | { rows: number; type: "setRows" }
   | { sceneId: string | null; type: "setEditingScene" }
-  | { showParameters: boolean; type: "setShowParameters" }
   | { collapsed: boolean; type: "setSidebarCollapsed" }
   | { patch: Partial<Scene>; sceneId: string; type: "updateScene" }
   | { type: "hydrate"; workspace: StoredWorkspace | null }
@@ -124,9 +127,12 @@ function workspaceReducer(
         : {
             ...state,
             boards: action.workspace.boards,
+            columns: clampInteger(action.workspace.columns, COLUMN_LIMITS),
             hydrated: true,
             now,
+            rows: clampInteger(action.workspace.rows, ROW_LIMITS),
             selectedBoardId: action.workspace.selectedBoardId,
+            sidebarCollapsed: action.workspace.sidebarCollapsed,
           }
     case "renameBoard":
       return {
@@ -156,8 +162,6 @@ function workspaceReducer(
       return { ...state, query: action.query }
     case "setRows":
       return { ...state, rows: clampInteger(action.rows, ROW_LIMITS) }
-    case "setShowParameters":
-      return { ...state, showParameters: action.showParameters }
     case "setSidebarCollapsed":
       return { ...state, sidebarCollapsed: action.collapsed }
     case "updateScene":
@@ -197,7 +201,6 @@ function createInitialState(): WorkspaceState {
     query: "",
     rows: DEFAULT_ROWS,
     selectedBoardId: board.id,
-    showParameters: true,
     // Start closed: the sidebar now floats over the content when open, so
     // the board loads unobstructed and the user opens the sidebar on demand.
     sidebarCollapsed: true,
@@ -220,9 +223,10 @@ const SIDEBAR_CONTENT_TRANSITION = { duration: 0.15, ease: "easeOut" } as const
 /**
  * Client-side shell of the storyboard studio: owns all board state and
  * composes the sidebar, toolbar, scene grid, status bar, and scene
- * editor dialog. Boards persist to localStorage after every change.
+ * editor dialog. Boards persist to IndexedDB after every change.
  */
 function StoryboardWorkspace() {
+  const [imageModel, setImageModel] = useAtom(imageModelAtom)
   const [state, dispatch] = React.useReducer(
     workspaceReducer,
     undefined,
@@ -230,19 +234,70 @@ function StoryboardWorkspace() {
   )
   const gridRef = React.useRef<HTMLElement>(null)
   const importInputRef = React.useRef<HTMLInputElement>(null)
+  const saveTimerRef = React.useRef<ReturnType<typeof setTimeout> | null>(null)
 
   React.useEffect(() => {
-    dispatch({ type: "hydrate", workspace: loadStoredWorkspace() })
+    let cancelled = false
+
+    void loadStoredWorkspace()
+      .then((workspace) => {
+        if (!cancelled) {
+          dispatch({ type: "hydrate", workspace })
+        }
+      })
+      .catch(() => {
+        if (!cancelled) {
+          dispatch({ type: "hydrate", workspace: null })
+        }
+      })
+
+    return () => {
+      cancelled = true
+    }
   }, [])
 
   React.useEffect(() => {
-    if (state.hydrated) {
-      saveStoredWorkspace({
-        boards: state.boards,
-        selectedBoardId: state.selectedBoardId,
-      })
+    if (!state.hydrated) {
+      return
     }
-  }, [state.boards, state.hydrated, state.selectedBoardId])
+
+    // Debounce IndexedDB writes so rapid scene edits do not rewrite every
+    // image Blob on each keystroke.
+    if (saveTimerRef.current !== null) {
+      clearTimeout(saveTimerRef.current)
+    }
+
+    saveTimerRef.current = setTimeout(() => {
+      saveTimerRef.current = null
+
+      void saveStoredWorkspace({
+        boards: state.boards,
+        columns: state.columns,
+        rows: state.rows,
+        selectedBoardId: state.selectedBoardId,
+        sidebarCollapsed: state.sidebarCollapsed,
+      }).catch(() => {
+        dispatch({
+          error: "Could not save boards to this browser.",
+          type: "setIoError",
+        })
+      })
+    }, WORKSPACE_SAVE_DEBOUNCE_MS)
+
+    return () => {
+      if (saveTimerRef.current !== null) {
+        clearTimeout(saveTimerRef.current)
+        saveTimerRef.current = null
+      }
+    }
+  }, [
+    state.boards,
+    state.columns,
+    state.hydrated,
+    state.rows,
+    state.selectedBoardId,
+    state.sidebarCollapsed,
+  ])
 
   const selectedBoard =
     state.boards.find((board) => board.id === state.selectedBoardId) ??
@@ -388,14 +443,27 @@ function StoryboardWorkspace() {
               rows={state.rows}
             />
             <Field>
-              <Field.Label>Parameters</Field.Label>
+              <Field.Label>Model</Field.Label>
               <Field.Control>
-                <Switch
-                  checked={state.showParameters}
-                  onCheckedChange={(showParameters) =>
-                    dispatch({ showParameters, type: "setShowParameters" })
-                  }
-                />
+                <div>
+                  <SegmentedControl
+                    label="Image model"
+                    onValueChange={(value) => {
+                      if (isImageModel(value)) {
+                        setImageModel(value)
+                      }
+                    }}
+                    value={imageModel}
+                    variant="raised"
+                  >
+                    <SegmentedControl.Option value="lite">
+                      Lite
+                    </SegmentedControl.Option>
+                    <SegmentedControl.Option value="pro">
+                      Pro
+                    </SegmentedControl.Option>
+                  </SegmentedControl>
+                </div>
               </Field.Control>
             </Field>
           </BoardToolbar.Controls>
@@ -440,13 +508,9 @@ function StoryboardWorkspace() {
           onEditScene={(sceneId) =>
             dispatch({ sceneId, type: "setEditingScene" })
           }
-          onUpdateScene={(sceneId, patch) =>
-            dispatch({ patch, sceneId, type: "updateScene" })
-          }
           ref={gridRef}
           rows={state.rows}
           scenes={selectedBoard.scenes}
-          showParameters={state.showParameters}
         />
         {/* The composer floats above the scene grid so it remains available
             without turning the input into a separate layout section. */}
@@ -658,6 +722,11 @@ function DeleteBoardConfirmDialog({
       </Dialog.Content>
     </Dialog>
   )
+}
+
+/** Type guard for values emitted by the Model segmented control. */
+function isImageModel(value: string): value is ImageModel {
+  return (IMAGE_MODELS as readonly string[]).includes(value)
 }
 
 interface GridSteppersProps {

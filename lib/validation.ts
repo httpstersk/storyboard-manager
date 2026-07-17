@@ -114,7 +114,7 @@ const SHOT_SIZE_VALUES = SHOT_SIZE_OPTIONS.map((option) => option.value)
 
 /**
  * Validates and normalises one scene from untrusted JSON (imports and
- * localStorage). Returns null when the value is not a usable scene.
+ * IndexedDB). Returns null when the value is not a usable scene.
  */
 function coerceScene(value: unknown, index: number): Scene | null {
   if (!isRecord(value)) {

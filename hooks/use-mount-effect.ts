@@ -10,6 +10,6 @@ import * as React from "react"
  * dependency-driven effect.
  */
 export function useMountEffect(effect: () => void | (() => void)): void {
-  // eslint-disable-next-line react-hooks/exhaustive-deps, react-doctor/exhaustive-deps -- mount-only by design
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- mount-only by design
   React.useEffect(effect, [])
 }
