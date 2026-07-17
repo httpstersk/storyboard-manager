@@ -29,7 +29,7 @@ function Slider({ className, label, ...props }: SliderProps) {
       </SliderPrimitive.Track>
       <SliderPrimitive.Thumb
         aria-label={label}
-        className="block size-2.75 rounded-full bg-surface-raised shadow-knob outline-none focus-visible:ring-2 focus-visible:ring-ring"
+        className="block size-2.75 rounded-full bg-surface-raised shadow-knob outline-none transition-transform duration-150 ease-out active:scale-110 focus-visible:ring-2 focus-visible:ring-ring"
       />
     </SliderPrimitive.Root>
   )

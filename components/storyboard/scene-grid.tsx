@@ -8,6 +8,7 @@ import { PillSelect } from "@/components/ui/pill-select"
 import { SegmentedControl } from "@/components/ui/segmented-control"
 import { Stepper } from "@/components/ui/stepper"
 import { Tooltip } from "@/components/ui/tooltip"
+import { EASE_OUT } from "@/lib/motion"
 import {
   CAMERA_OPTIONS,
   formatSceneNumber,
@@ -23,10 +24,10 @@ import {
 import { sanitizeNote } from "@/lib/validation"
 
 /** Entrance duration/easing; kept under 300ms per UI-animation guidance. */
-const SCENE_ENTER_TRANSITION = { duration: 0.25, ease: "easeOut" } as const
+const SCENE_ENTER_TRANSITION = { duration: 0.25, ease: EASE_OUT } as const
 
 /** Exit is quicker and subtler than the entrance. */
-const SCENE_EXIT_TRANSITION = { duration: 0.15, ease: "easeOut" } as const
+const SCENE_EXIT_TRANSITION = { duration: 0.15, ease: EASE_OUT } as const
 
 /** Reflow (rows/columns changes) uses a spring so it feels alive rather
  * than mechanical, consistent with the other layout transitions. */
@@ -130,7 +131,7 @@ function SceneGrid({
             exit={{ opacity: 0 }}
             initial={{ opacity: 0 }}
             key="generation-scan"
-            transition={{ duration: 0.2, ease: "easeOut" }}
+            transition={{ duration: 0.2, ease: EASE_OUT }}
           >
             <div className="scene-scan-line absolute inset-x-0 h-px bg-emphasis/80 motion-reduce:hidden" />
           </m.div>

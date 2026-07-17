@@ -26,6 +26,7 @@ import {
   storyboardGenerationResponseSchema,
 } from "@/lib/generation"
 import { imageModelAtom } from "@/lib/image-model-settings"
+import { EASE_OUT } from "@/lib/motion"
 import {
   loadStoredWorkspace,
   saveStoredWorkspace,
@@ -246,7 +247,7 @@ function withViewTransition(update: () => void): void {
 const SIDEBAR_SPRING = { type: "spring", duration: 0.4, bounce: 0.1 } as const
 
 /** Quick fade/scale used for cross-fading the sidebar/rail contents. */
-const SIDEBAR_CONTENT_TRANSITION = { duration: 0.15, ease: "easeOut" } as const
+const SIDEBAR_CONTENT_TRANSITION = { duration: 0.15, ease: EASE_OUT } as const
 
 /**
  * Client-side shell of the storyboard studio: owns all board state and
@@ -584,7 +585,7 @@ function StoryboardWorkspace() {
           {state.ioError !== null && (
             <BoardStatusBar.Error>{state.ioError}</BoardStatusBar.Error>
           )}
-          <BoardStatusBar.Autosave>
+          <BoardStatusBar.Autosave pulsing={state.isGenerating}>
             {state.isGenerating
               ? "Generating storyboard"
               : "Autosaved just now"}

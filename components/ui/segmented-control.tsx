@@ -1,10 +1,23 @@
 "use client"
 
 import { cva, type VariantProps } from "class-variance-authority"
+import { m, useReducedMotion } from "motion/react"
 import { ToggleGroup } from "radix-ui"
 import * as React from "react"
+import { SPRING_SNAPPY } from "@/lib/motion"
 
 import { cn } from "@/lib/utils"
+const segmentedControlIndicatorVariants = cva("absolute inset-0 rounded-full", {
+  defaultVariants: {
+    variant: "emphasis",
+  },
+  variants: {
+    variant: {
+      emphasis: "bg-emphasis",
+      raised: "bg-surface-raised shadow-sm",
+    },
+  },
+})
 
 const segmentedControlItemVariants = cva(
   "flex items-center gap-1.5 rounded-full px-2 py-0.5 text-caption outline-none transition-[color,background-color,transform] duration-150 ease-out active:scale-95 focus-visible:ring-2 focus-visible:ring-ring [&_svg]:size-3 [&_svg]:shrink-0",
@@ -18,9 +31,9 @@ const segmentedControlItemVariants = cva(
       // toggle item's data-state with the tooltip's open state.
       variant: {
         emphasis:
-          "text-ink-muted hover:text-ink aria-checked:bg-emphasis aria-checked:text-emphasis-foreground",
+          "text-ink-muted hover:text-ink aria-checked:text-emphasis-foreground",
         raised:
-          "px-2.5 py-1 text-label text-ink-muted hover:text-ink aria-checked:bg-surface-raised aria-checked:text-ink-strong aria-checked:shadow-sm",
+          "px-2.5 py-1 text-label text-ink-muted hover:text-ink aria-checked:text-ink-strong",
       },
     },
   }
@@ -29,9 +42,27 @@ const segmentedControlItemVariants = cva(
 type SegmentedControlVariant = VariantProps<
   typeof segmentedControlItemVariants
 >["variant"]
+interface SegmentedControlContextValue {
+  layoutId: string
+  reducedMotion: boolean
+  value: string
+  variant: SegmentedControlVariant
+}
 
 const SegmentedControlContext =
-  React.createContext<SegmentedControlVariant>("emphasis")
+  React.createContext<SegmentedControlContextValue | null>(null)
+
+function useSegmentedControlContext(): SegmentedControlContextValue {
+  const context = React.use(SegmentedControlContext)
+
+  if (context === null) {
+    throw new Error(
+      "SegmentedControl compound components must be used within <SegmentedControl>."
+    )
+  }
+
+  return context
+}
 
 /** Props for the {@link SegmentedControl} root. */
 interface SegmentedControlProps {
@@ -64,11 +95,19 @@ function SegmentedControlRoot({
   value,
   variant = "emphasis",
 }: SegmentedControlProps) {
+  const reducedMotion = Boolean(useReducedMotion())
+  const id = React.useId()
+  const contextValue: SegmentedControlContextValue = {
+    layoutId: `segmented-control-thumb-${id}`,
+    reducedMotion,
+    value,
+    variant,
+  }
   return (
     <ToggleGroup.Root
       aria-label={label}
       className={cn(
-        "flex items-center rounded-full bg-surface-inset p-0.5",
+        "relative flex items-center rounded-full bg-surface-inset p-0.5",
         className
       )}
       onValueChange={(next) => {
@@ -79,7 +118,7 @@ function SegmentedControlRoot({
       type="single"
       value={value}
     >
-      <SegmentedControlContext.Provider value={variant}>
+      <SegmentedControlContext.Provider value={contextValue}>
         {children}
       </SegmentedControlContext.Provider>
     </ToggleGroup.Root>
@@ -95,18 +134,46 @@ interface SegmentedControlOptionProps
 
 /** A selectable option inside a {@link SegmentedControl}. */
 function SegmentedControlOption({
+  children,
   className,
   value,
   ...props
 }: SegmentedControlOptionProps) {
-  const variant = React.use(SegmentedControlContext)
+  const context = useSegmentedControlContext()
+  const selected = context.value === value
 
   return (
     <ToggleGroup.Item
-      className={cn(segmentedControlItemVariants({ className, variant }))}
+      className={cn(
+        segmentedControlItemVariants({
+          className,
+          variant: context.variant,
+        }),
+        "relative"
+      )}
       value={value}
       {...props}
-    />
+    >
+      {selected &&
+        (context.reducedMotion ? (
+          <span
+            aria-hidden
+            className={cn(
+              segmentedControlIndicatorVariants({ variant: context.variant })
+            )}
+          />
+        ) : (
+          <m.span
+            aria-hidden
+            className={cn(
+              segmentedControlIndicatorVariants({ variant: context.variant })
+            )}
+            layoutId={context.layoutId}
+            transition={SPRING_SNAPPY}
+          />
+        ))}
+      <span className="relative z-10">{children}</span>
+    </ToggleGroup.Item>
   )
 }
 

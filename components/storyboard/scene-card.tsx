@@ -7,11 +7,12 @@ import * as React from "react"
 import { SceneThumbnailShader } from "@/components/storyboard/scene-thumbnail-shader"
 import { Field } from "@/components/ui/field"
 import { InlineInput } from "@/components/ui/inline-input"
+import { EASE_OUT } from "@/lib/motion"
 import type { Scene } from "@/lib/storyboard"
 import { cn } from "@/lib/utils"
 
 /** Image reveal timing used when a generated frame replaces its placeholder. */
-const IMAGE_REVEAL_TRANSITION = { duration: 0.45, ease: "easeOut" } as const
+const IMAGE_REVEAL_TRANSITION = { duration: 0.45, ease: EASE_OUT } as const
 
 interface SceneCardContextValue {
   scene: Scene
@@ -107,12 +108,12 @@ function SceneCardThumbnail({ className, onEdit }: SceneCardThumbnailProps) {
       <SceneCardReferenceImage image={scene.image} sceneNumber={sceneNumber} />
       {!scene.image && (
         <span className="relative z-10 grid w-full justify-items-center text-display font-extralight tracking-[-0.065em] text-ink-on-media/90 select-none">
-          <span className="col-start-1 row-start-1 scale-100 opacity-100 blur-none transition-[opacity,filter,transform] duration-150 ease-out group-hover:scale-95 group-hover:opacity-0 group-hover:blur-[4px] dark:text-emphasis-foreground/80">
+          <span className="col-start-1 row-start-1 scale-100 opacity-100 blur-none transition-[opacity,filter,transform] duration-150 ease-out [@media(hover:hover)_and_(pointer:fine)]:group-hover:scale-95 [@media(hover:hover)_and_(pointer:fine)]:group-hover:opacity-0 [@media(hover:hover)_and_(pointer:fine)]:group-hover:blur-[4px] dark:text-emphasis-foreground/80">
             {sceneNumber}
           </span>
           <span
             aria-hidden="true"
-            className="col-start-1 row-start-1 translate-x-[-0.0625em] scale-95 opacity-0 blur-[4px] transition-[opacity,filter,transform] duration-150 ease-out group-hover:scale-100 group-hover:opacity-100 group-hover:blur-none dark:text-emphasis-foreground/80"
+            className="col-start-1 row-start-1 translate-x-[-0.0625em] scale-95 opacity-0 blur-[4px] transition-[opacity,filter,transform] duration-150 ease-out [@media(hover:hover)_and_(pointer:fine)]:group-hover:scale-100 [@media(hover:hover)_and_(pointer:fine)]:group-hover:opacity-100 [@media(hover:hover)_and_(pointer:fine)]:group-hover:blur-none dark:text-emphasis-foreground/80"
           >
             Edit
           </span>

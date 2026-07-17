@@ -5,6 +5,7 @@ import { SFMoon, SFSunMax } from "sf-symbols-lib/monochrome"
 import { AnimatePresence, m } from "motion/react"
 import { useTheme } from "next-themes"
 import * as React from "react"
+import { SPRING_SNAPPY } from "@/lib/motion"
 
 import { cn } from "@/lib/utils"
 
@@ -313,7 +314,7 @@ function ThemeToggleOption({
         <m.div
           className="absolute inset-0 rounded-full bg-surface-raised"
           layoutId="theme-toggle-thumb"
-          transition={{ type: "spring", duration: 0.3, bounce: 0.15 }}
+          transition={SPRING_SNAPPY}
         />
       )}
       {children}

@@ -61,8 +61,9 @@ function BoardStatusBarError({
 function BoardStatusBarAutosave({
   children,
   className,
+  pulsing = false,
   ...props
-}: React.ComponentProps<"p">) {
+}: React.ComponentProps<"p"> & { pulsing?: boolean }) {
   return (
     <p
       aria-live="polite"
@@ -74,7 +75,10 @@ function BoardStatusBarAutosave({
     >
       <span
         aria-hidden
-        className="size-1.5 animate-pulse rounded-full bg-emphasis"
+        className={cn(
+          "size-1.5 rounded-full bg-emphasis",
+          pulsing && "animate-pulse"
+        )}
       />
       {children}
     </p>
