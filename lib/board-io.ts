@@ -36,11 +36,13 @@ function downloadBlob(blob: Blob, filename: string): void {
 }
 
 /**
- * Downloads the given board as a versioned JSON file.
+ * Downloads the given board as a versioned JSON file. Scene `shader`
+ * presets are omitted — they are UI-only empty-state gradients and are
+ * restored to defaults on import when missing.
  */
 export function exportBoardJson(board: Board): void {
   const payload = {
-    scenes: board.scenes,
+    scenes: board.scenes.map(({ shader: _shader, ...scene }) => scene),
     title: board.title,
     version: BOARD_FILE_VERSION,
   }

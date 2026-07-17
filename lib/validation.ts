@@ -12,6 +12,7 @@ import {
   type SceneShaderPreset,
   SHOT_SIZE_OPTIONS,
   type ShotSize,
+  shaderPresetForIndex,
   type ValueLimits,
 } from "@/lib/storyboard"
 
@@ -121,7 +122,10 @@ function coerceScene(value: unknown, index: number): Scene | null {
     return null
   }
 
-  const shader = coerceShader(value.shader)
+  const shader =
+    value.shader === undefined
+      ? shaderPresetForIndex(index)
+      : coerceShader(value.shader)
 
   if (shader === null) {
     return null

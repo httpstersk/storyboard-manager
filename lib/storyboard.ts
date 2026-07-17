@@ -273,6 +273,13 @@ const NEW_BOARD_SCENE_COUNT = COLUMN_LIMITS.max * ROW_LIMITS.max
 export const UNTITLED_BOARD_TITLE = "Untitled board"
 
 /**
+ * Returns the blank-scene mesh gradient preset for the given scene index.
+ */
+export function shaderPresetForIndex(index: number): SceneShaderPreset {
+  return BLANK_SCENE_SHADERS[index % BLANK_SCENE_SHADERS.length]
+}
+
+/**
  * Creates a blank scene with neutral defaults and a shader preset
  * cycled by scene index.
  */
@@ -286,7 +293,7 @@ function createBlankScene(index: number): Scene {
     lighting: "Overcast soft",
     movement: "Static",
     music: "",
-    shader: BLANK_SCENE_SHADERS[index % BLANK_SCENE_SHADERS.length],
+    shader: shaderPresetForIndex(index),
     shot: "WS",
     timeSeconds: 3,
   }

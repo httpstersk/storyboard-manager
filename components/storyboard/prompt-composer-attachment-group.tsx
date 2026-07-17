@@ -19,19 +19,31 @@ function PromptComposerAttachmentThumbnail({
   label,
   onRemove,
 }: PromptComposerAttachmentThumbnailProps) {
-  const objectUrl = URL.createObjectURL(file)
+  const [objectUrl, setObjectUrl] = React.useState<string | null>(null)
 
-  React.useEffect(() => () => URL.revokeObjectURL(objectUrl), [objectUrl])
+  // Own the blob URL in an effect so Strict Mode remounts and parent re-renders
+  // cannot revoke a URL still used as <img src>. setState here syncs React with
+  // the browser object-URL registry (an external system).
+  React.useEffect(() => {
+    const url = URL.createObjectURL(file)
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- blob URL registry sync
+    setObjectUrl(url)
+    return () => {
+      URL.revokeObjectURL(url)
+    }
+  }, [file])
 
   return (
     <li className="group/thumb relative size-14 shrink-0">
-      {/* Local blob object URLs cannot be optimised by next/image. */}
-      {/* eslint-disable-next-line @next/next/no-img-element */}
-      <img
-        alt={file.name}
-        className="size-full rounded-xl object-cover ring-1 ring-edge ring-inset"
-        src={objectUrl}
-      />
+      {objectUrl ? (
+        /* Local blob object URLs cannot be optimised by next/image. */
+        /* eslint-disable-next-line @next/next/no-img-element */
+        <img
+          alt={file.name}
+          className="size-full rounded-xl object-cover ring-1 ring-edge ring-inset"
+          src={objectUrl}
+        />
+      ) : null}
       <button
         aria-label={`Remove ${file.name} from ${label.toLowerCase()} references`}
         className="absolute -top-1.5 -end-1.5 grid size-5 place-items-center rounded-full bg-emphasis text-emphasis-foreground shadow-knob transition-[opacity,transform] outline-none hover:brightness-110 focus-visible:opacity-100 focus-visible:ring-2 focus-visible:ring-ring active:scale-90 sm:opacity-0 sm:group-hover/thumb:opacity-100"
@@ -64,7 +76,7 @@ function PromptComposerAttachmentGroup({
         {files.map((file, index) => (
           <PromptComposerAttachmentThumbnail
             file={file}
-            key={`${file.name}-${file.lastModified}-${file.size}`}
+            key={`${file.name}-${file.lastModified}-${file.size}-${index}`}
             label={label}
             onRemove={() => onRemove(index)}
           />
