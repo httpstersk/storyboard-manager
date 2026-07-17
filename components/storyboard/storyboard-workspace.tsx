@@ -16,6 +16,7 @@ import { Dialog } from "@/components/ui/dialog"
 import { Field } from "@/components/ui/field"
 import { SegmentedControl } from "@/components/ui/segmented-control"
 import { Stepper } from "@/components/ui/stepper"
+import { Switch } from "@/components/ui/switch"
 import { exportBoardJson, exportNodePng, parseBoardFile } from "@/lib/board-io"
 import {
   IMAGE_MODELS,
@@ -63,6 +64,7 @@ interface WorkspaceState {
   query: string
   rows: number
   selectedBoardId: string
+  showParameters: boolean
   sidebarCollapsed: boolean
 }
 
@@ -79,6 +81,7 @@ type WorkspaceAction =
   | { query: string; type: "setQuery" }
   | { rows: number; type: "setRows" }
   | { sceneId: string | null; type: "setEditingScene" }
+  | { showParameters: boolean; type: "setShowParameters" }
   | { collapsed: boolean; type: "setSidebarCollapsed" }
   | { patch: Partial<Scene>; sceneId: string; type: "updateScene" }
   | { type: "hydrate"; workspace: StoredWorkspace | null }
@@ -125,15 +128,15 @@ function workspaceReducer(
       return action.workspace === null
         ? { ...state, hydrated: true, now }
         : {
-            ...state,
-            boards: action.workspace.boards,
-            columns: clampInteger(action.workspace.columns, COLUMN_LIMITS),
-            hydrated: true,
-            now,
-            rows: clampInteger(action.workspace.rows, ROW_LIMITS),
-            selectedBoardId: action.workspace.selectedBoardId,
-            sidebarCollapsed: action.workspace.sidebarCollapsed,
-          }
+          ...state,
+          boards: action.workspace.boards,
+          columns: clampInteger(action.workspace.columns, COLUMN_LIMITS),
+          hydrated: true,
+          now,
+          rows: clampInteger(action.workspace.rows, ROW_LIMITS),
+          selectedBoardId: action.workspace.selectedBoardId,
+          sidebarCollapsed: action.workspace.sidebarCollapsed,
+        }
     case "renameBoard":
       return {
         ...state,
@@ -162,6 +165,8 @@ function workspaceReducer(
       return { ...state, query: action.query }
     case "setRows":
       return { ...state, rows: clampInteger(action.rows, ROW_LIMITS) }
+    case "setShowParameters":
+      return { ...state, showParameters: action.showParameters }
     case "setSidebarCollapsed":
       return { ...state, sidebarCollapsed: action.collapsed }
     case "updateScene":
@@ -170,14 +175,14 @@ function workspaceReducer(
         boards: state.boards.map((board) =>
           board.id === state.selectedBoardId
             ? {
-                ...board,
-                scenes: board.scenes.map((scene) =>
-                  scene.id === action.sceneId
-                    ? { ...scene, ...action.patch }
-                    : scene
-                ),
-                updatedAt: now,
-              }
+              ...board,
+              scenes: board.scenes.map((scene) =>
+                scene.id === action.sceneId
+                  ? { ...scene, ...action.patch }
+                  : scene
+              ),
+              updatedAt: now,
+            }
             : board
         ),
         now,
@@ -201,6 +206,7 @@ function createInitialState(): WorkspaceState {
     query: "",
     rows: DEFAULT_ROWS,
     selectedBoardId: board.id,
+    showParameters: true,
     // Start closed: the sidebar now floats over the content when open, so
     // the board loads unobstructed and the user opens the sidebar on demand.
     sidebarCollapsed: true,
@@ -370,9 +376,9 @@ function StoryboardWorkspace() {
       if (!response.ok) {
         const message =
           typeof responseBody === "object" &&
-          responseBody !== null &&
-          "error" in responseBody &&
-          typeof responseBody.error === "string"
+            responseBody !== null &&
+            "error" in responseBody &&
+            typeof responseBody.error === "string"
             ? responseBody.error
             : "The storyboard could not be generated."
 
@@ -443,7 +449,7 @@ function StoryboardWorkspace() {
               rows={state.rows}
             />
             <Field>
-              <Field.Label>Model</Field.Label>
+              <Field.Label>Nano Banana</Field.Label>
               <Field.Control>
                 <div>
                   <SegmentedControl
@@ -464,6 +470,17 @@ function StoryboardWorkspace() {
                     </SegmentedControl.Option>
                   </SegmentedControl>
                 </div>
+              </Field.Control>
+            </Field>
+            <Field>
+              <Field.Label>Parameters</Field.Label>
+              <Field.Control>
+                <Switch
+                  checked={state.showParameters}
+                  onCheckedChange={(showParameters) =>
+                    dispatch({ showParameters, type: "setShowParameters" })
+                  }
+                />
               </Field.Control>
             </Field>
           </BoardToolbar.Controls>
@@ -508,9 +525,13 @@ function StoryboardWorkspace() {
           onEditScene={(sceneId) =>
             dispatch({ sceneId, type: "setEditingScene" })
           }
+          onUpdateScene={(sceneId, patch) =>
+            dispatch({ patch, sceneId, type: "updateScene" })
+          }
           ref={gridRef}
           rows={state.rows}
           scenes={selectedBoard.scenes}
+          showParameters={state.showParameters}
         />
         {/* The composer floats above the scene grid so it remains available
             without turning the input into a separate layout section. */}

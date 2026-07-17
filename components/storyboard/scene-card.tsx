@@ -5,6 +5,8 @@ import Image from "next/image"
 import * as React from "react"
 
 import { SceneThumbnailShader } from "@/components/storyboard/scene-thumbnail-shader"
+import { Field } from "@/components/ui/field"
+import { InlineInput } from "@/components/ui/inline-input"
 import type { Scene } from "@/lib/storyboard"
 import { cn } from "@/lib/utils"
 
@@ -44,6 +46,12 @@ interface SceneCardProps extends React.ComponentProps<"article"> {
  * ```tsx
  * <SceneCard scene={scene} sceneNumber="01">
  *   <SceneCard.Thumbnail onEdit={openEditor} />
+ *   <SceneCard.Details>
+ *     <SceneCard.Row label="Time">...</SceneCard.Row>
+ *     <SceneCard.Notes>
+ *       <SceneCard.NoteRow label="Action" ... />
+ *     </SceneCard.Notes>
+ *   </SceneCard.Details>
  * </SceneCard>
  * ```
  */
@@ -62,7 +70,10 @@ function SceneCard({
   return (
     <article
       aria-label={`Scene ${sceneNumber}`}
-      className={cn("flex size-full flex-col bg-surface-panel", className)}
+      className={cn(
+        "[container-type:inline-size] flex min-w-55 flex-col bg-surface-panel [container-name:scene-card]",
+        className
+      )}
       {...props}
     >
       <SceneCardContext.Provider value={contextValue}>
@@ -80,8 +91,10 @@ interface SceneCardThumbnailProps {
 }
 
 /**
- * Scene preview area. Scenes without artwork show the animated shader until
- * an upload or drawing is available. It also renders a full-size edit target.
+ * Scene preview area. Scenes without artwork show the animated shader
+ * behind the giant numeral; once a scene has an image (an upload or a
+ * saved drawing) the shader is hidden so it can't bleed through the
+ * transparent parts of the artwork. Also renders a full-size edit target.
  */
 function SceneCardThumbnail({ className, onEdit }: SceneCardThumbnailProps) {
   const { scene, sceneNumber } = useSceneCard()
@@ -89,12 +102,25 @@ function SceneCardThumbnail({ className, onEdit }: SceneCardThumbnailProps) {
   return (
     <div
       className={cn(
-        "relative flex aspect-video w-full shrink-0 items-center justify-center overflow-clip bg-surface-thumb",
+        "group [container-type:size] relative flex aspect-video shrink-0 items-center justify-center overflow-clip bg-surface-thumb",
         className
       )}
     >
       {!scene.image && <SceneThumbnailShader preset={scene.shader} />}
       <SceneCardReferenceImage image={scene.image} sceneNumber={sceneNumber} />
+      {!scene.image && (
+        <span className="relative z-10 grid w-full justify-items-center text-display font-extralight tracking-[-0.065em] text-ink-on-media/90 select-none">
+          <span className="col-start-1 row-start-1 scale-100 opacity-100 blur-none transition-[opacity,filter,transform] duration-150 ease-out group-hover:scale-95 group-hover:opacity-0 group-hover:blur-[4px] dark:text-emphasis-foreground/80">
+            {sceneNumber}
+          </span>
+          <span
+            aria-hidden="true"
+            className="col-start-1 row-start-1 translate-x-[-0.0625em] scale-95 opacity-0 blur-[4px] transition-[opacity,filter,transform] duration-150 ease-out group-hover:scale-100 group-hover:opacity-100 group-hover:blur-none dark:text-emphasis-foreground/80"
+          >
+            Edit
+          </span>
+        </span>
+      )}
       <button
         aria-label={`Edit scene ${sceneNumber}`}
         className="absolute inset-0 z-20 outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset"
@@ -151,6 +177,93 @@ function SceneCardReferenceImage({
   )
 }
 
+/** Container for the parameter rows and notes of a {@link SceneCard}. */
+function SceneCardDetails({
+  className,
+  ...props
+}: React.ComponentProps<"div">) {
+  return (
+    <div
+      className={cn("scene-card-details flex flex-col gap-2 p-3", className)}
+      {...props}
+    />
+  )
+}
+
+/** Props for {@link SceneCardRow}. */
+interface SceneCardRowProps {
+  children: React.ReactNode
+  className?: string
+  /** Label shown on the left of the row. */
+  label: string
+}
+
+/** A labelled parameter row inside {@link SceneCardDetails}. */
+function SceneCardRow({ children, className, label }: SceneCardRowProps) {
+  return (
+    <Field className={cn("min-h-5.5", className)}>
+      <Field.Label>{label}</Field.Label>
+      <Field.Control>{children}</Field.Control>
+    </Field>
+  )
+}
+
+/** Container for the note rows of a {@link SceneCard}. */
+function SceneCardNotes({ className, ...props }: React.ComponentProps<"div">) {
+  return (
+    <div
+      className={cn(
+        "mt-1 flex flex-col gap-2 border-t border-edge pt-2",
+        className
+      )}
+      {...props}
+    />
+  )
+}
+
+/** Props for {@link SceneCardNoteRow}. */
+interface SceneCardNoteRowProps {
+  /** Label shown on the left of the note. */
+  label: string
+  /** Called with the sanitised note text on every change. */
+  onValueChange: (value: string) => void
+  /** Placeholder shown when the note is empty. */
+  placeholder: string
+  /** Current note text. */
+  value: string
+}
+
+/** An inline-editable note row inside {@link SceneCardNotes}. */
+function SceneCardNoteRow({
+  label,
+  onValueChange,
+  placeholder,
+  value,
+}: SceneCardNoteRowProps) {
+  return (
+    <Field className="min-h-5.5 justify-start">
+      <Field.Label className="w-12">{label}</Field.Label>
+      <Field.Control>
+        <InlineInput
+          onChange={(event) => onValueChange(event.target.value)}
+          placeholder={placeholder}
+          value={value}
+        />
+      </Field.Control>
+    </Field>
+  )
+}
+
+SceneCard.Details = SceneCardDetails
+SceneCard.NoteRow = SceneCardNoteRow
+SceneCard.Notes = SceneCardNotes
+SceneCard.Row = SceneCardRow
 SceneCard.Thumbnail = SceneCardThumbnail
 
-export { SceneCard, type SceneCardProps, type SceneCardThumbnailProps }
+export {
+  SceneCard,
+  type SceneCardNoteRowProps,
+  type SceneCardProps,
+  type SceneCardRowProps,
+  type SceneCardThumbnailProps,
+}
