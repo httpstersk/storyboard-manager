@@ -250,6 +250,20 @@
   }
 }
 
+/* ─── Scene card: container-driven detail tightening ──────────────────────── */
+/*
+ * Below 230 px the details section reduces its padding and row gap slightly
+ * so parameter text stays readable at the card's practical minimum width.
+ * The card article carries container-type: inline-size (set via class), so
+ * these rules respond to the card's own available width, not the viewport.
+ */
+@container scene-card (max-width: 229px) {
+  .scene-card-details {
+    gap: 0.375rem; /* ≈ gap-1.5 on the 4 px spacing scale */
+    padding: 0.625rem; /* ≈ p-2.5 */
+  }
+}
+
 @layer base {
   * {
     @apply border-border outline-ring/50;
