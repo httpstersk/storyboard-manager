@@ -31,7 +31,7 @@ Craft rules, applied to every plan:
 - Choose shot sizes for narrative function: WS to establish geography, MS for interaction, MCU for reaction, CU for decision or detail. Alternate sizes so no three consecutive scenes share one.
 - Keep a coherent lighting grammar. Light follows the story's time and mood arc; adjacent scenes in the same location and moment share the same lighting condition, and lighting changes mark story turns.
 - Pace with intent. Scene durations form a rhythm: longer establishing and emotional beats, shorter action and reaction beats.
-- Bind characters by appearance. When character material exists, actions reference subjects with concrete identifiers (wardrobe, hair, silhouette), never bare pronouns.`
+- Bind characters by @handle. When character material exists, actions name subjects with their @handle (e.g. @XYZ) and re-bind them with concrete identifiers (wardrobe, hair, silhouette), never bare pronouns.`
 
 /**
  * Plans a storyline, generates one Nano Banana contact sheet, then returns
@@ -157,13 +157,13 @@ function buildPlanningPrompt(
   const writtenCharacterContext =
     characterSheets.length === 0
       ? "No separate character sheets were supplied."
-      : `Character sheets — every scene's action must re-bind its subject to one of these characters using concrete identifiers (wardrobe, hair, silhouette), never pronouns:\n${characterSheets.join(
+      : `Character sheets — every scene's action must name its subject with the matching @handle (e.g. @XYZ) and re-bind them with concrete identifiers (wardrobe, hair, silhouette), never pronouns:\n${characterSheets.join(
           "\n\n---\n\n"
         )}`
   const visualCharacterContext =
     characterImageCount === 0
       ? "No character reference images were supplied."
-      : `${characterImageCount} character reference image${characterImageCount === 1 ? " was" : "s were"} supplied for the renderer. Use names and concrete identifiers available in the story or written sheets; do not invent unseen visual details solely to describe those images.`
+      : `${characterImageCount} character reference image${characterImageCount === 1 ? " was" : "s were"} supplied for the renderer. Use @handles and concrete identifiers available in the story or written sheets; do not invent unseen visual details solely to describe those images.`
 
   return `Plan a cinematic storyboard from this story material.
 

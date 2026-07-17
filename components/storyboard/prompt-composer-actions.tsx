@@ -4,7 +4,11 @@ import { AnimatePresence, m } from "motion/react"
 import { SFArrowUp } from "sf-symbols-lib/monochrome"
 import * as React from "react"
 
-import { usePromptComposer } from "@/components/storyboard/prompt-composer-context"
+import { CharacterNotesControl } from "@/components/storyboard/prompt-composer-character-notes-control"
+import {
+  isCharacterNoteFilled,
+  usePromptComposer,
+} from "@/components/storyboard/prompt-composer-context"
 import { PromptComposerImageEditActions } from "@/components/storyboard/prompt-composer-image-edit-actions"
 import { ImageReferenceControl } from "@/components/storyboard/prompt-composer-image-reference-control"
 import {
@@ -12,13 +16,13 @@ import {
   MAX_IMAGE_REFERENCES_ERROR,
 } from "@/lib/generation"
 import { TRANSITION_FADE_FAST } from "@/lib/motion"
-import { cn } from "@/lib/utils"
 import { IMAGE_UPLOAD_RULES, validateImageFile } from "@/lib/validation"
 
 /** Attachment affordances and generation submit control. */
 function PromptComposerActions() {
   const {
     characterImageReferences,
+    characterNotes,
     isCharacterSheetOpen,
     isDisabled,
     isSubmitting,
@@ -79,19 +83,14 @@ function PromptComposerActions() {
         className="flex min-w-0 flex-wrap items-center gap-1"
         role="group"
       >
-        <button
-          aria-expanded={isCharacterSheetOpen}
-          aria-label="Toggle written character sheet"
-          className={cn(
-            "flex h-7 items-center rounded-full bg-surface-inset px-3 text-caption text-ink transition-[color,background-color,transform] duration-150 ease-out outline-none hover:text-ink-strong focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1 focus-visible:ring-offset-surface-panel active:scale-[0.97]",
-            isCharacterSheetOpen && "text-ink-strong"
-          )}
-          disabled={isDisabled}
-          onClick={() => setIsCharacterSheetOpen(!isCharacterSheetOpen)}
-          type="button"
-        >
-          Character notes
-        </button>
+        <CharacterNotesControl
+          characterCount={
+            characterNotes.filter(isCharacterNoteFilled).length
+          }
+          isDisabled={isDisabled}
+          isOpen={isCharacterSheetOpen}
+          onToggle={() => setIsCharacterSheetOpen(!isCharacterSheetOpen)}
+        />
         <ImageReferenceControl
           canAdd={!isDisabled && hasAvailableReferenceSlot}
           canRemove={!isDisabled && characterImageReferences.length > 0}

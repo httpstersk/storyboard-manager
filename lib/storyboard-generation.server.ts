@@ -88,7 +88,7 @@ export function buildCompositePrompt({
     : `Maintain the supplied character designs exactly across every frame. Re-assert each character's identity inside every cell they appear in — same face, hair, wardrobe, and silhouette.${
         characterSheets.length === 0
           ? ""
-          : `\n\nWritten character sheets:\n${characterSheets.join(
+          : `\n\nCharacter identities use @handle form (e.g. @XYZ) in the storyline and sheets; keep each @handle visually consistent across every cell.\n\nWritten character sheets:\n${characterSheets.join(
               "\n\n---\n\n"
             )}`
       }`

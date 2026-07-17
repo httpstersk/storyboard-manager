@@ -2,8 +2,10 @@
 
 import { SFMinus, SFPlus } from "sf-symbols-lib/monochrome"
 
-const imageReferenceStepButtonClassName =
-  "flex size-6 shrink-0 items-center justify-center rounded-full bg-surface-raised text-ink-muted outline-none transition-[color,transform] duration-150 ease-out hover:text-ink-strong active:scale-90 focus-visible:ring-2 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-40 [&_svg]:size-2.75"
+import {
+  ATTACHMENT_PILL_CHIP_CLASS_NAME,
+  ATTACHMENT_PILL_CLASS_NAME,
+} from "@/components/storyboard/prompt-composer-attachment-pill"
 
 interface ImageReferenceControlProps {
   /** Whether another reference image can still be added. */
@@ -27,12 +29,12 @@ function ImageReferenceControl({
   onRemoveLast,
 }: ImageReferenceControlProps) {
   return (
-    <div className="flex h-7 items-center gap-2 rounded-full bg-surface-inset pr-0.5 pl-3 text-caption text-ink">
+    <div className={ATTACHMENT_PILL_CLASS_NAME}>
       <span>{label}</span>
       <div className="flex items-center gap-0.5">
         <button
           aria-label={`Remove last ${label.toLowerCase()} reference image`}
-          className={imageReferenceStepButtonClassName}
+          className={ATTACHMENT_PILL_CHIP_CLASS_NAME}
           disabled={!canRemove}
           onClick={onRemoveLast}
           type="button"
@@ -41,7 +43,7 @@ function ImageReferenceControl({
         </button>
         <button
           aria-label={`Add ${label.toLowerCase()} reference images`}
-          className={imageReferenceStepButtonClassName}
+          className={ATTACHMENT_PILL_CHIP_CLASS_NAME}
           disabled={!canAdd}
           onClick={onAdd}
           type="button"

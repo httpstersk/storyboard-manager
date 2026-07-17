@@ -1,9 +1,21 @@
 "use client"
 
+import * as React from "react"
 import { SFMinus, SFPlus } from "sf-symbols-lib/monochrome"
 
+import { CharacterMentionList } from "@/components/storyboard/prompt-composer-character-mention-list"
+import {
+  filterCharacterMentionOptions,
+  getCharacterMentionToken,
+  insertCharacterMention,
+  type CharacterMentionToken,
+} from "@/components/storyboard/prompt-composer-character-mention"
 import type { CharacterNote } from "@/components/storyboard/prompt-composer-context"
-import { usePromptComposer } from "@/components/storyboard/prompt-composer-context"
+import {
+  getCharacterMentionOptions,
+  normalizeCharacterName,
+  usePromptComposer,
+} from "@/components/storyboard/prompt-composer-context"
 import { Field } from "@/components/ui/field"
 import { IconButton } from "@/components/ui/icon-button"
 import { InlineInput } from "@/components/ui/inline-input"
@@ -14,9 +26,14 @@ import {
 } from "@/lib/generation"
 import { cn } from "@/lib/utils"
 
+/** In-progress `@mention` session driven by caret position in the storyline. */
+interface CharacterMentionSession extends CharacterMentionToken {
+  highlightedIndex: number
+}
+
 interface CharacterNoteRowProps {
-  characterNote: CharacterNote
   canRemove: boolean
+  characterNote: CharacterNote
   isDisabled: boolean
   onChange: (characterNote: CharacterNote) => void
   onRemove: () => void
@@ -25,8 +42,8 @@ interface CharacterNoteRowProps {
 
 /** One editable character and continuity-notes row. */
 function CharacterNoteRow({
-  characterNote,
   canRemove,
+  characterNote,
   isDisabled,
   onChange,
   onRemove,
@@ -46,9 +63,12 @@ function CharacterNoteRow({
             disabled={isDisabled}
             maxLength={MAX_CHARACTER_NAME_LENGTH}
             onChange={(event) =>
-              onChange({ ...characterNote, name: event.target.value })
+              onChange({
+                ...characterNote,
+                name: normalizeCharacterName(event.target.value),
+              })
             }
-            placeholder="Add name"
+            placeholder="@Name"
             value={characterNote.name}
           />
         </Field.Control>
@@ -100,8 +120,8 @@ function CharacterNotesEditor() {
   const canAdd = characterNotes.length < MAX_CHARACTER_SHEETS
 
   return (
-    <div className="mx-4 mb-3 border-y border-edge">
-      <div className="hidden grid-cols-[minmax(4rem,0.65fr)_minmax(0,1.75fr)_1.75rem] gap-3 border-b border-edge px-3 py-1.5 text-caption text-ink-muted sm:grid">
+    <div className="mx-4 mb-3">
+      <div className="hidden grid-cols-[minmax(4rem,0.65fr)_minmax(0,1.75fr)_1.75rem] gap-3 px-3 py-1.5 text-caption text-ink-muted sm:grid">
         <span>Character</span>
         <span>Notes</span>
         <span className="sr-only">Actions</span>
@@ -119,9 +139,9 @@ function CharacterNotesEditor() {
           />
         ))}
       </div>
-      <div className="border-t border-edge px-2 py-1.5">
+      <div className="px-2 py-1.5">
         <button
-          className="flex h-7 items-center gap-1.5 rounded-full px-2 text-caption text-ink-muted transition-colors outline-none hover:bg-surface-inset hover:text-ink-strong focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-40"
+          className="flex h-7 items-center gap-1.5 rounded-full bg-surface-inset px-2 text-caption text-ink-muted transition-colors outline-none hover:text-ink-strong focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-40"
           disabled={isDisabled || !canAdd}
           onClick={addCharacterNote}
           type="button"
@@ -139,6 +159,7 @@ function CharacterNotesEditor() {
 /** Primary storyline input and optional structured character-notes editor. */
 function PromptComposerInput() {
   const {
+    characterNotes,
     inputId,
     isCharacterSheetOpen,
     isDisabled,
@@ -147,17 +168,90 @@ function PromptComposerInput() {
     setPrompt,
     submit,
   } = usePromptComposer()
+  const textareaRef = React.useRef<HTMLTextAreaElement>(null)
+  const [mentionSession, setMentionSession] =
+    React.useState<CharacterMentionSession | null>(null)
 
   const isImageEdit = mode === "image-edit"
+  const mentionListId = `${inputId}-character-mentions`
+  const mentionOptions = getCharacterMentionOptions(characterNotes)
+  const filteredMentionOptions = mentionSession
+    ? filterCharacterMentionOptions(mentionOptions, mentionSession.query)
+    : []
+  const highlightedIndex = mentionSession
+    ? Math.min(
+        mentionSession.highlightedIndex,
+        Math.max(filteredMentionOptions.length - 1, 0)
+      )
+    : 0
+  const activeOptionId =
+    mentionSession && filteredMentionOptions.length > 0
+      ? `${mentionListId}-option-${highlightedIndex}`
+      : undefined
+
+  function syncMentionSession(textarea: HTMLTextAreaElement) {
+    if (isImageEdit) {
+      setMentionSession(null)
+      return
+    }
+
+    const token = getCharacterMentionToken(
+      textarea.value,
+      textarea.selectionStart
+    )
+
+    if (token === null) {
+      setMentionSession(null)
+      return
+    }
+
+    setMentionSession((current) => ({
+      ...token,
+      highlightedIndex: current?.highlightedIndex ?? 0,
+    }))
+  }
+
+  function applyMention(handle: string) {
+    if (mentionSession === null) {
+      return
+    }
+
+    const { caretIndex, value } = insertCharacterMention(
+      handle,
+      mentionSession,
+      prompt
+    )
+
+    setPrompt(value)
+    setMentionSession(null)
+
+    const textarea = textareaRef.current
+    if (textarea === null) {
+      return
+    }
+
+    textarea.focus()
+    // Caret must be set after React commits the controlled value update.
+    requestAnimationFrame(() => {
+      textarea.setSelectionRange(caretIndex, caretIndex)
+    })
+  }
 
   return (
-    <div className={isImageEdit ? "flex min-w-0 flex-1" : "grid"}>
+    <div className={isImageEdit ? "flex min-w-0 flex-1" : "relative grid"}>
       <label className="sr-only" htmlFor={inputId}>
         {isImageEdit
           ? "Describe the image changes"
           : "Movie logline or storyline"}
       </label>
       <textarea
+        aria-activedescendant={isImageEdit ? undefined : activeOptionId}
+        aria-autocomplete={isImageEdit ? undefined : "list"}
+        aria-controls={
+          !isImageEdit && mentionSession !== null ? mentionListId : undefined
+        }
+        aria-expanded={isImageEdit ? undefined : mentionSession !== null}
+        aria-haspopup={isImageEdit ? undefined : "listbox"}
         className={cn(
           "field-sizing-content w-full resize-none bg-transparent text-body text-ink-strong outline-none placeholder:text-ink-faint disabled:cursor-not-allowed disabled:opacity-60",
           isImageEdit
@@ -167,21 +261,97 @@ function PromptComposerInput() {
         disabled={isDisabled}
         id={inputId}
         maxLength={12_000}
-        onChange={(event) => setPrompt(event.target.value)}
+        onChange={(event) => {
+          setPrompt(event.target.value)
+          syncMentionSession(event.target)
+        }}
+        onClick={(event) => syncMentionSession(event.currentTarget)}
         onKeyDown={(event) => {
+          if (mentionSession !== null) {
+            if (event.key === "ArrowDown") {
+              event.preventDefault()
+              if (filteredMentionOptions.length === 0) {
+                return
+              }
+              setMentionSession({
+                ...mentionSession,
+                highlightedIndex:
+                  (highlightedIndex + 1) % filteredMentionOptions.length,
+              })
+              return
+            }
+
+            if (event.key === "ArrowUp") {
+              event.preventDefault()
+              if (filteredMentionOptions.length === 0) {
+                return
+              }
+              setMentionSession({
+                ...mentionSession,
+                highlightedIndex:
+                  (highlightedIndex - 1 + filteredMentionOptions.length) %
+                  filteredMentionOptions.length,
+              })
+              return
+            }
+
+            if (event.key === "Escape") {
+              event.preventDefault()
+              setMentionSession(null)
+              return
+            }
+
+            if (event.key === "Enter" || event.key === "Tab") {
+              event.preventDefault()
+              const handle = filteredMentionOptions[highlightedIndex]
+              if (handle !== undefined) {
+                applyMention(handle)
+              }
+              return
+            }
+          }
+
           if (event.key === "Enter" && !event.shiftKey) {
             event.preventDefault()
             void submit()
           }
         }}
+        onKeyUp={(event) => syncMentionSession(event.currentTarget)}
+        onSelect={(event) => syncMentionSession(event.currentTarget)}
         placeholder={
           isImageEdit
             ? "Describe how to change this scene…"
             : "Describe a film, sequence, or complete storyline…"
         }
+        ref={textareaRef}
+        role={isImageEdit ? undefined : "combobox"}
         rows={1}
         value={prompt}
       />
+      {mentionSession !== null ? (
+        <CharacterMentionList id={mentionListId}>
+          {mentionOptions.length === 0 ? (
+            <CharacterMentionList.Empty>
+              Add a character in Character notes
+            </CharacterMentionList.Empty>
+          ) : filteredMentionOptions.length === 0 ? (
+            <CharacterMentionList.Empty>
+              No matching characters
+            </CharacterMentionList.Empty>
+          ) : (
+            filteredMentionOptions.map((handle, index) => (
+              <CharacterMentionList.Option
+                id={`${mentionListId}-option-${index}`}
+                isActive={index === highlightedIndex}
+                key={handle}
+                onSelect={() => applyMention(handle)}
+              >
+                {handle}
+              </CharacterMentionList.Option>
+            ))
+          )}
+        </CharacterMentionList>
+      ) : null}
       {isCharacterSheetOpen ? <CharacterNotesEditor /> : null}
     </div>
   )

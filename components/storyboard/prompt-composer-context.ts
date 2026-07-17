@@ -131,9 +131,52 @@ export function composerReducer(
   }
 }
 
+/** Unique `@handles` from character notes eligible for storyline mentions. */
+export function getCharacterMentionOptions(
+  characterNotes: CharacterNote[]
+): string[] {
+  const handles: string[] = []
+  const seen = new Set<string>()
+
+  for (const characterNote of characterNotes) {
+    const handle = normalizeCharacterName(characterNote.name)
+
+    if (handle === "" || seen.has(handle)) {
+      continue
+    }
+
+    seen.add(handle)
+    handles.push(handle)
+  }
+
+  return handles
+}
+
+/** Whether a character row has a name or notes entered. */
+export function isCharacterNoteFilled(characterNote: CharacterNote): boolean {
+  return (
+    normalizeCharacterName(characterNote.name) !== "" ||
+    characterNote.notes.trim() !== ""
+  )
+}
+
+/**
+ * Ensures a character name is a single `@handle`, or empty when unset.
+ * Bare `@` and whitespace-only values collapse to an empty string.
+ */
+export function normalizeCharacterName(value: string): string {
+  const body = value.trim().replace(/^@+/, "")
+
+  if (body === "") {
+    return ""
+  }
+
+  return `@${body}`
+}
+
 /** Converts a structured character row into the existing API sheet format. */
 export function serializeCharacterNote(characterNote: CharacterNote): string {
-  const name = characterNote.name.trim()
+  const name = normalizeCharacterName(characterNote.name)
   const notes = characterNote.notes.trim()
 
   return [name, notes].filter(Boolean).join("\n")
