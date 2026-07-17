@@ -1,6 +1,6 @@
 "use client"
 
-import { useAtomValue } from "jotai"
+import { useAtomValue, useSetAtom } from "jotai"
 import { AnimatePresence, m } from "motion/react"
 import * as React from "react"
 
@@ -20,6 +20,11 @@ import { imageModelAtom } from "@/lib/image-model-settings"
 import { imageResolutionAtom } from "@/lib/image-resolution-settings"
 import { TRANSITION_FADE_FAST } from "@/lib/motion"
 import { cn } from "@/lib/utils"
+import { MAX_SEEDANCE_CHARACTER_IMAGES } from "@/lib/video-generation"
+import {
+  composerCharacterImageFilesAtom,
+  videoPromptSourceAtom,
+} from "@/lib/video-section-atoms"
 
 /**
  * Bottom-anchored cinematic prompt composer.
@@ -45,11 +50,33 @@ function PromptComposerRoot({
 }: PromptComposerRootProps) {
   const imageModel = useAtomValue(imageModelAtom)
   const imageResolution = useAtomValue(imageResolutionAtom)
+  const setCharacterImageFiles = useSetAtom(composerCharacterImageFilesAtom)
+  const setVideoPromptSource = useSetAtom(videoPromptSourceAtom)
   const [state, dispatch] = React.useReducer(
     composerReducer,
     INITIAL_COMPOSER_STATE
   )
   const [isSubmitting, startSubmitTransition] = React.useTransition()
+
+  React.useEffect(() => {
+    setCharacterImageFiles(state.characterImageReferences)
+    setVideoPromptSource((previous) => ({
+      ...previous,
+      characterImageCount: Math.min(
+        state.characterImageReferences.length,
+        MAX_SEEDANCE_CHARACTER_IMAGES
+      ),
+      characterNotes: state.characterNotes.map(({ name, notes }) => ({
+        name,
+        notes,
+      })),
+    }))
+  }, [
+    setCharacterImageFiles,
+    setVideoPromptSource,
+    state.characterImageReferences,
+    state.characterNotes,
+  ])
 
   const removeCharacterImageReference = (index: number) => {
     dispatch({

@@ -77,13 +77,12 @@ function SceneGrid({
   const visibleScenes = scenes.slice(0, rows * columns)
 
   return (
-    // Once several rows are shown the grid can grow past the viewport, so
-    // this wrapper owns the vertical scroll and rounded clipping while the
-    // inner <section> (the PNG-capture target) keeps its natural full
-    // height -- exports therefore still include every visible row.
+    // Parent workspace column owns vertical scroll so the video section
+    // can sit below the grid. The inner <section> remains the PNG-capture
+    // target and keeps its natural full height for exports.
     <div
       aria-busy={isGenerating}
-      className="@container/scene-grid relative min-h-0 flex-1 overflow-x-hidden overflow-y-auto rounded-2xl bg-grid-line pb-112 [view-transition-name:scene-board]"
+      className="@container/scene-grid relative shrink-0 overflow-x-hidden rounded-2xl bg-grid-line [view-transition-name:scene-board]"
     >
       <section
         aria-label="Scenes"

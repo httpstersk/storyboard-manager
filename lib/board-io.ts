@@ -7,12 +7,21 @@ import type { Board } from "@/lib/storyboard"
 import { coerceBoard } from "@/lib/validation"
 
 /** Version written into exported board files. */
-const BOARD_FILE_VERSION = 1
+const BOARD_FILE_VERSION = 2
 
 /** Result of parsing an imported board file. */
 export type BoardImportResult =
   | { board: Board; ok: true }
   | { error: string; ok: false }
+
+/** Optional fields included alongside the board in a JSON export. */
+export interface BoardJsonExportOptions {
+  /**
+   * Seedance video prompt derived from the current scenes and character
+   * notes. Empty string when the board has no scenes.
+   */
+  videoPrompt?: string
+}
 
 /** Turns a board title into a safe file name stem, e.g. "night-chase". */
 function fileStem(title: string): string {
@@ -38,13 +47,18 @@ function downloadBlob(blob: Blob, filename: string): void {
 /**
  * Downloads the given board as a versioned JSON file. Scene `shader`
  * presets are omitted — they are UI-only empty-state gradients and are
- * restored to defaults on import when missing.
+ * restored to defaults on import when missing. Includes the Seedance
+ * video prompt when provided.
  */
-export function exportBoardJson(board: Board): void {
+export function exportBoardJson(
+  board: Board,
+  options: BoardJsonExportOptions = {}
+): void {
   const payload = {
     scenes: board.scenes.map(({ shader: _shader, ...scene }) => scene),
     title: board.title,
     version: BOARD_FILE_VERSION,
+    videoPrompt: options.videoPrompt ?? "",
   }
   const blob = new Blob([JSON.stringify(payload, null, 2)], {
     type: "application/json",
@@ -79,8 +93,7 @@ export function parseBoardFile(text: string, boardId: string): BoardImportResult
 }
 
 /**
- * Captures the given element as a PNG and downloads it. Shader
- * thumbnails are WebGL canvases and may capture blank on some browsers.
+ * Captures the given element as a PNG data URL.
  *
  * `toPng` is called twice deliberately: html-to-image renders the DOM
  * inside an SVG `foreignObject` and loads embedded images asynchronously.
@@ -88,17 +101,25 @@ export function parseBoardFile(text: string, boardId: string): BoardImportResult
  * so the first scene's image draws blank. The second pass finds every
  * image already in the browser's internal cache and captures them all.
  */
-export async function exportNodePng(
-  node: HTMLElement,
-  title: string
-): Promise<void> {
+export async function captureNodePngDataUrl(node: HTMLElement): Promise<string> {
   const { toPng } = await import("html-to-image")
   const options = { pixelRatio: 2 }
 
   // Prime the browser's image cache so all data-URL images are ready.
   await toPng(node, options)
-  const dataUrl = await toPng(node, options)
 
+  return toPng(node, options)
+}
+
+/**
+ * Captures the given element as a PNG and downloads it. Shader
+ * thumbnails are WebGL canvases and may capture blank on some browsers.
+ */
+export async function exportNodePng(
+  node: HTMLElement,
+  title: string
+): Promise<void> {
+  const dataUrl = await captureNodePngDataUrl(node)
   const response = await fetch(dataUrl)
   const blob = await response.blob()
 

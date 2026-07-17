@@ -1,5 +1,6 @@
 "use client"
 
+import { useAtomValue } from "jotai"
 import { SFArrowDownToLine, SFArrowUpToLine } from "sf-symbols-lib/monochrome"
 import * as React from "react"
 
@@ -13,6 +14,7 @@ import { Switch } from "@/components/ui/switch"
 import { exportBoardJson } from "@/lib/board-io"
 import { type ImageModel, type ImageResolution } from "@/lib/generation"
 import { COLUMN_LIMITS, ROW_LIMITS, type Board } from "@/lib/storyboard"
+import { seedanceVideoPromptAtom } from "@/lib/video-section-atoms"
 
 interface WorkspaceExportActionsProps {
   /** Exports the selected board's scene grid as a PNG. */
@@ -22,6 +24,7 @@ interface WorkspaceExportActionsProps {
 /** Board-dependent export actions isolated from the persistent toolbar. */
 function WorkspaceExportActions({ onExportPng }: WorkspaceExportActionsProps) {
   const selectedBoard = React.use(SelectedBoardContext)
+  const videoPrompt = useAtomValue(seedanceVideoPromptAtom)
 
   if (selectedBoard === null) {
     throw new Error(
@@ -31,7 +34,9 @@ function WorkspaceExportActions({ onExportPng }: WorkspaceExportActionsProps) {
 
   return (
     <>
-      <BoardToolbar.Action onClick={() => exportBoardJson(selectedBoard)}>
+      <BoardToolbar.Action
+        onClick={() => exportBoardJson(selectedBoard, { videoPrompt })}
+      >
         <SFArrowDownToLine aria-hidden />
         JSON
       </BoardToolbar.Action>

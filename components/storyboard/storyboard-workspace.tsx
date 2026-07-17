@@ -15,6 +15,7 @@ import {
 import { WorkspacePromptComposer } from "@/components/storyboard/storyboard-workspace-prompt-composer"
 import { WorkspaceToolbar } from "@/components/storyboard/storyboard-workspace-toolbar"
 import { useStoryboardWorkspaceModel } from "@/components/storyboard/use-storyboard-workspace-model"
+import { VideoSection } from "@/components/storyboard/video-section"
 import { formatSceneNumber } from "@/lib/storyboard"
 
 /**
@@ -104,16 +105,26 @@ function StoryboardWorkspace() {
           ref={importInputRef}
           type="file"
         />
-        <SceneGrid
-          columns={state.columns}
-          isGenerating={state.isGenerating}
-          onEditScene={handleEditScene}
-          onUpdateScene={handleUpdateScene}
-          ref={gridRef}
-          rows={state.rows}
-          scenes={selectedBoard.scenes}
-          showParameters={state.showParameters}
-        />
+        <div className="flex min-h-0 flex-1 flex-col gap-3.5 overflow-y-auto">
+          <SceneGrid
+            columns={state.columns}
+            isGenerating={state.isGenerating}
+            onEditScene={handleEditScene}
+            onUpdateScene={handleUpdateScene}
+            ref={gridRef}
+            rows={state.rows}
+            scenes={selectedBoard.scenes}
+            showParameters={state.showParameters}
+          />
+          <VideoSection.Root
+            className="pb-112"
+            gridRef={gridRef}
+            scenes={visibleScenes}
+          >
+            <VideoSection.Prompt />
+            <VideoSection.Player />
+          </VideoSection.Root>
+        </div>
         <div className="absolute inset-x-0 bottom-10 z-50 mx-auto w-full max-w-3xl px-4">
           <WorkspacePromptComposer
             disabled={state.isGenerating}
