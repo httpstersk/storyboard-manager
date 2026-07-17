@@ -172,7 +172,9 @@ function SegmentedControlOption({
             transition={SPRING_SNAPPY}
           />
         ))}
-      <span className="relative z-10">{children}</span>
+      <span className="relative z-10 inline-flex items-center gap-1.5 whitespace-nowrap">
+        {children}
+      </span>
     </ToggleGroup.Item>
   )
 }

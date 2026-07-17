@@ -857,7 +857,6 @@ function WorkspaceToolbarView({
                 label="Image model"
                 onValueChange={onImageModelChange}
                 value={imageModel}
-                variant="raised"
               >
                 <SegmentedControl.Option value="lite">
                   Lite

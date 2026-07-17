@@ -8,7 +8,6 @@ import {
   SFEraser,
   SFIcloudAndArrowUp,
   SFPaintbrush,
-  SFPencil,
   SFTrash,
   SFXmark,
 } from "sf-symbols-lib/monochrome"
@@ -44,7 +43,6 @@ const DRAW_COLORS = [
 
 /** Drawing tools offered by the tool picker. */
 const DRAW_TOOLS = [
-  { icon: SFPencil, label: "Pencil", value: "pencil" },
   { icon: SFPaintbrush, label: "Brush", value: "brush" },
   { icon: SFEraser, label: "Eraser", value: "eraser" },
 ] as const
@@ -79,7 +77,7 @@ const initialDialogState: DialogState = {
   draftImage: undefined,
   error: null,
   isEditingImage: false,
-  tool: "pencil",
+  tool: "brush",
 }
 
 function dialogReducer(state: DialogState, action: DialogAction): DialogState {

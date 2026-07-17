@@ -36,7 +36,7 @@ Each scene card supports granular industry-standard parameters:
 
 - **Upload References**: Drop or upload JPEG/PNG reference images (up to 10MB). Files are validated and converted to base64 Data URLs so they persist and export cleanly.
 - **Interactive Sketching Canvas**: Open the canvas modal to draw directly on the thumbnail. Includes:
-  - Tools: Pencil, Brush, and Eraser.
+  - Tools: Brush and Eraser.
   - Controls: Variable brush sizes and a grayscale color palette.
   - Action History: Undo support to step backward through drawing actions.
 - **Image Flattening**: Canvas sketches are composited and flattened over any uploaded or existing reference images when saved.

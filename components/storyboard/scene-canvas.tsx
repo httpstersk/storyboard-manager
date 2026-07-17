@@ -6,11 +6,11 @@ import * as React from "react"
 import { useMountEffect } from "@/hooks/use-mount-effect"
 import { IMAGE_UPLOAD_RULES } from "@/lib/validation"
 
-/** Width multiplier that gives brush strokes a heavier mark than pencil strokes. */
+/** Width multiplier applied to brush and eraser stroke size. */
 const BRUSH_WIDTH_SCALE = 2.5
 
 /** Tools supported by the scene drawing overlay. */
-export type DrawTool = "brush" | "eraser" | "pencil"
+export type DrawTool = "brush" | "eraser"
 
 /** Imperative drawing operations exposed to the scene editor. */
 export interface DrawingCanvasHandle {
@@ -344,8 +344,7 @@ function configureStroke(
   }
 
   context.globalCompositeOperation = "source-over"
-  context.lineWidth =
-    tool === "brush" ? brushSize * BRUSH_WIDTH_SCALE : brushSize
+  context.lineWidth = brushSize * BRUSH_WIDTH_SCALE
   context.strokeStyle = color
 }
 
