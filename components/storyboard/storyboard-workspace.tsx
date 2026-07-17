@@ -88,6 +88,9 @@ type WorkspaceAction =
   | { patch: Partial<Scene>; sceneId: string; type: "updateScene" }
   | { type: "hydrate"; workspace: StoredWorkspace | null }
 
+/** Selected board consumed only by board-dependent toolbar export actions. */
+const SelectedBoardContext = React.createContext<Board | null>(null)
+
 function workspaceReducer(
   state: WorkspaceState,
   action: WorkspaceAction
@@ -130,15 +133,15 @@ function workspaceReducer(
       return action.workspace === null
         ? { ...state, hydrated: true, now }
         : {
-          ...state,
-          boards: action.workspace.boards,
-          columns: clampInteger(action.workspace.columns, COLUMN_LIMITS),
-          hydrated: true,
-          now,
-          rows: clampInteger(action.workspace.rows, ROW_LIMITS),
-          selectedBoardId: action.workspace.selectedBoardId,
-          sidebarCollapsed: action.workspace.sidebarCollapsed,
-        }
+            ...state,
+            boards: action.workspace.boards,
+            columns: clampInteger(action.workspace.columns, COLUMN_LIMITS),
+            hydrated: true,
+            now,
+            rows: clampInteger(action.workspace.rows, ROW_LIMITS),
+            selectedBoardId: action.workspace.selectedBoardId,
+            sidebarCollapsed: action.workspace.sidebarCollapsed,
+          }
     case "renameBoard":
       return {
         ...state,
@@ -150,7 +153,11 @@ function workspaceReducer(
         now,
       }
     case "selectBoard":
-      return { ...state, now, selectedBoardId: action.boardId }
+      return {
+        ...state,
+        editingSceneId: null,
+        selectedBoardId: action.boardId,
+      }
     case "setColumns":
       return { ...state, columns: clampInteger(action.columns, COLUMN_LIMITS) }
     case "setDeleteRequest":
@@ -177,14 +184,14 @@ function workspaceReducer(
         boards: state.boards.map((board) =>
           board.id === state.selectedBoardId
             ? {
-              ...board,
-              scenes: board.scenes.map((scene) =>
-                scene.id === action.sceneId
-                  ? { ...scene, ...action.patch }
-                  : scene
-              ),
-              updatedAt: now,
-            }
+                ...board,
+                scenes: board.scenes.map((scene) =>
+                  scene.id === action.sceneId
+                    ? { ...scene, ...action.patch }
+                    : scene
+                ),
+                updatedAt: now,
+              }
             : board
         ),
         now,
@@ -345,10 +352,10 @@ function StoryboardWorkspace() {
   const editingScene =
     editingIndex === -1 ? null : selectedBoard.scenes[editingIndex]
   const nextEditingSceneId = canNavigateNextScene
-    ? selectedBoard.scenes[editingIndex + 1]?.id ?? null
+    ? (selectedBoard.scenes[editingIndex + 1]?.id ?? null)
     : null
   const previousEditingSceneId = canNavigatePreviousScene
-    ? selectedBoard.scenes[editingIndex - 1]?.id ?? null
+    ? (selectedBoard.scenes[editingIndex - 1]?.id ?? null)
     : null
   const visibleScenes = selectedBoard.scenes.slice(
     0,
@@ -358,6 +365,34 @@ function StoryboardWorkspace() {
   const deleteRequestBoard =
     state.boards.find((board) => board.id === state.deleteRequestBoardId) ??
     null
+
+  const handleColumnsChange = React.useCallback((columns: number) => {
+    dispatch({ columns, type: "setColumns" })
+  }, [])
+
+  const handleComposerActiveChange = React.useCallback(
+    (isComposerActive: boolean) => {
+      dispatch({ isComposerActive, type: "setComposerActive" })
+    },
+    []
+  )
+
+  const handleEditScene = React.useCallback((sceneId: string) => {
+    dispatch({ sceneId, type: "setEditingScene" })
+  }, [])
+
+  const handleImageModelChange = React.useCallback(
+    (value: string) => {
+      if (isImageModel(value)) {
+        setImageModel(value)
+      }
+    },
+    [setImageModel]
+  )
+
+  const handleImportClick = React.useCallback(() => {
+    importInputRef.current?.click()
+  }, [])
 
   const handleNewBoard = () => {
     dispatch({
@@ -377,6 +412,24 @@ function StoryboardWorkspace() {
     withViewTransition(() => dispatch({ boardId, type: "selectBoard" }))
   }
 
+  const handleRowsChange = React.useCallback((rows: number) => {
+    dispatch({ rows, type: "setRows" })
+  }, [])
+
+  const handleShowParametersChange = React.useCallback(
+    (showParameters: boolean) => {
+      dispatch({ showParameters, type: "setShowParameters" })
+    },
+    []
+  )
+
+  const handleUpdateScene = React.useCallback(
+    (sceneId: string, patch: Partial<Scene>) => {
+      dispatch({ patch, sceneId, type: "updateScene" })
+    },
+    []
+  )
+
   const handleImportFile = async (file: File) => {
     const result = parseBoardFile(await file.text(), createBoardId())
 
@@ -387,69 +440,70 @@ function StoryboardWorkspace() {
     }
   }
 
-  const handleExportPng = async () => {
+  const handleExportPng = React.useCallback(async (board: Board) => {
     if (gridRef.current === null) {
       return
     }
 
     try {
-      await exportNodePng(gridRef.current, selectedBoard.title)
+      await exportNodePng(gridRef.current, board.title)
       dispatch({ error: null, type: "setIoError" })
     } catch {
       dispatch({ error: "The PNG export failed.", type: "setIoError" })
     }
-  }
+  }, [])
 
-  const handleGenerateStoryboard = async (
-    generationRequest: StoryboardGenerationRequest
-  ) => {
-    dispatch({ error: null, type: "setIoError" })
-    dispatch({ isGenerating: true, type: "setIsGenerating" })
+  const handleGenerateStoryboard = React.useCallback(
+    async (generationRequest: StoryboardGenerationRequest) => {
+      dispatch({ error: null, type: "setIoError" })
+      dispatch({ isGenerating: true, type: "setIsGenerating" })
 
-    try {
-      const response = await fetch("/api/generate-storyboard", {
-        body: JSON.stringify(generationRequest),
-        headers: { "Content-Type": "application/json" },
-        method: "POST",
-      })
-      const responseBody: unknown = await response.json()
+      try {
+        const response = await fetch("/api/generate-storyboard", {
+          body: JSON.stringify(generationRequest),
+          headers: { "Content-Type": "application/json" },
+          method: "POST",
+        })
+        const responseBody: unknown = await response.json()
 
-      if (!response.ok) {
-        const message =
-          typeof responseBody === "object" &&
+        if (!response.ok) {
+          const message =
+            typeof responseBody === "object" &&
             responseBody !== null &&
             "error" in responseBody &&
             typeof responseBody.error === "string"
-            ? responseBody.error
+              ? responseBody.error
+              : "The storyboard could not be generated."
+
+          throw new Error(message)
+        }
+
+        const result = storyboardGenerationResponseSchema.parse(responseBody)
+        const board = createGeneratedBoard(
+          createBoardId(),
+          result.scenes,
+          result.title
+        )
+
+        React.startTransition(() => {
+          dispatch({ board, type: "addBoard" })
+          dispatch({ columns: result.columns, type: "setColumns" })
+          dispatch({ rows: result.rows, type: "setRows" })
+        })
+      } catch (error) {
+        const message =
+          error instanceof Error
+            ? error.message
             : "The storyboard could not be generated."
 
-        throw new Error(message)
+        dispatch({ error: message, type: "setIoError" })
+        throw error
+      } finally {
+        dispatch({ isGenerating: false, type: "setIsGenerating" })
       }
-
-      const result = storyboardGenerationResponseSchema.parse(responseBody)
-      const board = createGeneratedBoard(
-        createBoardId(),
-        result.scenes,
-        result.title
-      )
-
-      React.startTransition(() => {
-        dispatch({ board, type: "addBoard" })
-        dispatch({ columns: result.columns, type: "setColumns" })
-        dispatch({ rows: result.rows, type: "setRows" })
-      })
-    } catch (error) {
-      const message =
-        error instanceof Error
-          ? error.message
-          : "The storyboard could not be generated."
-
-      dispatch({ error: message, type: "setIoError" })
-      throw error
-    } finally {
-      dispatch({ isGenerating: false, type: "setIsGenerating" })
-    }
-  }
+    },
+    []
+  )
 
   return (
     <div className="relative flex h-svh gap-3.5 overflow-hidden bg-surface-app p-4.5">
@@ -476,72 +530,20 @@ function StoryboardWorkspace() {
           content and no layout animation is needed here. It is `relative`
           so the prompt composer and its focus backdrop can pin to it. */}
       <main className="relative flex min-h-0 min-w-0 flex-1 flex-col gap-3.5 overflow-hidden">
-        <BoardToolbar>
-          <BoardToolbar.Brand name="Boooards" version="v1.3" />
-          <BoardToolbar.Controls>
-            <GridSteppers
-              columns={state.columns}
-              onColumnsChange={(columns) =>
-                dispatch({ columns, type: "setColumns" })
-              }
-              onRowsChange={(rows) => dispatch({ rows, type: "setRows" })}
-              rows={state.rows}
-            />
-            <Field>
-              <Field.Label>Nano Banana</Field.Label>
-              <Field.Control>
-                <div>
-                  <SegmentedControl
-                    label="Image model"
-                    onValueChange={(value) => {
-                      if (isImageModel(value)) {
-                        setImageModel(value)
-                      }
-                    }}
-                    value={imageModel}
-                    variant="raised"
-                  >
-                    <SegmentedControl.Option value="lite">
-                      Lite
-                    </SegmentedControl.Option>
-                    <SegmentedControl.Option value="pro">
-                      Pro
-                    </SegmentedControl.Option>
-                  </SegmentedControl>
-                </div>
-              </Field.Control>
-            </Field>
-            <Field>
-              <Field.Label>Parameters</Field.Label>
-              <Field.Control>
-                <Switch
-                  checked={state.showParameters}
-                  onCheckedChange={(showParameters) =>
-                    dispatch({ showParameters, type: "setShowParameters" })
-                  }
-                />
-              </Field.Control>
-            </Field>
-          </BoardToolbar.Controls>
-          <BoardToolbar.Actions>
-            <BoardToolbar.Action
-              onClick={() => importInputRef.current?.click()}
-            >
-              <SFArrowUpToLine aria-hidden />
-              Import
-            </BoardToolbar.Action>
-            <BoardToolbar.Action onClick={() => exportBoardJson(selectedBoard)}>
-              <SFArrowDownToLine aria-hidden />
-              JSON
-            </BoardToolbar.Action>
-            <BoardToolbar.Action onClick={handleExportPng} variant="emphasis">
-              <SFArrowDownToLine aria-hidden />
-              PNG
-            </BoardToolbar.Action>
-            <SoundControl />
-            <BoardToolbar.ThemeToggle />
-          </BoardToolbar.Actions>
-        </BoardToolbar>
+        <SelectedBoardContext.Provider value={selectedBoard}>
+          <WorkspaceToolbar
+            columns={state.columns}
+            imageModel={imageModel}
+            onColumnsChange={handleColumnsChange}
+            onExportPng={handleExportPng}
+            onImageModelChange={handleImageModelChange}
+            onImport={handleImportClick}
+            onRowsChange={handleRowsChange}
+            onShowParametersChange={handleShowParametersChange}
+            rows={state.rows}
+            showParameters={state.showParameters}
+          />
+        </SelectedBoardContext.Provider>
         <input
           accept="application/json,.json"
           aria-label="Import storyboard file"
@@ -561,12 +563,8 @@ function StoryboardWorkspace() {
         <SceneGrid
           columns={state.columns}
           isGenerating={state.isGenerating}
-          onEditScene={(sceneId) =>
-            dispatch({ sceneId, type: "setEditingScene" })
-          }
-          onUpdateScene={(sceneId, patch) =>
-            dispatch({ patch, sceneId, type: "updateScene" })
-          }
+          onEditScene={handleEditScene}
+          onUpdateScene={handleUpdateScene}
           ref={gridRef}
           rows={state.rows}
           scenes={selectedBoard.scenes}
@@ -575,17 +573,11 @@ function StoryboardWorkspace() {
         {/* The composer floats above the scene grid so it remains available
             without turning the input into a separate layout section. */}
         <div className="absolute inset-x-0 bottom-10 z-50 mx-auto w-full max-w-3xl px-4">
-          <PromptComposer.Root
+          <WorkspacePromptComposer
             disabled={state.isGenerating}
-            onActiveChange={(isComposerActive) =>
-              dispatch({ isComposerActive, type: "setComposerActive" })
-            }
+            onActiveChange={handleComposerActiveChange}
             onSubmit={handleGenerateStoryboard}
-          >
-            <PromptComposer.Input />
-            <PromptComposer.Attachments />
-            <PromptComposer.Actions />
-          </PromptComposer.Root>
+          />
         </div>
         <BoardStatusBar>
           <BoardStatusBar.Summary>
@@ -642,7 +634,7 @@ function StoryboardWorkspace() {
         {!state.sidebarCollapsed && (
           <m.div
             animate={{ opacity: 1, x: 0 }}
-            className="absolute top-7.5 start-4.5 z-50 h-[var(--height-shell)]"
+            className="absolute start-4.5 top-7.5 z-50 h-[var(--height-shell)]"
             exit={{ opacity: 0, x: -12 }}
             initial={{ opacity: 0, x: -12 }}
             key="sidebar-panel"
@@ -712,7 +704,10 @@ function StoryboardWorkspace() {
         }}
         onNavigatePrevious={() => {
           if (previousEditingSceneId !== null) {
-            dispatch({ sceneId: previousEditingSceneId, type: "setEditingScene" })
+            dispatch({
+              sceneId: previousEditingSceneId,
+              type: "setEditingScene",
+            })
           }
         }}
         onOpenChange={(open) => {
@@ -745,6 +740,159 @@ function StoryboardWorkspace() {
     </div>
   )
 }
+
+interface WorkspaceExportActionsProps {
+  /** Exports the selected board's scene grid as a PNG. */
+  onExportPng: (board: Board) => Promise<void>
+}
+
+/** Board-dependent export actions isolated from the persistent toolbar. */
+function WorkspaceExportActions({ onExportPng }: WorkspaceExportActionsProps) {
+  const selectedBoard = React.use(SelectedBoardContext)
+
+  if (selectedBoard === null) {
+    throw new Error(
+      "Workspace export actions must be used within SelectedBoardContext."
+    )
+  }
+
+  return (
+    <>
+      <BoardToolbar.Action onClick={() => exportBoardJson(selectedBoard)}>
+        <SFArrowDownToLine aria-hidden />
+        JSON
+      </BoardToolbar.Action>
+      <BoardToolbar.Action
+        onClick={() => void onExportPng(selectedBoard)}
+        variant="emphasis"
+      >
+        <SFArrowDownToLine aria-hidden />
+        PNG
+      </BoardToolbar.Action>
+    </>
+  )
+}
+
+interface WorkspacePromptComposerProps {
+  /** Whether storyboard generation is currently unavailable. */
+  disabled: boolean
+  /** Reports whether the composer currently holds focus. */
+  onActiveChange: (isActive: boolean) => void
+  /** Generates a storyboard from the current composer request. */
+  onSubmit: (request: StoryboardGenerationRequest) => Promise<void>
+}
+
+/** Persistent composer shell that skips unrelated workspace updates. */
+function WorkspacePromptComposerView({
+  disabled,
+  onActiveChange,
+  onSubmit,
+}: WorkspacePromptComposerProps) {
+  return (
+    <PromptComposer.Root
+      disabled={disabled}
+      onActiveChange={onActiveChange}
+      onSubmit={onSubmit}
+    >
+      <PromptComposer.Input />
+      <PromptComposer.Attachments />
+      <PromptComposer.Actions />
+    </PromptComposer.Root>
+  )
+}
+
+const WorkspacePromptComposer = React.memo(WorkspacePromptComposerView)
+
+interface WorkspaceToolbarProps {
+  /** Selected number of scene columns. */
+  columns: number
+  /** Image generation model selected for new storyboards. */
+  imageModel: ImageModel
+  /** Updates the selected number of scene columns. */
+  onColumnsChange: (columns: number) => void
+  /** Exports the selected board's scene grid as a PNG. */
+  onExportPng: (board: Board) => Promise<void>
+  /** Updates the image generation model. */
+  onImageModelChange: (value: string) => void
+  /** Opens the storyboard import file picker. */
+  onImport: () => void
+  /** Updates the selected number of scene rows. */
+  onRowsChange: (rows: number) => void
+  /** Updates whether scene parameters are visible. */
+  onShowParametersChange: (showParameters: boolean) => void
+  /** Selected number of scene rows. */
+  rows: number
+  /** Whether scene parameters are visible. */
+  showParameters: boolean
+}
+
+/** Persistent toolbar shell that skips selected-board-only updates. */
+function WorkspaceToolbarView({
+  columns,
+  imageModel,
+  onColumnsChange,
+  onExportPng,
+  onImageModelChange,
+  onImport,
+  onRowsChange,
+  onShowParametersChange,
+  rows,
+  showParameters,
+}: WorkspaceToolbarProps) {
+  return (
+    <BoardToolbar>
+      <BoardToolbar.Brand name="Boooards" version="v1.3" />
+      <BoardToolbar.Controls>
+        <GridSteppers
+          columns={columns}
+          onColumnsChange={onColumnsChange}
+          onRowsChange={onRowsChange}
+          rows={rows}
+        />
+        <Field>
+          <Field.Label>Nano Banana</Field.Label>
+          <Field.Control>
+            <div>
+              <SegmentedControl
+                label="Image model"
+                onValueChange={onImageModelChange}
+                value={imageModel}
+                variant="raised"
+              >
+                <SegmentedControl.Option value="lite">
+                  Lite
+                </SegmentedControl.Option>
+                <SegmentedControl.Option value="pro">
+                  Pro
+                </SegmentedControl.Option>
+              </SegmentedControl>
+            </div>
+          </Field.Control>
+        </Field>
+        <Field>
+          <Field.Label>Parameters</Field.Label>
+          <Field.Control>
+            <Switch
+              checked={showParameters}
+              onCheckedChange={onShowParametersChange}
+            />
+          </Field.Control>
+        </Field>
+      </BoardToolbar.Controls>
+      <BoardToolbar.Actions>
+        <BoardToolbar.Action onClick={onImport}>
+          <SFArrowUpToLine aria-hidden />
+          Import
+        </BoardToolbar.Action>
+        <WorkspaceExportActions onExportPng={onExportPng} />
+        <SoundControl />
+        <BoardToolbar.ThemeToggle />
+      </BoardToolbar.Actions>
+    </BoardToolbar>
+  )
+}
+
+const WorkspaceToolbar = React.memo(WorkspaceToolbarView)
 
 interface DeleteBoardConfirmDialogProps {
   /** Board pending deletion, or null when the dialog is closed. */

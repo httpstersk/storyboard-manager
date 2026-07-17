@@ -207,15 +207,36 @@
 /* ─── Scene grid: board-switch view transition ────────────────────────────── */
 /*
  * Board switches run through the View Transitions API (see
- * storyboard-workspace.tsx). Naming the grid section scopes the cross-fade
- * to the scenes so the sidebar and toolbar stay put. The transition is
- * only started when motion is allowed, so no reduced-motion guard is
- * needed here.
+ * storyboard-workspace.tsx). Keep the root snapshot static so persistent
+ * workspace chrome does not flash, then cross-fade only the fixed-size scene
+ * viewport. The transition is only started when motion is allowed.
  */
-::view-transition-old(scene-board),
+::view-transition-old(root),
+::view-transition-new(root) {
+  animation: none;
+  mix-blend-mode: normal;
+}
+
+::view-transition-old(scene-board) {
+  animation: scene-board-fade-out 0.2s var(--ease-out) both;
+  mix-blend-mode: normal;
+}
+
 ::view-transition-new(scene-board) {
-  animation-duration: 0.25s;
-  animation-timing-function: var(--ease-out);
+  animation: scene-board-fade-in 0.2s var(--ease-out) both;
+  mix-blend-mode: normal;
+}
+
+@keyframes scene-board-fade-out {
+  to {
+    opacity: 0;
+  }
+}
+
+@keyframes scene-board-fade-in {
+  from {
+    opacity: 0;
+  }
 }
 
 /* ─── Scene grid: generation scan line ────────────────────────────────────── */
