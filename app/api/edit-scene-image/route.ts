@@ -50,7 +50,7 @@ export async function POST(request: Request): Promise<Response> {
   }
 
   try {
-    const { imageModel, prompt, sourceImage } = parsedRequest.data
+    const { imageModel, prompt, resolution, sourceImage } = parsedRequest.data
     const { image } = await generateImage({
       model: fal.image(resolveNanoBananaEditModelId(imageModel)),
       n: 1,
@@ -62,7 +62,8 @@ export async function POST(request: Request): Promise<Response> {
         fal: {
           limit_generations: true,
           outputFormat: "png",
-          resolution: "1K",
+          // Nano Banana Lite is fixed at 1K; only Pro accepts resolution.
+          ...(imageModel === "pro" ? { resolution } : {}),
           // This endpoint accepts image_urls, not the singular image_url that
           // the Fal provider uses by default for a prompt image.
           useMultipleImages: true,

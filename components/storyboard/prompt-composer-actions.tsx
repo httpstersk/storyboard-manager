@@ -40,6 +40,7 @@ function PromptComposerActions() {
   const referenceCount =
     characterImageReferences.length + styleImageReferences.length
   const hasAvailableReferenceSlot = referenceCount < MAX_IMAGE_REFERENCES
+  const canAddReference = !isDisabled && hasAvailableReferenceSlot
 
   if (mode === "image-edit") {
     return <PromptComposerImageEditActions />
@@ -92,22 +93,14 @@ function PromptComposerActions() {
           onToggle={() => setIsCharacterSheetOpen(!isCharacterSheetOpen)}
         />
         <ImageReferenceControl
-          canAdd={!isDisabled && hasAvailableReferenceSlot}
-          canRemove={!isDisabled && characterImageReferences.length > 0}
+          canAdd={canAddReference}
           label="Characters"
           onAdd={() => characterImageInputRef.current?.click()}
-          onRemoveLast={() =>
-            setCharacterImageReferences(characterImageReferences.slice(0, -1))
-          }
         />
         <ImageReferenceControl
-          canAdd={!isDisabled && hasAvailableReferenceSlot}
-          canRemove={!isDisabled && styleImageReferences.length > 0}
+          canAdd={canAddReference}
           label="Visual style"
           onAdd={() => styleImageInputRef.current?.click()}
-          onRemoveLast={() =>
-            setStyleImageReferences(styleImageReferences.slice(0, -1))
-          }
         />
         <input
           accept={IMAGE_UPLOAD_RULES.acceptedTypes.join(",")}

@@ -17,6 +17,7 @@ import {
 } from "@/components/storyboard/prompt-composer-context"
 import { PromptComposerInput } from "@/components/storyboard/prompt-composer-input"
 import { imageModelAtom } from "@/lib/image-model-settings"
+import { imageResolutionAtom } from "@/lib/image-resolution-settings"
 import { TRANSITION_FADE_FAST } from "@/lib/motion"
 import { cn } from "@/lib/utils"
 
@@ -43,6 +44,7 @@ function PromptComposerRoot({
   ...props
 }: PromptComposerRootProps) {
   const imageModel = useAtomValue(imageModelAtom)
+  const imageResolution = useAtomValue(imageResolutionAtom)
   const [state, dispatch] = React.useReducer(
     composerReducer,
     INITIAL_COMPOSER_STATE
@@ -130,6 +132,7 @@ function PromptComposerRoot({
           characterSheets,
           imageModel,
           prompt: trimmedPrompt,
+          resolution: imageResolution,
           styleImageRefs,
         })
 

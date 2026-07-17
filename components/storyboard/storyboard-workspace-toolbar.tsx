@@ -11,7 +11,7 @@ import { SegmentedControl } from "@/components/ui/segmented-control"
 import { Stepper } from "@/components/ui/stepper"
 import { Switch } from "@/components/ui/switch"
 import { exportBoardJson } from "@/lib/board-io"
-import { type ImageModel } from "@/lib/generation"
+import { type ImageModel, type ImageResolution } from "@/lib/generation"
 import { COLUMN_LIMITS, ROW_LIMITS, type Board } from "@/lib/storyboard"
 
 interface WorkspaceExportActionsProps {
@@ -103,12 +103,16 @@ interface WorkspaceToolbarProps {
   columns: number
   /** Image generation model selected for new storyboards. */
   imageModel: ImageModel
+  /** Output resolution selected for Pro generation and editing. */
+  imageResolution: ImageResolution
   /** Updates the selected number of scene columns. */
   onColumnsChange: (columns: number) => void
   /** Exports the selected board's scene grid as a PNG. */
   onExportPng: (board: Board) => Promise<void>
   /** Updates the image generation model. */
   onImageModelChange: (value: string) => void
+  /** Updates the output resolution preference. */
+  onImageResolutionChange: (value: string) => void
   /** Opens the storyboard import file picker. */
   onImport: () => void
   /** Updates the selected number of scene rows. */
@@ -125,15 +129,19 @@ interface WorkspaceToolbarProps {
 function WorkspaceToolbar({
   columns,
   imageModel,
+  imageResolution,
   onColumnsChange,
   onExportPng,
   onImageModelChange,
+  onImageResolutionChange,
   onImport,
   onRowsChange,
   onShowParametersChange,
   rows,
   showParameters,
 }: WorkspaceToolbarProps) {
+  const isResolutionDisabled = imageModel === "lite"
+
   return (
     <BoardToolbar>
       <BoardToolbar.Brand name="Boooards" version="v1.3" />
@@ -158,6 +166,33 @@ function WorkspaceToolbar({
                 </SegmentedControl.Option>
                 <SegmentedControl.Option value="pro">
                   Pro
+                </SegmentedControl.Option>
+              </SegmentedControl>
+            </div>
+          </Field.Control>
+        </Field>
+        <Field>
+          <Field.Label>Resolution</Field.Label>
+          <Field.Control>
+            <div>
+              <SegmentedControl
+                disabled={isResolutionDisabled}
+                label={
+                  isResolutionDisabled
+                    ? "Output resolution (available with Nano Banana Pro)"
+                    : "Output resolution"
+                }
+                onValueChange={onImageResolutionChange}
+                value={imageResolution}
+              >
+                <SegmentedControl.Option value="1K">
+                  1K
+                </SegmentedControl.Option>
+                <SegmentedControl.Option value="2K">
+                  2K
+                </SegmentedControl.Option>
+                <SegmentedControl.Option value="4K">
+                  4K
                 </SegmentedControl.Option>
               </SegmentedControl>
             </div>

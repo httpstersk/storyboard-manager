@@ -1,5 +1,6 @@
 import {
   type ImageModel,
+  type ImageResolution,
   sceneImageEditResponseSchema,
 } from "@/lib/generation"
 
@@ -7,6 +8,7 @@ import {
 export interface SceneImageEditRequestPayload {
   imageModel: ImageModel
   prompt: string
+  resolution: ImageResolution
   sourceImage: string
 }
 

@@ -16,6 +16,7 @@ import { EditSceneImagePrompt } from "@/components/storyboard/edit-scene-image-p
 import { Dialog } from "@/components/ui/dialog"
 import { requestSceneImageEdit } from "@/lib/edit-scene-image-client"
 import { imageModelAtom } from "@/lib/image-model-settings"
+import { imageResolutionAtom } from "@/lib/image-resolution-settings"
 import { type Scene } from "@/lib/storyboard"
 import { validateImageFile } from "@/lib/validation"
 
@@ -122,6 +123,7 @@ function EditSceneDialog({
   sceneNumber,
 }: EditSceneDialogProps) {
   const imageModel = useAtomValue(imageModelAtom)
+  const imageResolution = useAtomValue(imageResolutionAtom)
   const [canClear, setCanClear] = React.useState(false)
   const [canUndo, setCanUndo] = React.useState(false)
   const drawingCanvasRef = React.useRef<DrawingCanvasHandle>(null)
@@ -198,6 +200,7 @@ function EditSceneDialog({
     const editResult = await requestSceneImageEdit({
       imageModel,
       prompt,
+      resolution: imageResolution,
       sourceImage: previewImage,
     })
       .then((image) => ({ image, ok: true as const }))

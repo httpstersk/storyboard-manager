@@ -8,10 +8,13 @@ import { exportNodePng, parseBoardFile } from "@/lib/board-io"
 import { requestStoryboardGeneration } from "@/lib/generate-storyboard-client"
 import {
   isImageModel,
+  isImageResolution,
   type ImageModel,
+  type ImageResolution,
   type StoryboardGenerationRequest,
 } from "@/lib/generation"
 import { imageModelAtom } from "@/lib/image-model-settings"
+import { imageResolutionAtom } from "@/lib/image-resolution-settings"
 import {
   loadStoredWorkspace,
   saveStoredWorkspace,
@@ -68,6 +71,7 @@ interface StoryboardWorkspaceModel {
     generationRequest: StoryboardGenerationRequest
   ) => Promise<void>
   handleImageModelChange: (value: string) => void
+  handleImageResolutionChange: (value: string) => void
   handleImportClick: () => void
   handleImportFile: (file: File) => Promise<void>
   handleNewBoard: () => void
@@ -76,6 +80,7 @@ interface StoryboardWorkspaceModel {
   handleShowParametersChange: (showParameters: boolean) => void
   handleUpdateScene: (sceneId: string, patch: Partial<Scene>) => void
   imageModel: ImageModel
+  imageResolution: ImageResolution
   importInputRef: React.RefObject<HTMLInputElement | null>
   nextEditingSceneId: string | null
   previousEditingSceneId: string | null
@@ -89,6 +94,7 @@ interface StoryboardWorkspaceModel {
 /** Owns workspace state, persistence, and action handlers. */
 function useStoryboardWorkspaceModel(): StoryboardWorkspaceModel {
   const [imageModel, setImageModel] = useAtom(imageModelAtom)
+  const [imageResolution, setImageResolution] = useAtom(imageResolutionAtom)
   const [state, dispatch] = React.useReducer(
     workspaceReducer,
     undefined,
@@ -208,6 +214,12 @@ function useStoryboardWorkspaceModel(): StoryboardWorkspaceModel {
     }
   }
 
+  const handleImageResolutionChange = (value: string) => {
+    if (isImageResolution(value)) {
+      setImageResolution(value)
+    }
+  }
+
   const handleImportClick = () => {
     importInputRef.current?.click()
   }
@@ -317,6 +329,7 @@ function useStoryboardWorkspaceModel(): StoryboardWorkspaceModel {
     handleExportPng,
     handleGenerateStoryboard,
     handleImageModelChange,
+    handleImageResolutionChange,
     handleImportClick,
     handleImportFile,
     handleNewBoard,
@@ -325,6 +338,7 @@ function useStoryboardWorkspaceModel(): StoryboardWorkspaceModel {
     handleShowParametersChange,
     handleUpdateScene,
     imageModel,
+    imageResolution,
     importInputRef,
     nextEditingSceneId,
     previousEditingSceneId,

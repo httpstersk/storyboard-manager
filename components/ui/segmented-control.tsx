@@ -68,6 +68,8 @@ function useSegmentedControlContext(): SegmentedControlContextValue {
 interface SegmentedControlProps {
   children: React.ReactNode
   className?: string
+  /** When true, prevents selecting a different option. */
+  disabled?: boolean
   /** Accessible name of the control. */
   label: string
   /** Called with the newly selected value. */
@@ -90,6 +92,7 @@ interface SegmentedControlProps {
 function SegmentedControlRoot({
   children,
   className,
+  disabled = false,
   label,
   onValueChange,
   value,
@@ -108,8 +111,10 @@ function SegmentedControlRoot({
       aria-label={label}
       className={cn(
         "relative flex items-center rounded-full bg-surface-inset p-0.5",
+        disabled && "pointer-events-none opacity-50",
         className
       )}
+      disabled={disabled}
       onValueChange={(next) => {
         if (next) {
           onValueChange(next)

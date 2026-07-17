@@ -59,6 +59,20 @@ export function isImageModel(value: string): value is ImageModel {
   return (IMAGE_MODELS as readonly string[]).includes(value)
 }
 
+/**
+ * Output resolutions accepted by Nano Banana Pro on fal.
+ * Lite is fixed at 1K and ignores this preference.
+ */
+export const IMAGE_RESOLUTIONS = ["1K", "2K", "4K"] as const
+
+/** Selected fal output resolution for Pro generation and editing. */
+export type ImageResolution = (typeof IMAGE_RESOLUTIONS)[number]
+
+/** Type guard for values emitted by the Resolution segmented control. */
+export function isImageResolution(value: string): value is ImageResolution {
+  return (IMAGE_RESOLUTIONS as readonly string[]).includes(value)
+}
+
 /** Fal model IDs for Nano Banana Lite text-to-image and edit. */
 const NANO_BANANA_LITE_MODEL_IDS = {
   edit: "google/nano-banana-lite/edit",
@@ -88,6 +102,9 @@ const dataUrlSchema = z
 /** Runtime schema for the Lite / Pro image model preference. */
 export const imageModelSchema = z.enum(IMAGE_MODELS).default("lite")
 
+/** Runtime schema for the 1K / 2K / 4K output resolution preference. */
+export const imageResolutionSchema = z.enum(IMAGE_RESOLUTIONS).default("2K")
+
 /** Runtime schema for requests entering the generation API boundary. */
 export const storyboardGenerationRequestSchema = z
   .object({
@@ -97,6 +114,7 @@ export const storyboardGenerationRequestSchema = z
       .max(MAX_CHARACTER_SHEETS),
     imageModel: imageModelSchema,
     prompt: z.string().trim().min(1).max(MAX_PROMPT_LENGTH),
+    resolution: imageResolutionSchema,
     styleImageRefs: z.array(dataUrlSchema).max(MAX_IMAGE_REFERENCES),
   })
   .refine(
@@ -169,6 +187,7 @@ export const storyboardGenerationResponseSchema = z.object({
 export const sceneImageEditRequestSchema = z.object({
   imageModel: imageModelSchema,
   prompt: z.string().trim().min(1).max(MAX_SCENE_IMAGE_EDIT_PROMPT_LENGTH),
+  resolution: imageResolutionSchema,
   sourceImage: dataUrlSchema,
 })
 
@@ -183,6 +202,7 @@ export interface StoryboardGenerationRequest {
   characterSheets: string[]
   imageModel: ImageModel
   prompt: string
+  resolution: ImageResolution
   styleImageRefs: string[]
 }
 
@@ -190,6 +210,7 @@ export interface StoryboardGenerationRequest {
 export interface SceneImageEditRequest {
   imageModel: ImageModel
   prompt: string
+  resolution: ImageResolution
   sourceImage: string
 }
 

@@ -65,6 +65,7 @@ export async function POST(request: Request): Promise<Response> {
       characterSheets,
       imageModel,
       prompt,
+      resolution,
       styleImageRefs,
     } = parsedRequest.data
     const referenceImages = [...characterImageRefs, ...styleImageRefs]
@@ -116,7 +117,8 @@ export async function POST(request: Request): Promise<Response> {
           aspect_ratio: chooseCompositeAspectRatio(layout),
           limit_generations: true,
           outputFormat: "jpeg",
-          resolution: "2K",
+          // Nano Banana Lite is fixed at 1K; only Pro accepts resolution.
+          ...(imageModel === "pro" ? { resolution } : {}),
           // Nano Banana's edit endpoint requires image_urls even for one
           // reference image.
           useMultipleImages: referenceImages.length > 0,

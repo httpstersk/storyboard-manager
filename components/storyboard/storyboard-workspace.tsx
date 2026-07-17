@@ -37,6 +37,7 @@ function StoryboardWorkspace() {
     handleExportPng,
     handleGenerateStoryboard,
     handleImageModelChange,
+    handleImageResolutionChange,
     handleImportClick,
     handleImportFile,
     handleNewBoard,
@@ -45,6 +46,7 @@ function StoryboardWorkspace() {
     handleShowParametersChange,
     handleUpdateScene,
     imageModel,
+    imageResolution,
     importInputRef,
     nextEditingSceneId,
     previousEditingSceneId,
@@ -74,9 +76,11 @@ function StoryboardWorkspace() {
           <WorkspaceToolbar
             columns={state.columns}
             imageModel={imageModel}
+            imageResolution={imageResolution}
             onColumnsChange={handleColumnsChange}
             onExportPng={handleExportPng}
             onImageModelChange={handleImageModelChange}
+            onImageResolutionChange={handleImageResolutionChange}
             onImport={handleImportClick}
             onRowsChange={handleRowsChange}
             onShowParametersChange={handleShowParametersChange}
