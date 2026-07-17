@@ -339,8 +339,17 @@ function StoryboardWorkspace() {
   const editingIndex = selectedBoard.scenes.findIndex(
     (scene) => scene.id === state.editingSceneId
   )
+  const canNavigateNextScene =
+    editingIndex !== -1 && editingIndex < selectedBoard.scenes.length - 1
+  const canNavigatePreviousScene = editingIndex > 0
   const editingScene =
     editingIndex === -1 ? null : selectedBoard.scenes[editingIndex]
+  const nextEditingSceneId = canNavigateNextScene
+    ? selectedBoard.scenes[editingIndex + 1]?.id ?? null
+    : null
+  const previousEditingSceneId = canNavigatePreviousScene
+    ? selectedBoard.scenes[editingIndex - 1]?.id ?? null
+    : null
   const visibleScenes = selectedBoard.scenes.slice(
     0,
     state.rows * state.columns
@@ -694,6 +703,18 @@ function StoryboardWorkspace() {
         )}
       </AnimatePresence>
       <EditSceneDialog
+        canNavigateNext={canNavigateNextScene}
+        canNavigatePrevious={canNavigatePreviousScene}
+        onNavigateNext={() => {
+          if (nextEditingSceneId !== null) {
+            dispatch({ sceneId: nextEditingSceneId, type: "setEditingScene" })
+          }
+        }}
+        onNavigatePrevious={() => {
+          if (previousEditingSceneId !== null) {
+            dispatch({ sceneId: previousEditingSceneId, type: "setEditingScene" })
+          }
+        }}
         onOpenChange={(open) => {
           if (!open) {
             dispatch({ sceneId: null, type: "setEditingScene" })

@@ -2,6 +2,8 @@
 
 import { useAtomValue } from "jotai"
 import {
+  SFArrowLeft,
+  SFArrowRight,
   SFArrowCounterclockwise,
   SFEraser,
   SFIcloudAndArrowUp,
@@ -103,6 +105,14 @@ function dialogReducer(state: DialogState, action: DialogAction): DialogState {
 
 /** Props for {@link EditSceneDialog}. */
 interface EditSceneDialogProps {
+  /** Whether navigation to the next scene is available. */
+  canNavigateNext: boolean
+  /** Whether navigation to the previous scene is available. */
+  canNavigatePrevious: boolean
+  /** Called to navigate to the next scene while keeping dialog open. */
+  onNavigateNext: () => void
+  /** Called to navigate to the previous scene while keeping dialog open. */
+  onNavigatePrevious: () => void
   /** Called when the dialog requests to open or close. */
   onOpenChange: (open: boolean) => void
   /** Called with the scene patch when the user saves. */
@@ -120,6 +130,10 @@ interface EditSceneDialogProps {
  * validation, drawing tool controls, and save/cancel actions.
  */
 function EditSceneDialog({
+  canNavigateNext,
+  canNavigatePrevious,
+  onNavigateNext,
+  onNavigatePrevious,
   onOpenChange,
   onSave,
   open,
@@ -133,12 +147,8 @@ function EditSceneDialog({
   const fileInputRef = React.useRef<HTMLInputElement>(null)
   const [state, dispatch] = React.useReducer(dialogReducer, initialDialogState)
   const { brushSize, color, draftImage, error, isEditingImage, tool } = state
-
-  if (scene === null) {
-    return null
-  }
-
-  const previewImage = draftImage === undefined ? scene.image : draftImage
+  const previousSceneIdRef = React.useRef<string | null>(null)
+  const previewImage = draftImage === undefined ? scene?.image : draftImage
 
   function handleClearDrawing() {
     drawingCanvasRef.current?.clear()
@@ -178,6 +188,18 @@ function EditSceneDialog({
     }
 
     onOpenChange(nextOpen)
+  }
+
+  function handleNavigateNext() {
+    if (!isEditingImage && canNavigateNext) {
+      onNavigateNext()
+    }
+  }
+
+  function handleNavigatePrevious() {
+    if (!isEditingImage && canNavigatePrevious) {
+      onNavigatePrevious()
+    }
   }
 
   async function handleImageEdit(prompt: string) {
@@ -260,6 +282,78 @@ function EditSceneDialog({
     setCanUndo(false)
   }
 
+  React.useEffect(() => {
+    if (!open || scene === null) {
+      previousSceneIdRef.current = null
+      return
+    }
+
+    if (previousSceneIdRef.current !== null && previousSceneIdRef.current !== scene.id) {
+      resetState()
+    }
+
+    previousSceneIdRef.current = scene.id
+  }, [open, scene])
+
+  React.useEffect(() => {
+    if (!open) {
+      return
+    }
+
+    function isTextEntryTarget(target: EventTarget | null): boolean {
+      if (!(target instanceof HTMLElement)) {
+        return false
+      }
+
+      const tagName = target.tagName.toLowerCase()
+
+      if (tagName === "input" || tagName === "textarea" || target.isContentEditable) {
+        return true
+      }
+
+      return target.closest("[contenteditable='true']") !== null
+    }
+
+    function handleKeyDown(event: KeyboardEvent): void {
+      if (
+        event.defaultPrevented ||
+        event.altKey ||
+        event.ctrlKey ||
+        event.metaKey ||
+        event.shiftKey ||
+        isEditingImage ||
+        isTextEntryTarget(event.target)
+      ) {
+        return
+      }
+
+      if (event.key === "ArrowLeft" && canNavigatePrevious) {
+        event.preventDefault()
+        onNavigatePrevious()
+      } else if (event.key === "ArrowRight" && canNavigateNext) {
+        event.preventDefault()
+        onNavigateNext()
+      }
+    }
+
+    window.addEventListener("keydown", handleKeyDown)
+
+    return () => {
+      window.removeEventListener("keydown", handleKeyDown)
+    }
+  }, [
+    canNavigateNext,
+    canNavigatePrevious,
+    isEditingImage,
+    onNavigateNext,
+    onNavigatePrevious,
+    open,
+  ])
+
+  if (scene === null) {
+    return null
+  }
+
   return (
     <Dialog onOpenChange={handleOpenChange} open={open}>
       <Dialog.Content>
@@ -270,11 +364,27 @@ function EditSceneDialog({
               {formatSeconds(scene.timeSeconds)}
             </Dialog.Description>
           </div>
-          <Dialog.Close asChild>
-            <IconButton label="Close">
-              <SFXmark aria-hidden />
+          <div className="flex items-center gap-1.5">
+            <IconButton
+              disabled={isEditingImage || !canNavigatePrevious}
+              label="Previous scene"
+              onClick={handleNavigatePrevious}
+            >
+              <SFArrowLeft aria-hidden />
             </IconButton>
-          </Dialog.Close>
+            <IconButton
+              disabled={isEditingImage || !canNavigateNext}
+              label="Next scene"
+              onClick={handleNavigateNext}
+            >
+              <SFArrowRight aria-hidden />
+            </IconButton>
+            <Dialog.Close asChild>
+              <IconButton label="Close">
+                <SFXmark aria-hidden />
+              </IconButton>
+            </Dialog.Close>
+          </div>
         </Dialog.Header>
         <div className="flex h-12 shrink-0 items-center justify-between gap-2 px-5">
           <div className="flex items-center gap-2.5">
