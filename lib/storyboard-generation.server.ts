@@ -99,7 +99,7 @@ export function buildCompositePrompt({
   const renderingDirection =
     styleImageCount === 0
       ? "Every cell is photorealistic live-action cinematography — real human skin texture, real fabric and materials, natural depth of field, and the optical character of the camera body and lens named for that cell. Absolutely no illustration, storyboard sketch, pencil or ink drawing, comic art, anime, cel-shading, watercolor, concept-art painting, or 3D cartoon rendering."
-      : "Match the visual-style reference images across every cell: preserve their medium, palette, contrast, lighting language, texture, production design, and image-making treatment. Apply that treatment to this story rather than copying any referenced person, pose, composition, location, or narrative event."
+      : "Lock the style of every cell by referring to the style of the attached visual-style image(s): preserve their medium, palette, contrast, lighting language, texture, production design, and image-making treatment across the entire sheet. Apply that locked style to this story rather than copying any referenced person, pose, composition, location, or narrative event."
 
   return `Create ONE finished cinematic storyboard contact sheet, not separate images.
 
@@ -175,7 +175,7 @@ function buildReferenceDirections(
         : `Input images ${firstStyleImage}–${lastStyleImage}`
 
     directions.push(
-      `${styleImageRange}: VISUAL STYLE REFERENCES. Use only for medium, palette, lighting, texture, production design, and cinematic treatment. Do not copy people, wardrobe, poses, locations, compositions, or story content from them.`
+      `${styleImageRange}: VISUAL STYLE REFERENCES. Lock every cell to the style of ${styleImageCount === 1 ? "this attached image" : "these attached images"} — use only for medium, palette, lighting, texture, production design, and cinematic treatment. Do not copy people, wardrobe, poses, locations, compositions, or story content from them.`
     )
   }
 
