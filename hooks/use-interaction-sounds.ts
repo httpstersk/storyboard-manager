@@ -54,6 +54,14 @@ function resolveControl(target: EventTarget | null): Element | null {
  */
 export function useInteractionSounds(): void {
   const { enabled, volume } = useAtomValue(soundSettingsAtom)
+  // Read the latest volume inside the handlers via a ref so dragging the
+  // volume slider does not tear down and re-bind the document listeners on
+  // every step; the listener effect below re-runs only when `enabled` flips.
+  const volumeRef = React.useRef(volume)
+
+  React.useEffect(() => {
+    volumeRef.current = volume
+  }, [volume])
 
   React.useEffect(() => {
     if (!enabled) {
@@ -62,7 +70,7 @@ export function useInteractionSounds(): void {
 
     function play(target: EventTarget | null): void {
       if (resolveControl(target) !== null) {
-        playClickSound({ volume })
+        playClickSound({ volume: volumeRef.current })
       }
     }
 
@@ -90,5 +98,5 @@ export function useInteractionSounds(): void {
       document.removeEventListener("pointerdown", onPointerDown)
       document.removeEventListener("keydown", onKeyDown)
     }
-  }, [enabled, volume])
+  }, [enabled])
 }

@@ -84,13 +84,13 @@ function SceneGrid({
     // height -- exports therefore still include every visible row.
     <div
       aria-busy={isGenerating}
-      className="[container-type:inline-size] relative min-h-0 flex-1 overflow-x-hidden overflow-y-auto rounded-2xl bg-grid-line pb-112 [container-name:scene-grid]"
+      className="@container/scene-grid relative min-h-0 flex-1 overflow-x-hidden overflow-y-auto rounded-2xl bg-grid-line pb-112"
     >
       <section
         aria-label="Scenes"
         ref={ref}
         data-cols={columns}
-        className="scene-grid grid content-start gap-px bg-grid-line"
+        className="scene-grid grid content-start gap-px bg-grid-line [view-transition-name:scene-board]"
       >
         <AnimatePresence initial={false} mode="popLayout">
           {visibleScenes.map((scene, index) => (
@@ -132,16 +132,7 @@ function SceneGrid({
             key="generation-scan"
             transition={{ duration: 0.2, ease: "easeOut" }}
           >
-            <m.div
-              animate={{ top: ["0%", "100%"] }}
-              className="absolute inset-x-0 h-px bg-emphasis/80 motion-reduce:hidden"
-              transition={{
-                duration: 1.8,
-                ease: "easeInOut",
-                repeat: Number.POSITIVE_INFINITY,
-                repeatType: "mirror",
-              }}
-            />
+            <div className="scene-scan-line absolute inset-x-0 h-px bg-emphasis/80 motion-reduce:hidden" />
           </m.div>
         ) : null}
       </AnimatePresence>

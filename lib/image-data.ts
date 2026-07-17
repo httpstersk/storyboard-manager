@@ -6,6 +6,13 @@
 const IMAGE_MIME_TYPES = new Set(["image/jpeg", "image/png"])
 
 /**
+ * Bytes converted to a binary string per iteration. Chunking keeps the
+ * `String.fromCharCode` argument list within engine limits while avoiding
+ * the O(n) memory churn of appending one character at a time.
+ */
+const BASE64_CHUNK_SIZE = 0x8000
+
+/**
  * Reads a Blob into a `data:` URL for use in React state and exports. A
  * stored MIME type restores images written by browsers that omit Blob.type.
  */
@@ -17,8 +24,10 @@ export async function blobToDataUrl(
   const bytes = new Uint8Array(buffer)
   let binary = ""
 
-  for (let index = 0; index < bytes.length; index += 1) {
-    binary += String.fromCharCode(bytes[index])
+  for (let offset = 0; offset < bytes.length; offset += BASE64_CHUNK_SIZE) {
+    binary += String.fromCharCode(
+      ...bytes.subarray(offset, offset + BASE64_CHUNK_SIZE)
+    )
   }
 
   const mimeType =
@@ -52,11 +61,7 @@ export function dataUrlToBlob(dataUrl: string): Blob | null {
   try {
     if (isBase64) {
       const binary = atob(payload)
-      const bytes = new Uint8Array(binary.length)
-
-      for (let index = 0; index < binary.length; index += 1) {
-        bytes[index] = binary.charCodeAt(index)
-      }
+      const bytes = Uint8Array.from(binary, (char) => char.charCodeAt(0))
 
       return new Blob([bytes], { type: mimeType })
     }

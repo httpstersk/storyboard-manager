@@ -67,17 +67,14 @@ function Stepper({
   value,
   ...props
 }: StepperProps) {
-  const contextValue = React.useMemo<StepperContextValue>(
-    () => ({
-      decrement: () => onValueChange(Math.max(min, value - step)),
-      increment: () => onValueChange(Math.min(max, value + step)),
-      label,
-      max,
-      min,
-      value,
-    }),
-    [label, max, min, onValueChange, step, value]
-  )
+  const contextValue: StepperContextValue = {
+    decrement: () => onValueChange(Math.max(min, value - step)),
+    increment: () => onValueChange(Math.min(max, value + step)),
+    label,
+    max,
+    min,
+    value,
+  }
 
   return (
     <div

@@ -51,6 +51,13 @@ function isTypingTarget(target: EventTarget | null) {
 
 function ThemeHotkey() {
   const { resolvedTheme, setTheme } = useTheme()
+  // Read the current theme inside the handler via a ref so the "d" hotkey
+  // listener binds once instead of re-binding on every theme toggle.
+  const resolvedThemeRef = React.useRef(resolvedTheme)
+
+  React.useEffect(() => {
+    resolvedThemeRef.current = resolvedTheme
+  }, [resolvedTheme])
 
   React.useEffect(() => {
     function onKeyDown(event: KeyboardEvent) {
@@ -70,7 +77,7 @@ function ThemeHotkey() {
         return
       }
 
-      setTheme(resolvedTheme === "dark" ? "light" : "dark")
+      setTheme(resolvedThemeRef.current === "dark" ? "light" : "dark")
     }
 
     window.addEventListener("keydown", onKeyDown)
@@ -78,7 +85,7 @@ function ThemeHotkey() {
     return () => {
       window.removeEventListener("keydown", onKeyDown)
     }
-  }, [resolvedTheme, setTheme])
+  }, [setTheme])
 
   return null
 }

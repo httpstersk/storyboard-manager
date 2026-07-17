@@ -4,6 +4,7 @@ import { useAtom } from "jotai"
 import { SFArrowDownToLine, SFArrowUpToLine } from "sf-symbols-lib/monochrome"
 import { AnimatePresence, m } from "motion/react"
 import * as React from "react"
+import { flushSync } from "react-dom"
 
 import { Sidebar } from "@/components/storyboard/app-sidebar"
 import { BoardStatusBar } from "@/components/storyboard/board-status-bar"
@@ -219,6 +220,27 @@ function createBoardId(): string {
     : `board-${Date.now()}`
 }
 
+/**
+ * Runs a DOM-mutating state update inside a View Transition when the
+ * browser supports it and the user has not requested reduced motion, so
+ * switching boards cross-fades the scene grid; otherwise applies the
+ * update directly. `flushSync` forces React to commit synchronously so the
+ * browser captures the post-update DOM for the transition.
+ */
+function withViewTransition(update: () => void): void {
+  if (
+    typeof document !== "undefined" &&
+    "startViewTransition" in document &&
+    !window.matchMedia("(prefers-reduced-motion: reduce)").matches
+  ) {
+    document.startViewTransition(() => flushSync(update))
+
+    return
+  }
+
+  update()
+}
+
 /** Shared spring for the sidebar collapse/expand transition; interruptible
  * so rapid toggling doesn't fight itself. */
 const SIDEBAR_SPRING = { type: "spring", duration: 0.4, bounce: 0.1 } as const
@@ -308,7 +330,8 @@ function StoryboardWorkspace() {
   const selectedBoard =
     state.boards.find((board) => board.id === state.selectedBoardId) ??
     state.boards[0]
-  const normalizedQuery = state.query.trim().toLowerCase()
+  const deferredQuery = React.useDeferredValue(state.query)
+  const normalizedQuery = deferredQuery.trim().toLowerCase()
   const visibleBoards = state.boards.filter((board) =>
     board.title.toLowerCase().includes(normalizedQuery)
   )
@@ -334,6 +357,14 @@ function StoryboardWorkspace() {
       ),
       type: "addBoard",
     })
+  }
+
+  const handleSelectBoard = (boardId: string) => {
+    if (boardId === state.selectedBoardId) {
+      return
+    }
+
+    withViewTransition(() => dispatch({ boardId, type: "selectBoard" }))
   }
 
   const handleImportFile = async (file: File) => {
@@ -418,7 +449,7 @@ function StoryboardWorkspace() {
           the floating panel below) instead of widening this column. Kept
           at a fixed viewport height rather than stretching to <main>'s
           natural height so a rows/columns edit can't distort it. */}
-      <div className="mt-3 h-[calc(100svh_-_3rem)] shrink-0">
+      <div className="mt-3 h-[var(--height-shell)] shrink-0">
         <Sidebar.Rail
           boards={state.boards}
           className="h-full"
@@ -426,9 +457,7 @@ function StoryboardWorkspace() {
             dispatch({ collapsed: false, type: "setSidebarCollapsed" })
           }
           onNewBoard={handleNewBoard}
-          onSelectBoard={(boardId) =>
-            dispatch({ boardId, type: "selectBoard" })
-          }
+          onSelectBoard={handleSelectBoard}
           selectedBoardId={state.selectedBoardId}
         />
       </div>
@@ -569,7 +598,7 @@ function StoryboardWorkspace() {
           <m.div
             animate={{ opacity: 1 }}
             aria-hidden
-            className="absolute inset-0 z-40 bg-[oklch(0_0_0_/_0.32)] backdrop-blur-sm"
+            className="absolute inset-0 z-40 bg-scrim backdrop-blur-sm"
             exit={{ opacity: 0 }}
             initial={{ opacity: 0 }}
             key="composer-backdrop"
@@ -590,7 +619,7 @@ function StoryboardWorkspace() {
           <m.div
             animate={{ opacity: 1 }}
             aria-hidden
-            className="absolute inset-0 z-40 bg-[oklch(0_0_0_/_0.32)]"
+            className="absolute inset-0 z-40 bg-scrim"
             exit={{ opacity: 0 }}
             initial={{ opacity: 0 }}
             key="sidebar-backdrop"
@@ -603,7 +632,7 @@ function StoryboardWorkspace() {
         {!state.sidebarCollapsed && (
           <m.div
             animate={{ opacity: 1, x: 0 }}
-            className="absolute top-7.5 left-4.5 z-50 h-[calc(100svh_-_3rem)]"
+            className="absolute top-7.5 start-4.5 z-50 h-[var(--height-shell)]"
             exit={{ opacity: 0, x: -12 }}
             initial={{ opacity: 0, x: -12 }}
             key="sidebar-panel"
@@ -621,9 +650,7 @@ function StoryboardWorkspace() {
               </Sidebar.NewBoardButton>
               <Sidebar.BoardSwitcher
                 boards={state.boards}
-                onSelectBoard={(boardId) =>
-                  dispatch({ boardId, type: "selectBoard" })
-                }
+                onSelectBoard={handleSelectBoard}
                 selectedBoardId={state.selectedBoardId}
               />
               <Sidebar.Search
@@ -651,9 +678,7 @@ function StoryboardWorkspace() {
                           type: "renameBoard",
                         })
                       }
-                      onSelect={() =>
-                        dispatch({ boardId: board.id, type: "selectBoard" })
-                      }
+                      onSelect={() => handleSelectBoard(board.id)}
                       title={board.title}
                     />
                   ))}
@@ -720,7 +745,7 @@ function DeleteBoardConfirmDialog({
         <Dialog.Header>
           <Dialog.Title>Delete storyboard</Dialog.Title>
         </Dialog.Header>
-        <p className="px-5 py-4 text-body text-ink-muted">
+        <p className="px-5 py-4 text-body text-pretty text-ink-muted">
           Delete &ldquo;{board?.title}&rdquo;? This can&rsquo;t be undone.
         </p>
         <Dialog.Footer>

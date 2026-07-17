@@ -52,6 +52,7 @@
   --spacing: 0.25rem;
 
   /* Storyboard design system: colours */
+  --color-scrim: oklch(0 0 0 / 0.32);
   --color-edge: var(--edge);
   --color-edge-strong: var(--edge-strong);
   --color-emphasis: var(--emphasis);
@@ -85,6 +86,10 @@
   --tracking-display: -0.048em;
   --text-canvas: 13.75rem;
   --text-canvas-lg: 22rem;
+
+  /* Storyboard design system: layout. Height of the floating shell columns
+       (sidebar rail, sidebar panel, dialog) inset from the viewport top. */
+  --height-shell: calc(100svh - 3rem);
 
   /* Storyboard design system: elevation */
   --shadow-knob: 0px 1px 3px rgb(0 0 0 / 0.25);
@@ -197,6 +202,40 @@
   --surface-panel: #1d1d1d;
   --surface-raised: #383838;
   --surface-thumb: #242424;
+}
+
+/* ─── Scene grid: board-switch view transition ────────────────────────────── */
+/*
+ * Board switches run through the View Transitions API (see
+ * storyboard-workspace.tsx). Naming the grid section scopes the cross-fade
+ * to the scenes so the sidebar and toolbar stay put. The transition is
+ * only started when motion is allowed, so no reduced-motion guard is
+ * needed here.
+ */
+::view-transition-old(scene-board),
+::view-transition-new(scene-board) {
+  animation-duration: 0.25s;
+  animation-timing-function: var(--ease-out);
+}
+
+/* ─── Scene grid: generation scan line ────────────────────────────────────── */
+/*
+ * The scanning hairline shown while a board generates. Runs as a pure CSS
+ * animation (off the main thread) rather than a JS-driven one; the
+ * prefers-reduced-motion block below neutralises it, and the element also
+ * carries `motion-reduce:hidden`.
+ */
+.scene-scan-line {
+  animation: scene-scan 1.8s var(--ease-in-out) infinite alternate;
+}
+
+@keyframes scene-scan {
+  from {
+    inset-block-start: 0%;
+  }
+  to {
+    inset-block-start: 100%;
+  }
 }
 
 /* ─── Scene grid: container-driven column reflow ──────────────────────────── */

@@ -36,18 +36,74 @@ interface PromptComposerContextValue {
   prompt: string
   removeCharacterImageReference: (index: number) => void
   removeStyleImageReference: (index: number) => void
-  setCharacterImageReferences: React.Dispatch<React.SetStateAction<File[]>>
+  setCharacterImageReferences: (files: File[]) => void
   setCharacterSheetText: (value: string) => void
   setError: (error: string | null) => void
   setIsCharacterSheetOpen: (isOpen: boolean) => void
   setPrompt: (value: string) => void
-  setStyleImageReferences: React.Dispatch<React.SetStateAction<File[]>>
+  setStyleImageReferences: (files: File[]) => void
   styleImageReferences: File[]
-  submit: () => Promise<void>
+  submit: () => void
 }
 
 /** Supported request modes for the reusable prompt composer. */
 type PromptComposerMode = "image-edit" | "storyboard"
+
+/** Cohesive form state for the composer, driven by {@link composerReducer}. */
+interface ComposerState {
+  characterImageReferences: File[]
+  characterSheetText: string
+  error: string | null
+  isCharacterSheetOpen: boolean
+  prompt: string
+  styleImageReferences: File[]
+}
+
+type ComposerAction =
+  | { characterImageReferences: File[]; type: "setCharacterImageReferences" }
+  | { error: string | null; type: "setError" }
+  | { isCharacterSheetOpen: boolean; type: "setCharacterSheetOpen" }
+  | { prompt: string; type: "setPrompt" }
+  | { styleImageReferences: File[]; type: "setStyleImageReferences" }
+  | { text: string; type: "setCharacterSheetText" }
+  | { type: "reset" }
+  | { type: "resetPrompt" }
+
+const INITIAL_COMPOSER_STATE: ComposerState = {
+  characterImageReferences: [],
+  characterSheetText: "",
+  error: null,
+  isCharacterSheetOpen: false,
+  prompt: "",
+  styleImageReferences: [],
+}
+
+function composerReducer(
+  state: ComposerState,
+  action: ComposerAction
+): ComposerState {
+  switch (action.type) {
+    case "reset":
+      return INITIAL_COMPOSER_STATE
+    case "resetPrompt":
+      return { ...state, prompt: "" }
+    case "setCharacterImageReferences":
+      return {
+        ...state,
+        characterImageReferences: action.characterImageReferences,
+      }
+    case "setCharacterSheetText":
+      return { ...state, characterSheetText: action.text }
+    case "setCharacterSheetOpen":
+      return { ...state, isCharacterSheetOpen: action.isCharacterSheetOpen }
+    case "setError":
+      return { ...state, error: action.error }
+    case "setPrompt":
+      return { ...state, prompt: action.prompt }
+    case "setStyleImageReferences":
+      return { ...state, styleImageReferences: action.styleImageReferences }
+  }
+}
 
 const PromptComposerContext =
   React.createContext<PromptComposerContextValue | null>(null)
@@ -105,109 +161,116 @@ function PromptComposerRoot({
   ...props
 }: PromptComposerRootProps) {
   const imageModel = useAtomValue(imageModelAtom)
-  const [characterImageReferences, setCharacterImageReferences] =
-    React.useState<File[]>([])
-  const [characterSheetText, setCharacterSheetText] = React.useState("")
-  const [error, setError] = React.useState<string | null>(null)
-  const [isCharacterSheetOpen, setIsCharacterSheetOpen] = React.useState(false)
-  const [isSubmitting, setIsSubmitting] = React.useState(false)
-  const [prompt, setPrompt] = React.useState("")
-  const [styleImageReferences, setStyleImageReferences] = React.useState<
-    File[]
-  >([])
+  const [state, dispatch] = React.useReducer(
+    composerReducer,
+    INITIAL_COMPOSER_STATE
+  )
+  const [isSubmitting, startSubmitTransition] = React.useTransition()
 
   const removeCharacterImageReference = (index: number) => {
-    setCharacterImageReferences((current) =>
-      current.filter((unusedFile, fileIndex) => fileIndex !== index)
-    )
+    dispatch({
+      characterImageReferences: state.characterImageReferences.filter(
+        (unusedFile, fileIndex) => fileIndex !== index
+      ),
+      type: "setCharacterImageReferences",
+    })
   }
 
   const removeStyleImageReference = (index: number) => {
-    setStyleImageReferences((current) =>
-      current.filter((unusedFile, fileIndex) => fileIndex !== index)
-    )
+    dispatch({
+      styleImageReferences: state.styleImageReferences.filter(
+        (unusedFile, fileIndex) => fileIndex !== index
+      ),
+      type: "setStyleImageReferences",
+    })
   }
 
-  const submit = async () => {
-    const trimmedPrompt = prompt.trim()
+  const submit = () => {
+    const trimmedPrompt = state.prompt.trim()
 
     if (disabled || isSubmitting || trimmedPrompt === "") {
       return
     }
 
-    setError(null)
-    setIsSubmitting(true)
+    startSubmitTransition(async () => {
+      dispatch({ error: null, type: "setError" })
 
-    try {
-      if (mode === "image-edit") {
-        if (onImageEditSubmit === undefined) {
-          throw new Error("Image editing is unavailable.")
+      try {
+        if (mode === "image-edit") {
+          if (onImageEditSubmit === undefined) {
+            throw new Error("Image editing is unavailable.")
+          }
+
+          await onImageEditSubmit(trimmedPrompt)
+          dispatch({ type: "resetPrompt" })
+
+          return
         }
 
-        await onImageEditSubmit(trimmedPrompt)
-        setPrompt("")
+        if (onSubmit === undefined) {
+          throw new Error("Storyboard generation is unavailable.")
+        }
 
-        return
+        const [characterImageRefs, styleImageRefs] = await Promise.all([
+          Promise.all(
+            state.characterImageReferences.map((file) =>
+              readFileAsDataUrl(file)
+            )
+          ),
+          Promise.all(
+            state.styleImageReferences.map((file) => readFileAsDataUrl(file))
+          ),
+        ])
+        const trimmedCharacterSheet = state.characterSheetText.trim()
+
+        await onSubmit({
+          characterImageRefs,
+          characterSheets:
+            trimmedCharacterSheet === "" ? [] : [trimmedCharacterSheet],
+          imageModel,
+          prompt: trimmedPrompt,
+          styleImageRefs,
+        })
+
+        dispatch({ type: "reset" })
+      } catch (submissionError) {
+        dispatch({
+          error:
+            submissionError instanceof Error
+              ? submissionError.message
+              : "Storyboard generation failed.",
+          type: "setError",
+        })
       }
-
-      if (onSubmit === undefined) {
-        throw new Error("Storyboard generation is unavailable.")
-      }
-
-      const [characterImageRefs, styleImageRefs] = await Promise.all([
-        Promise.all(
-          characterImageReferences.map((file) => readFileAsDataUrl(file))
-        ),
-        Promise.all(
-          styleImageReferences.map((file) => readFileAsDataUrl(file))
-        ),
-      ])
-      const trimmedCharacterSheet = characterSheetText.trim()
-
-      await onSubmit({
-        characterImageRefs,
-        characterSheets:
-          trimmedCharacterSheet === "" ? [] : [trimmedCharacterSheet],
-        imageModel,
-        prompt: trimmedPrompt,
-        styleImageRefs,
-      })
-
-      setCharacterImageReferences([])
-      setCharacterSheetText("")
-      setIsCharacterSheetOpen(false)
-      setPrompt("")
-      setStyleImageReferences([])
-    } catch (submissionError) {
-      setError(
-        submissionError instanceof Error
-          ? submissionError.message
-          : "Storyboard generation failed."
-      )
-    } finally {
-      setIsSubmitting(false)
-    }
+    })
   }
 
   const contextValue: PromptComposerContextValue = {
-    characterImageReferences,
-    characterSheetText,
-    error,
+    characterImageReferences: state.characterImageReferences,
+    characterSheetText: state.characterSheetText,
+    error: state.error,
     inputId,
-    isCharacterSheetOpen,
+    isCharacterSheetOpen: state.isCharacterSheetOpen,
     isDisabled: disabled || isSubmitting,
     isSubmitting,
     mode,
-    prompt,
+    prompt: state.prompt,
     removeCharacterImageReference,
     removeStyleImageReference,
-    setCharacterImageReferences,
-    setCharacterSheetText,
-    setError,
-    setIsCharacterSheetOpen,
-    setPrompt,
-    setStyleImageReferences,
-    styleImageReferences,
+    setCharacterImageReferences: (characterImageReferences) =>
+      dispatch({
+        characterImageReferences,
+        type: "setCharacterImageReferences",
+      }),
+    setCharacterSheetText: (text) =>
+      dispatch({ text, type: "setCharacterSheetText" }),
+    setError: (error) => dispatch({ error, type: "setError" }),
+    setIsCharacterSheetOpen: (isCharacterSheetOpen) =>
+      dispatch({ isCharacterSheetOpen, type: "setCharacterSheetOpen" }),
+    setPrompt: (prompt) => dispatch({ prompt, type: "setPrompt" }),
+    setStyleImageReferences: (styleImageReferences) =>
+      dispatch({ styleImageReferences, type: "setStyleImageReferences" }),
+    styleImageReferences: state.styleImageReferences,
     submit,
   }
 
@@ -231,9 +294,9 @@ function PromptComposerRoot({
         {...props}
       >
         {children}
-        {error !== null ? (
+        {state.error !== null ? (
           <p className="px-4 pb-3 text-caption text-destructive" role="alert">
-            {error}
+            {state.error}
           </p>
         ) : null}
       </form>
@@ -263,7 +326,7 @@ function PromptComposerInput() {
           : "Movie logline or storyline"}
       </label>
       <textarea
-        className="max-h-44 min-h-14 resize-none bg-transparent px-4 pt-4 pb-3 text-body text-ink-strong transition-[min-height] duration-200 ease-out outline-none placeholder:text-ink-faint focus:min-h-24 disabled:cursor-not-allowed disabled:opacity-60"
+        className="field-sizing-content max-h-44 min-h-14 resize-none bg-transparent px-4 pt-4 pb-3 text-body text-ink-strong outline-none placeholder:text-ink-faint disabled:cursor-not-allowed disabled:opacity-60"
         disabled={isDisabled}
         id={inputId}
         maxLength={12_000}
@@ -292,7 +355,7 @@ function PromptComposerInput() {
             Character sheet
           </label>
           <textarea
-            className="max-h-28 min-h-16 w-full resize-y rounded-lg bg-surface-panel px-3 py-2 text-label text-ink ring-1 ring-edge transition-shadow outline-none placeholder:text-ink-faint focus:ring-2 focus:ring-ring"
+            className="field-sizing-content max-h-28 min-h-16 w-full resize-y rounded-lg bg-surface-panel px-3 py-2 text-label text-ink ring-1 ring-edge transition-shadow outline-none placeholder:text-ink-faint focus:ring-2 focus:ring-ring"
             disabled={isDisabled}
             id="character-sheet"
             maxLength={MAX_CHARACTER_SHEET_LENGTH}
@@ -372,7 +435,8 @@ function PromptComposerActions() {
 
   const addImageReferences = (
     files: File[],
-    setReferences: React.Dispatch<React.SetStateAction<File[]>>
+    current: File[],
+    setReferences: (files: File[]) => void
   ) => {
     const availableSlots = MAX_IMAGE_REFERENCES - referenceCount
     const validationResults = files.map((file) => ({
@@ -387,7 +451,7 @@ function PromptComposerActions() {
       .map(({ file }) => file)
       .slice(0, availableSlots)
 
-    setReferences((current) => [...current, ...acceptedFiles])
+    setReferences([...current, ...acceptedFiles])
     setError(
       firstError ??
         (files.length > availableSlots ? MAX_IMAGE_REFERENCES_ERROR : null)
@@ -453,6 +517,7 @@ function PromptComposerActions() {
           onChange={(event) => {
             addImageReferences(
               Array.from(event.target.files ?? []),
+              characterImageReferences,
               setCharacterImageReferences
             )
             event.target.value = ""
@@ -498,6 +563,7 @@ function PromptComposerActions() {
           onChange={(event) => {
             addImageReferences(
               Array.from(event.target.files ?? []),
+              styleImageReferences,
               setStyleImageReferences
             )
             event.target.value = ""

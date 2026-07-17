@@ -215,7 +215,10 @@ export async function normalizeAndSliceComposite(
   layout: StoryboardLayout,
   sceneCount: number
 ): Promise<Buffer[]> {
-  const metadata = await sharp(composite).metadata()
+  // Decode the contact sheet once and `.clone()` per slice so the source
+  // is not re-parsed for every extracted cell.
+  const source = sharp(composite)
+  const metadata = await source.metadata()
 
   if (metadata.width === undefined || metadata.height === undefined) {
     throw new Error("The generated storyboard has no readable dimensions.")
@@ -233,7 +236,8 @@ export async function normalizeAndSliceComposite(
       const column = index % layout.columns
       const row = Math.floor(index / layout.columns)
 
-      return sharp(composite)
+      return source
+        .clone()
         .extract({
           height: sourceCellHeight,
           left: column * sourceCellWidth,

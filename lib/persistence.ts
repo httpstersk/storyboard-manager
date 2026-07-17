@@ -105,8 +105,9 @@ export async function loadStoredWorkspace(): Promise<StoredWorkspace | null> {
 
     const orderedIds =
       meta?.boardOrder?.filter((id) => boardsById.has(id)) ?? []
+    const orderedIdSet = new Set(orderedIds)
     const missingIds = [...boardsById.keys()].filter(
-      (id) => !orderedIds.includes(id)
+      (id) => !orderedIdSet.has(id)
     )
     const boards = [...orderedIds, ...missingIds].map(
       (id) => boardsById.get(id) as Board
@@ -195,9 +196,12 @@ export async function saveStoredWorkspace(
     db.sceneImages,
     db.workspaceMeta,
     async () => {
+      const nextBoardIds = new Set(
+        workspace.boards.map((board) => board.id)
+      )
       const existingBoardIds = await db.boards.toCollection().primaryKeys()
       const boardsToDelete = existingBoardIds.filter(
-        (id) => !workspace.boards.some((board) => board.id === id)
+        (id) => !nextBoardIds.has(id)
       )
 
       if (boardsToDelete.length > 0) {

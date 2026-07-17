@@ -175,9 +175,11 @@ export function coerceBoard(value: unknown, fallbackId: string): Board | null {
     return null
   }
 
-  const scenes = value.scenes
-    .map((scene, index) => coerceScene(scene, index))
-    .filter((scene): scene is Scene => scene !== null)
+  const scenes = value.scenes.flatMap((scene, index) => {
+    const coerced = coerceScene(scene, index)
+
+    return coerced === null ? [] : [coerced]
+  })
   const title = sanitizeTitle(
     typeof value.title === "string" ? value.title : ""
   )

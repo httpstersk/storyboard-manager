@@ -35,7 +35,7 @@ function PromptComposerAttachmentThumbnail({
       />
       <button
         aria-label={`Remove ${file.name} from ${label.toLowerCase()} references`}
-        className="absolute -top-1.5 -right-1.5 grid size-5 place-items-center rounded-full bg-emphasis text-emphasis-foreground shadow-knob transition-[opacity,transform] outline-none hover:brightness-110 focus-visible:opacity-100 focus-visible:ring-2 focus-visible:ring-ring active:scale-90 sm:opacity-0 sm:group-hover/thumb:opacity-100"
+        className="absolute -top-1.5 -end-1.5 grid size-5 place-items-center rounded-full bg-emphasis text-emphasis-foreground shadow-knob transition-[opacity,transform] outline-none hover:brightness-110 focus-visible:opacity-100 focus-visible:ring-2 focus-visible:ring-ring active:scale-90 sm:opacity-0 sm:group-hover/thumb:opacity-100"
         onClick={onRemove}
         title={file.name}
         type="button"

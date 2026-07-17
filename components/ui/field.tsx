@@ -25,10 +25,7 @@ function FieldRoot({
   ...props
 }: React.ComponentProps<"div">) {
   const id = React.useId()
-  const contextValue = React.useMemo(
-    () => ({ controlId: `${id}-control`, labelId: `${id}-label` }),
-    [id]
-  )
+  const contextValue = { controlId: `${id}-control`, labelId: `${id}-label` }
 
   return (
     <div

@@ -111,10 +111,7 @@ function BoardToolbarBrand({
   version,
 }: BoardToolbarBrandProps) {
   const [hovered, setHovered] = React.useState(false)
-  const { prefix, repeated, suffix } = React.useMemo(
-    () => splitRepeatedRun(name),
-    [name]
-  )
+  const { prefix, repeated, suffix } = splitRepeatedRun(name)
 
   return (
     <div className={cn("flex shrink-0 items-baseline gap-1.5", className)}>

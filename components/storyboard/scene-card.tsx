@@ -62,16 +62,13 @@ function SceneCard({
   sceneNumber,
   ...props
 }: SceneCardProps) {
-  const contextValue = React.useMemo<SceneCardContextValue>(
-    () => ({ scene, sceneNumber }),
-    [scene, sceneNumber]
-  )
+  const contextValue: SceneCardContextValue = { scene, sceneNumber }
 
   return (
     <article
       aria-label={`Scene ${sceneNumber}`}
       className={cn(
-        "[container-type:inline-size] flex min-w-55 flex-col bg-surface-panel [container-name:scene-card]",
+        "@container/scene-card flex min-w-55 flex-col bg-surface-panel",
         className
       )}
       {...props}
