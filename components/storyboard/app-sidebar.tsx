@@ -11,8 +11,6 @@ import {
 } from "sf-symbols-lib/monochrome"
 import { m } from "motion/react"
 import * as React from "react"
-import { flushSync } from "react-dom"
-
 import { DropdownMenu } from "@/components/ui/dropdown-menu"
 import { IconButton } from "@/components/ui/icon-button"
 import { SPRING_SNAPPY } from "@/lib/motion"
@@ -338,9 +336,11 @@ function SidebarBoardItem({
               label={`Rename ${title}`}
               onClick={(event) => {
                 event.stopPropagation()
-                flushSync(() => setIsEditing(true))
-                inputRef.current?.focus()
-                inputRef.current?.select()
+                setIsEditing(true)
+                requestAnimationFrame(() => {
+                  inputRef.current?.focus()
+                  inputRef.current?.select()
+                })
               }}
               size="sm"
               variant="ghost"

@@ -19,7 +19,7 @@ function PromptComposerAttachmentThumbnail({
   label,
   onRemove,
 }: PromptComposerAttachmentThumbnailProps) {
-  const objectUrl = React.useMemo(() => URL.createObjectURL(file), [file])
+  const objectUrl = URL.createObjectURL(file)
 
   React.useEffect(() => () => URL.revokeObjectURL(objectUrl), [objectUrl])
 
@@ -64,7 +64,7 @@ function PromptComposerAttachmentGroup({
         {files.map((file, index) => (
           <PromptComposerAttachmentThumbnail
             file={file}
-            key={`${file.name}-${file.lastModified}-${index}`}
+            key={`${file.name}-${file.lastModified}-${file.size}`}
             label={label}
             onRemove={() => onRemove(index)}
           />

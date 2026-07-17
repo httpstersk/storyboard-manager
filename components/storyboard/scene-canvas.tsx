@@ -156,12 +156,18 @@ function DrawingCanvas({
   const historyRef = React.useRef<HTMLCanvasElement[]>([])
   const lastPointRef = React.useRef<Point | null>(null)
 
-  const triggerHistoryChange = React.useCallback(() => {
-    onHistoryChange?.({
+  const onHistoryChangeRef = React.useRef(onHistoryChange)
+
+  React.useEffect(() => {
+    onHistoryChangeRef.current = onHistoryChange
+  })
+
+  function notifyHistoryChange() {
+    onHistoryChangeRef.current?.({
       canClear: historyRef.current.length > 0,
       canUndo: historyRef.current.length > 0,
     })
-  }, [onHistoryChange])
+  }
 
   function saveStateToHistory() {
     const canvas = canvasRef.current
@@ -175,7 +181,7 @@ function DrawingCanvas({
     copy.width = canvas.width
     copy.getContext("2d")?.drawImage(canvas, 0, 0)
     historyRef.current.push(copy)
-    triggerHistoryChange()
+    notifyHistoryChange()
   }
 
   React.useImperativeHandle(
@@ -191,7 +197,7 @@ function DrawingCanvas({
 
         context.clearRect(0, 0, canvas.clientWidth, canvas.clientHeight)
         historyRef.current = []
-        triggerHistoryChange()
+        notifyHistoryChange()
       },
       getDrawing: () => captureDrawing(canvasRef.current),
       undo: () => {
@@ -215,10 +221,10 @@ function DrawingCanvas({
           )
         }
 
-        triggerHistoryChange()
+        notifyHistoryChange()
       },
     }),
-    [triggerHistoryChange]
+    []
   )
 
   useMountEffect(() => {
@@ -229,7 +235,7 @@ function DrawingCanvas({
     }
 
     syncCanvasSize(canvas)
-    triggerHistoryChange()
+    notifyHistoryChange()
 
     const observer = new ResizeObserver(() => syncCanvasSize(canvas))
     observer.observe(canvas)

@@ -13,13 +13,8 @@ interface SceneThumbnailShaderProps {
   preset: SceneShaderPreset
 }
 
-/**
- * Decorative animated background rendered behind a scene numeral.
- *
- * Memoised so note edits elsewhere on the board do not re-render the
- * underlying WebGL canvases.
- */
-const SceneThumbnailShader = React.memo(function SceneThumbnailShader({
+/** Decorative animated background rendered behind a scene numeral. */
+function SceneThumbnailShader({
   className,
   preset,
 }: SceneThumbnailShaderProps) {
@@ -43,6 +38,6 @@ const SceneThumbnailShader = React.memo(function SceneThumbnailShader({
       />
     </div>
   )
-})
+}
 
 export { SceneThumbnailShader, type SceneThumbnailShaderProps }

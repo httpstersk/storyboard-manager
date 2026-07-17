@@ -1,51 +1,23 @@
 "use client"
 
 import { useAtomValue } from "jotai"
-import {
-  SFArrowLeft,
-  SFArrowRight,
-  SFArrowCounterclockwise,
-  SFEraser,
-  SFIcloudAndArrowUp,
-  SFPaintbrush,
-  SFTrash,
-  SFXmark,
-} from "sf-symbols-lib/monochrome"
 import * as React from "react"
+import { useEffectEvent } from "react"
 
 import {
   type DrawTool,
   type DrawingCanvasHandle,
   SceneCanvas,
 } from "@/components/storyboard/scene-canvas"
+import { EditSceneDialogFooter } from "@/components/storyboard/edit-scene-dialog-footer"
+import { EditSceneDialogHeader } from "@/components/storyboard/edit-scene-dialog-header"
+import { EditSceneDialogToolbar } from "@/components/storyboard/edit-scene-dialog-toolbar"
 import { PromptComposer } from "@/components/storyboard/prompt-composer"
 import { Dialog } from "@/components/ui/dialog"
-import { IconButton } from "@/components/ui/icon-button"
-import { SegmentedControl } from "@/components/ui/segmented-control"
-import { Slider } from "@/components/ui/slider"
-import { sceneImageEditResponseSchema } from "@/lib/generation"
+import { requestSceneImageEdit } from "@/lib/edit-scene-image-client"
 import { imageModelAtom } from "@/lib/image-model-settings"
-import { formatSeconds, type Scene, type ValueLimits } from "@/lib/storyboard"
-import { cn } from "@/lib/utils"
+import { type Scene } from "@/lib/storyboard"
 import { validateImageFile } from "@/lib/validation"
-
-/** Allowed range for the drawing brush size. */
-const BRUSH_SIZE_LIMITS: ValueLimits = { max: 10, min: 1 }
-
-/** Named swatches offered by the drawing colour picker. */
-const DRAW_COLORS = [
-  { label: "Black", value: "#1a1a1a" },
-  { label: "Dark grey", value: "#4a4a4a" },
-  { label: "Grey", value: "#8c8c8c" },
-  { label: "Light grey", value: "#bdbdbd" },
-  { label: "White", value: "#ffffff" },
-] as const
-
-/** Drawing tools offered by the tool picker. */
-const DRAW_TOOLS = [
-  { icon: SFPaintbrush, label: "Brush", value: "brush" },
-  { icon: SFEraser, label: "Eraser", value: "eraser" },
-] as const
 
 /**
  * New reference image state for the scene being edited:
@@ -73,7 +45,7 @@ type DialogAction =
 
 const initialDialogState: DialogState = {
   brushSize: 7,
-  color: DRAW_COLORS[0].value,
+  color: "#1a1a1a",
   draftImage: undefined,
   error: null,
   isEditingImage: false,
@@ -99,6 +71,17 @@ function dialogReducer(state: DialogState, action: DialogAction): DialogState {
     default:
       return state
   }
+}
+
+/** Resets dialog editing state when the scene changes or the dialog closes. */
+function resetEditSceneDialogState(
+  dispatch: React.Dispatch<DialogAction>,
+  setCanClear: React.Dispatch<React.SetStateAction<boolean>>,
+  setCanUndo: React.Dispatch<React.SetStateAction<boolean>>
+): void {
+  dispatch({ type: "RESET" })
+  setCanClear(false)
+  setCanUndo(false)
 }
 
 /** Props for {@link EditSceneDialog}. */
@@ -163,7 +146,6 @@ function EditSceneDialog({
       return
     }
 
-    // Stored as a data URL so the image survives reloads and JSON export.
     const reader = new FileReader()
 
     reader.onload = () => {
@@ -182,7 +164,7 @@ function EditSceneDialog({
     }
 
     if (!nextOpen) {
-      resetState()
+      resetEditSceneDialogState(dispatch, setCanClear, setCanUndo)
     }
 
     onOpenChange(nextOpen)
@@ -213,39 +195,28 @@ function EditSceneDialog({
     dispatch({ payload: null, type: "SET_ERROR" })
     dispatch({ payload: true, type: "SET_IS_EDITING_IMAGE" })
 
-    try {
-      const response = await fetch("/api/edit-scene-image", {
-        body: JSON.stringify({ imageModel, prompt, sourceImage: previewImage }),
-        headers: { "Content-Type": "application/json" },
-        method: "POST",
-      })
-      const responseBody: unknown = await response.json()
+    const editResult = await requestSceneImageEdit({
+      imageModel,
+      prompt,
+      sourceImage: previewImage,
+    })
+      .then((image) => ({ image, ok: true as const }))
+      .catch((error: unknown) => ({
+        error:
+          error instanceof Error
+            ? error.message
+            : "The scene image could not be edited.",
+        ok: false as const,
+      }))
 
-      if (!response.ok) {
-        const message =
-          typeof responseBody === "object" &&
-          responseBody !== null &&
-          "error" in responseBody &&
-          typeof responseBody.error === "string"
-            ? responseBody.error
-            : "The scene image could not be edited."
+    dispatch({ payload: false, type: "SET_IS_EDITING_IMAGE" })
 
-        throw new Error(message)
-      }
-
-      const result = sceneImageEditResponseSchema.parse(responseBody)
-      dispatch({ payload: result.image, type: "SET_DRAFT_IMAGE" })
-    } catch (imageEditError) {
-      const message =
-        imageEditError instanceof Error
-          ? imageEditError.message
-          : "The scene image could not be edited."
-
-      dispatch({ payload: message, type: "SET_ERROR" })
-      throw new Error(message)
-    } finally {
-      dispatch({ payload: false, type: "SET_IS_EDITING_IMAGE" })
+    if (!editResult.ok) {
+      dispatch({ payload: editResult.error, type: "SET_ERROR" })
+      return
     }
+
+    dispatch({ payload: editResult.image, type: "SET_DRAFT_IMAGE" })
   }
 
   async function handleSave() {
@@ -256,28 +227,18 @@ function EditSceneDialog({
     const drawing = drawingCanvasRef.current?.getDrawing() ?? null
 
     if (drawing !== null) {
-      // The user painted something: flatten the strokes over whatever is
-      // currently behind them (an uploaded or existing reference image)
-      // so the scene card shows the finished artwork rather than the
-      // pre-drawing state.
       const image = await composeSceneImage(previewImage, drawing)
       onSave({ image })
     } else if (draftImage !== undefined) {
       onSave({ image: draftImage ?? undefined })
     }
 
-    resetState()
+    resetEditSceneDialogState(dispatch, setCanClear, setCanUndo)
     onOpenChange(false)
   }
 
   function handleUndo() {
     drawingCanvasRef.current?.undo()
-  }
-
-  function resetState() {
-    dispatch({ type: "RESET" })
-    setCanClear(false)
-    setCanUndo(false)
   }
 
   React.useEffect(() => {
@@ -287,11 +248,18 @@ function EditSceneDialog({
     }
 
     if (previousSceneIdRef.current !== null && previousSceneIdRef.current !== scene.id) {
-      resetState()
+      resetEditSceneDialogState(dispatch, setCanClear, setCanUndo)
     }
 
     previousSceneIdRef.current = scene.id
   }, [open, scene])
+
+  const handleNavigateNextEvent = useEffectEvent(() => {
+    onNavigateNext()
+  })
+  const handleNavigatePreviousEvent = useEffectEvent(() => {
+    onNavigatePrevious()
+  })
 
   React.useEffect(() => {
     if (!open) {
@@ -327,10 +295,10 @@ function EditSceneDialog({
 
       if (event.key === "ArrowLeft" && canNavigatePrevious) {
         event.preventDefault()
-        onNavigatePrevious()
+        handleNavigatePreviousEvent()
       } else if (event.key === "ArrowRight" && canNavigateNext) {
         event.preventDefault()
-        onNavigateNext()
+        handleNavigateNextEvent()
       }
     }
 
@@ -339,14 +307,7 @@ function EditSceneDialog({
     return () => {
       window.removeEventListener("keydown", handleKeyDown)
     }
-  }, [
-    canNavigateNext,
-    canNavigatePrevious,
-    isEditingImage,
-    onNavigateNext,
-    onNavigatePrevious,
-    open,
-  ])
+  }, [canNavigateNext, canNavigatePrevious, isEditingImage, open])
 
   if (scene === null) {
     return null
@@ -355,102 +316,36 @@ function EditSceneDialog({
   return (
     <Dialog onOpenChange={handleOpenChange} open={open}>
       <Dialog.Content>
-        <Dialog.Header>
-          <div className="flex items-baseline gap-2.5">
-            <Dialog.Title>Edit scene {sceneNumber}</Dialog.Title>
-            <Dialog.Description>
-              {formatSeconds(scene.timeSeconds)}
-            </Dialog.Description>
-          </div>
-          <div className="flex items-center gap-1.5">
-            <IconButton
-              disabled={isEditingImage || !canNavigatePrevious}
-              label="Previous scene"
-              onClick={handleNavigatePrevious}
-            >
-              <SFArrowLeft aria-hidden />
-            </IconButton>
-            <IconButton
-              disabled={isEditingImage || !canNavigateNext}
-              label="Next scene"
-              onClick={handleNavigateNext}
-            >
-              <SFArrowRight aria-hidden />
-            </IconButton>
-            <Dialog.Close asChild>
-              <IconButton label="Close">
-                <SFXmark aria-hidden />
-              </IconButton>
-            </Dialog.Close>
-          </div>
-        </Dialog.Header>
-        <div className="flex h-12 shrink-0 items-center justify-between gap-2 px-5">
-          <div className="flex items-center gap-2.5">
-            <button
-              className="flex h-7 items-center gap-1.5 rounded-full bg-emphasis px-3 text-label font-medium text-emphasis-foreground transition-[background-color,transform] duration-150 ease-out outline-none hover:bg-emphasis/85 focus-visible:ring-2 focus-visible:ring-ring active:scale-[0.97]"
-              disabled={isEditingImage}
-              onClick={() => fileInputRef.current?.click()}
-              type="button"
-            >
-              <SFIcloudAndArrowUp aria-hidden className="size-3.25" />
-              Upload image
-            </button>
-            <UploadError error={error} />
-            <SegmentedControl
-              label="Drawing tool"
-              onValueChange={(value) =>
-                dispatch({ payload: value as DrawTool, type: "SET_TOOL" })
-              }
-              value={tool}
-              variant="raised"
-            >
-              {DRAW_TOOLS.map((option) => (
-                <SegmentedControl.Option
-                  key={option.value}
-                  value={option.value}
-                >
-                  <option.icon aria-hidden />
-                  {option.label}
-                </SegmentedControl.Option>
-              ))}
-            </SegmentedControl>
-            <div className="flex items-center gap-2 rounded-full bg-surface-inset px-3 py-1.5">
-              <span className="text-label text-ink-muted">Size</span>
-              <Slider
-                label="Brush size"
-                max={BRUSH_SIZE_LIMITS.max}
-                min={BRUSH_SIZE_LIMITS.min}
-                onValueChange={([value]) =>
-                  dispatch({ payload: value, type: "SET_BRUSH_SIZE" })
-                }
-                value={[brushSize]}
-              />
-              <span className="text-label text-ink">{brushSize}</span>
-            </div>
-            <DrawColorPicker
-              color={color}
-              onColorChange={(nextColor) =>
-                dispatch({ payload: nextColor, type: "SET_COLOR" })
-              }
-            />
-          </div>
-          <div className="flex items-center gap-1.5">
-            <IconButton
-              disabled={isEditingImage || !canUndo}
-              label="Undo"
-              onClick={handleUndo}
-            >
-              <SFArrowCounterclockwise aria-hidden />
-            </IconButton>
-            <IconButton
-              disabled={isEditingImage || !canClear}
-              label="Clear all"
-              onClick={handleClearDrawing}
-            >
-              <SFTrash aria-hidden />
-            </IconButton>
-          </div>
-        </div>
+        <EditSceneDialogHeader
+          canNavigateNext={canNavigateNext}
+          canNavigatePrevious={canNavigatePrevious}
+          isEditingImage={isEditingImage}
+          onNavigateNext={handleNavigateNext}
+          onNavigatePrevious={handleNavigatePrevious}
+          scene={scene}
+          sceneNumber={sceneNumber}
+        />
+        <EditSceneDialogToolbar
+          brushSize={brushSize}
+          canClear={canClear}
+          canUndo={canUndo}
+          color={color}
+          error={error}
+          fileInputRef={fileInputRef}
+          isEditingImage={isEditingImage}
+          onClearDrawing={handleClearDrawing}
+          onSetBrushSize={(nextBrushSize) =>
+            dispatch({ payload: nextBrushSize, type: "SET_BRUSH_SIZE" })
+          }
+          onSetColor={(nextColor) =>
+            dispatch({ payload: nextColor, type: "SET_COLOR" })
+          }
+          onSetTool={(nextTool) =>
+            dispatch({ payload: nextTool, type: "SET_TOOL" })
+          }
+          onUndo={handleUndo}
+          tool={tool}
+        />
         <div className="flex w-full px-5 pb-1">
           <SceneCanvas
             brushSize={brushSize}
@@ -460,9 +355,9 @@ function EditSceneDialog({
             image={previewImage}
             isDisabled={isEditingImage}
             onFile={handleFile}
-            onHistoryChange={({ canClear, canUndo }) => {
-              setCanClear(canClear)
-              setCanUndo(canUndo)
+            onHistoryChange={({ canClear: nextCanClear, canUndo: nextCanUndo }) => {
+              setCanClear(nextCanClear)
+              setCanUndo(nextCanUndo)
             }}
             sceneNumber={sceneNumber}
             tool={tool}
@@ -481,65 +376,13 @@ function EditSceneDialog({
             </PromptComposer.Root>
           </div>
         ) : null}
-        <Dialog.Footer>
-          <p className="text-caption text-ink-muted">
-            Changes apply to scene {sceneNumber} only
-          </p>
-          <div className="flex items-center gap-2">
-            <Dialog.Close asChild>
-              <button
-                className="flex h-7.5 items-center rounded-full bg-surface-inset px-4 text-label text-ink transition-[color,transform] duration-150 ease-out outline-none hover:text-ink-strong focus-visible:ring-2 focus-visible:ring-ring active:scale-[0.97]"
-                disabled={isEditingImage}
-                type="button"
-              >
-                Cancel
-              </button>
-            </Dialog.Close>
-            <button
-              className="flex h-7.5 items-center rounded-full bg-emphasis px-4 text-label font-medium text-emphasis-foreground transition-[background-color,transform] duration-150 ease-out outline-none hover:bg-emphasis/85 focus-visible:ring-2 focus-visible:ring-ring active:scale-[0.97]"
-              disabled={isEditingImage}
-              onClick={() => void handleSave()}
-              type="button"
-            >
-              Save scene
-            </button>
-          </div>
-        </Dialog.Footer>
+        <EditSceneDialogFooter
+          isEditingImage={isEditingImage}
+          onSave={() => void handleSave()}
+          sceneNumber={sceneNumber}
+        />
       </Dialog.Content>
     </Dialog>
-  )
-}
-
-interface DrawColorPickerProps {
-  color: string
-  onColorChange: (color: string) => void
-}
-
-/** Radiogroup of drawing colour swatches. */
-function DrawColorPicker({ color, onColorChange }: DrawColorPickerProps) {
-  return (
-    <div
-      aria-label="Drawing colour"
-      className="flex items-center gap-1.5 pl-1"
-      role="radiogroup"
-    >
-      {DRAW_COLORS.map((swatch) => (
-        <button
-          aria-checked={color === swatch.value}
-          aria-label={swatch.label}
-          className={cn(
-            "size-4 rounded-full border border-edge-strong transition-[box-shadow,transform] duration-150 ease-out outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1 active:scale-90",
-            color === swatch.value &&
-              "ring-2 ring-emphasis ring-offset-2 ring-offset-surface-panel"
-          )}
-          key={swatch.value}
-          onClick={() => onColorChange(swatch.value)}
-          role="radio"
-          style={{ backgroundColor: swatch.value }}
-          type="button"
-        />
-      ))}
-    </div>
   )
 }
 
@@ -610,19 +453,6 @@ async function composeSceneImage(
   context.drawImage(drawing, 0, 0)
 
   return output.toDataURL("image/png")
-}
-
-/** Validation error line for the upload drop zone. */
-function UploadError({ error }: { error: string | null }) {
-  if (error === null) {
-    return null
-  }
-
-  return (
-    <p className="text-caption text-destructive" role="alert">
-      {error}
-    </p>
-  )
 }
 
 export { EditSceneDialog, type EditSceneDialogProps }

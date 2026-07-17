@@ -161,11 +161,12 @@ function GridScene({
       <AnimatePresence initial={false}>
         {showParameters && (
           <m.div
-            animate={{ height: "auto", opacity: 1 }}
+            animate={{ opacity: 1, scaleY: 1 }}
             className="overflow-hidden"
-            exit={{ height: 0, opacity: 0 }}
-            initial={{ height: 0, opacity: 0 }}
+            exit={{ opacity: 0, scaleY: 0 }}
+            initial={{ opacity: 0, scaleY: 0 }}
             key="details"
+            style={{ transformOrigin: "top" }}
             transition={SCENE_LAYOUT_TRANSITION}
           >
             <SceneCard.Details>

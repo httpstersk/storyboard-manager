@@ -37,21 +37,19 @@ export const MAX_SCENE_IMAGE_EDIT_PROMPT_LENGTH = 2_000
 /** Minimum number of beats produced for even a short logline. */
 export const MIN_GENERATED_SCENES = 3
 
-/**
- * Pixel gap separating adjacent cells in the generated composite. Zero:
- * the model renders cells edge-to-edge so slice coordinates are pure
- * divisions of the sheet dimensions with no separator compensation.
- */
-export const STORYBOARD_CELL_GAP = 0
 
-/**
- * Supported Nano Banana image models for generation and scene editing.
+/** Supported Nano Banana image models for generation and scene editing.
  * `lite` is the default fast path; `pro` uses fal's Nano Banana Pro endpoints.
  */
 export const IMAGE_MODELS = ["lite", "pro"] as const
 
 /** Selected Nano Banana image model for fal generation and editing. */
 export type ImageModel = (typeof IMAGE_MODELS)[number]
+
+/** Type guard for values emitted by the Model segmented control. */
+export function isImageModel(value: string): value is ImageModel {
+  return (IMAGE_MODELS as readonly string[]).includes(value)
+}
 
 /** Fal model IDs for Nano Banana Lite text-to-image and edit. */
 const NANO_BANANA_LITE_MODEL_IDS = {

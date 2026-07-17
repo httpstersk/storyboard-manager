@@ -130,12 +130,15 @@ function BoardToolbarBrand({
               {hovered &&
                 Array.from({ length: BRAND_EXTRA_LETTERS }, (_, index) => (
                   <m.span
-                    animate={{ opacity: 1, width: "auto" }}
+                    animate={{ opacity: 1, scaleX: 1 }}
                     className="inline-block overflow-hidden whitespace-pre align-baseline"
-                    exit={{ opacity: 0, width: 0 }}
-                    initial={{ opacity: 0, width: 0 }}
+                    exit={{ opacity: 0, scaleX: 0 }}
+                    initial={{ opacity: 0, scaleX: 0 }}
                     key={index}
-                    style={{ y: BRAND_LETTER_BASELINE_NUDGE }}
+                    style={{
+                      transformOrigin: "left",
+                      y: BRAND_LETTER_BASELINE_NUDGE,
+                    }}
                     transition={{
                       ...BRAND_LETTER_TRANSITION,
                       delay: index * BRAND_LETTER_STAGGER,
