@@ -9,6 +9,8 @@ import { cn } from "@/lib/utils"
 /** Props for {@link SceneThumbnailShader}. */
 interface SceneThumbnailShaderProps {
   className?: string
+  /** When true, freezes the MeshGradient by forcing speed to 0. */
+  paused?: boolean
   /** Shader parameters for this scene. */
   preset: SceneShaderPreset
 }
@@ -16,6 +18,7 @@ interface SceneThumbnailShaderProps {
 /** Decorative animated background rendered behind a scene numeral. */
 function SceneThumbnailShader({
   className,
+  paused = false,
   preset,
 }: SceneThumbnailShaderProps) {
   return (
@@ -32,7 +35,7 @@ function SceneThumbnailShader({
         offsetX={preset.offsetX}
         offsetY={preset.offsetY}
         scale={preset.scale}
-        speed={preset.speed}
+        speed={paused ? 0 : preset.speed}
         swirl={preset.swirl}
         width="100%"
       />

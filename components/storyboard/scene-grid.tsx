@@ -109,6 +109,7 @@ function SceneGrid({
               }}
             >
               <GridScene
+                isGenerating={isGenerating}
                 onEdit={() => onEditScene(scene.id)}
                 onUpdate={(patch) => onUpdateScene(scene.id, patch)}
                 scene={scene}
@@ -141,6 +142,7 @@ function SceneGrid({
 }
 
 interface GridSceneProps {
+  isGenerating: boolean
   onEdit: () => void
   onUpdate: (patch: Partial<Scene>) => void
   scene: Scene
@@ -150,6 +152,7 @@ interface GridSceneProps {
 
 /** One fully composed scene card inside the grid. */
 function GridScene({
+  isGenerating,
   onEdit,
   onUpdate,
   scene,
@@ -158,7 +161,7 @@ function GridScene({
 }: GridSceneProps) {
   return (
     <SceneCard scene={scene} sceneNumber={sceneNumber}>
-      <SceneCard.Thumbnail onEdit={onEdit} />
+      <SceneCard.Thumbnail isGenerating={isGenerating} onEdit={onEdit} />
       <AnimatePresence initial={false}>
         {showParameters && (
           <m.div

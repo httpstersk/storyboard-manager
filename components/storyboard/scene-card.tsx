@@ -84,6 +84,8 @@ function SceneCard({
 /** Props for {@link SceneCardThumbnail}. */
 interface SceneCardThumbnailProps {
   className?: string
+  /** When true, freezes blank-scene shader animation. */
+  isGenerating?: boolean
   /** Called when the thumbnail is activated to edit the scene. */
   onEdit: () => void
 }
@@ -94,7 +96,11 @@ interface SceneCardThumbnailProps {
  * saved drawing) the shader is hidden so it can't bleed through the
  * transparent parts of the artwork. Also renders a full-size edit target.
  */
-function SceneCardThumbnail({ className, onEdit }: SceneCardThumbnailProps) {
+function SceneCardThumbnail({
+  className,
+  isGenerating = false,
+  onEdit,
+}: SceneCardThumbnailProps) {
   const { scene, sceneNumber } = useSceneCard()
 
   return (
@@ -104,7 +110,9 @@ function SceneCardThumbnail({ className, onEdit }: SceneCardThumbnailProps) {
         className
       )}
     >
-      {!scene.image && <SceneThumbnailShader preset={scene.shader} />}
+      {!scene.image && (
+        <SceneThumbnailShader paused={isGenerating} preset={scene.shader} />
+      )}
       <SceneCardReferenceImage image={scene.image} sceneNumber={sceneNumber} />
       {!scene.image && (
         <span className="relative z-10 grid w-full justify-items-center text-display font-extralight tracking-[-0.065em] text-ink-on-media/90 select-none">
