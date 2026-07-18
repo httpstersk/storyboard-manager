@@ -1,5 +1,6 @@
 "use client"
 
+import { useSetAtom } from "jotai"
 import { AnimatePresence, m } from "motion/react"
 
 import { Sidebar } from "@/components/storyboard/app-sidebar"
@@ -17,6 +18,10 @@ import { WorkspaceToolbar } from "@/components/storyboard/storyboard-workspace-t
 import { useStoryboardWorkspaceModel } from "@/components/storyboard/use-storyboard-workspace-model"
 import { VideoSection } from "@/components/storyboard/video-section"
 import { formatSceneNumber } from "@/lib/storyboard"
+import {
+  removeBoardVideoState,
+  videoGenerationByBoardIdAtom,
+} from "@/lib/video-section-atoms"
 
 /** Status-bar autosave label reflecting the number of in-flight generations. */
 function autosaveLabel(generatingCount: number): string {
@@ -35,6 +40,7 @@ function autosaveLabel(generatingCount: number): string {
  * editor dialog. Boards persist to IndexedDB after every change.
  */
 function StoryboardWorkspace() {
+  const setVideoByBoardId = useSetAtom(videoGenerationByBoardIdAtom)
   const {
     canNavigateNextScene,
     canNavigatePreviousScene,
@@ -130,6 +136,7 @@ function StoryboardWorkspace() {
             showParameters={state.showParameters}
           />
           <VideoSection.Root
+            boardId={selectedBoard.id}
             className="pb-112"
             gridRef={gridRef}
             scenes={visibleScenes}
@@ -232,7 +239,11 @@ function StoryboardWorkspace() {
         board={deleteRequestBoard}
         onConfirm={() => {
           if (deleteRequestBoard) {
-            dispatch({ boardId: deleteRequestBoard.id, type: "deleteBoard" })
+            const deletedBoardId = deleteRequestBoard.id
+            dispatch({ boardId: deletedBoardId, type: "deleteBoard" })
+            setVideoByBoardId((previous) =>
+              removeBoardVideoState(deletedBoardId, previous)
+            )
           }
         }}
         onOpenChange={(open) => {

@@ -12,16 +12,20 @@ import type { Scene } from "@/lib/storyboard"
 import { cn } from "@/lib/utils"
 import { MAX_SEEDANCE_CHARACTER_IMAGES } from "@/lib/video-generation"
 import {
+  completeBoardVideoGeneration,
   composerCharacterImageFilesAtom,
-  generatedVideoUrlAtom,
-  isGeneratingVideoAtom,
+  failBoardVideoGeneration,
+  getBoardVideoState,
   seedanceVideoPromptAtom,
-  videoGenerationErrorAtom,
+  startBoardVideoGeneration,
+  videoGenerationByBoardIdAtom,
   videoPromptSourceAtom,
 } from "@/lib/video-section-atoms"
 
 /** Props for {@link VideoSectionRoot}. */
 interface VideoSectionRootProps extends React.ComponentProps<"section"> {
+  /** Selected board id — scopes generation state to this storyboard. */
+  boardId: string
   /** Ref to the scene grid element used for PNG capture. */
   gridRef: React.RefObject<HTMLElement | null>
   /**
@@ -36,13 +40,14 @@ interface VideoSectionRootProps extends React.ComponentProps<"section"> {
  * generate controls, then the video player placeholder.
  *
  * ```tsx
- * <VideoSection.Root gridRef={gridRef} scenes={scenes}>
+ * <VideoSection.Root boardId={board.id} gridRef={gridRef} scenes={scenes}>
  *   <VideoSection.Prompt />
  *   <VideoSection.Player />
  * </VideoSection.Root>
  * ```
  */
 function VideoSectionRoot({
+  boardId,
   children,
   className,
   gridRef,
@@ -67,7 +72,7 @@ function VideoSectionRoot({
   }, [characterImageFiles.length, scenes, setSource])
 
   return (
-    <VideoSectionContext.Provider value={{ gridRef }}>
+    <VideoSectionContext.Provider value={{ boardId, gridRef }}>
       <section
         aria-label="Video"
         className={cn(
@@ -83,6 +88,7 @@ function VideoSectionRoot({
 }
 
 interface VideoSectionContextValue {
+  boardId: string
   gridRef: React.RefObject<HTMLElement | null>
 }
 
@@ -106,8 +112,9 @@ function VideoSectionPlayer({
   className,
   ...props
 }: React.ComponentProps<"div">) {
-  const isGenerating = useAtomValue(isGeneratingVideoAtom)
-  const videoUrl = useAtomValue(generatedVideoUrlAtom)
+  const { boardId } = useVideoSection()
+  const videoByBoardId = useAtomValue(videoGenerationByBoardIdAtom)
+  const { isGenerating, videoUrl } = getBoardVideoState(boardId, videoByBoardId)
 
   return (
     <div
@@ -145,16 +152,17 @@ function VideoSectionPrompt({
   className,
   ...props
 }: React.ComponentProps<"div">) {
-  const { gridRef } = useVideoSection()
+  const { boardId, gridRef } = useVideoSection()
   const characterImageFiles = useAtomValue(composerCharacterImageFilesAtom)
   const [copied, setCopied] = React.useState(false)
   const copiedResetRef = React.useRef<ReturnType<typeof setTimeout> | null>(
     null
   )
-  const [error, setError] = useAtom(videoGenerationErrorAtom)
-  const [isGenerating, setIsGenerating] = useAtom(isGeneratingVideoAtom)
+  const [videoByBoardId, setVideoByBoardId] = useAtom(
+    videoGenerationByBoardIdAtom
+  )
   const prompt = useAtomValue(seedanceVideoPromptAtom)
-  const setGeneratedVideoUrl = useSetAtom(generatedVideoUrlAtom)
+  const { error, isGenerating } = getBoardVideoState(boardId, videoByBoardId)
 
   const canGenerate = !isGenerating && prompt.trim() !== ""
 
@@ -189,38 +197,60 @@ function VideoSectionPrompt({
     }
   }
 
-  const handleGenerate = async () => {
+  const handleGenerate = () => {
     if (gridRef.current === null || prompt.trim() === "") {
-      setError("The storyboard grid could not be captured.")
+      setVideoByBoardId((previous) =>
+        failBoardVideoGeneration(
+          boardId,
+          "The storyboard grid could not be captured.",
+          previous
+        )
+      )
       return
     }
 
-    setIsGenerating(true)
-    setError(null)
+    // Capture at click time so a board switch mid-flight does not retarget
+    // the request or block Generate Video on other boards.
+    const generationBoardId = boardId
+    const generationGrid = gridRef.current
+    const generationPrompt = prompt
+    const generationCharacterFiles = characterImageFiles.slice(
+      0,
+      MAX_SEEDANCE_CHARACTER_IMAGES
+    )
 
-    try {
-      const storyboardImage = await captureNodePngDataUrl(gridRef.current)
-      const characterImageRefs = await Promise.all(
-        characterImageFiles
-          .slice(0, MAX_SEEDANCE_CHARACTER_IMAGES)
-          .map((file) => readFileAsDataUrl(file))
-      )
-      const { videoUrl } = await requestVideoGeneration({
-        characterImageRefs,
-        prompt,
-        storyboardImage,
-      })
+    setVideoByBoardId((previous) =>
+      startBoardVideoGeneration(generationBoardId, previous)
+    )
 
-      setGeneratedVideoUrl(videoUrl)
-    } catch (generationError) {
-      setError(
-        generationError instanceof Error
-          ? generationError.message
-          : "The video could not be generated."
-      )
-    } finally {
-      setIsGenerating(false)
-    }
+    // Detached so further boards can generate while this one is in flight.
+    void (async () => {
+      try {
+        const storyboardImage = await captureNodePngDataUrl(generationGrid)
+        const characterImageRefs = await Promise.all(
+          generationCharacterFiles.map((file) => readFileAsDataUrl(file))
+        )
+        const { videoUrl } = await requestVideoGeneration({
+          characterImageRefs,
+          prompt: generationPrompt,
+          storyboardImage,
+        })
+
+        setVideoByBoardId((previous) =>
+          completeBoardVideoGeneration(generationBoardId, previous, videoUrl)
+        )
+      } catch (generationError) {
+        setVideoByBoardId((previous) =>
+          failBoardVideoGeneration(
+            generationBoardId,
+            generationError instanceof Error
+              ? generationError.message
+              : "The video could not be generated.",
+            previous
+          )
+        )
+      }
+    })()
   }
 
   return (
@@ -239,7 +269,7 @@ function VideoSectionPrompt({
         <IconButton
           disabled={!canGenerate}
           label={isGenerating ? "Generating video" : "Generate video"}
-          onClick={() => void handleGenerate()}
+          onClick={handleGenerate}
           size="label"
           variant="emphasis"
         >
