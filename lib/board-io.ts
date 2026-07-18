@@ -103,6 +103,20 @@ export function parseBoardFile(text: string, boardId: string): BoardImportResult
 let cachedToPng: ((node: HTMLElement, options?: object) => Promise<string>) | null = null
 
 /**
+ * Minimum length of a plausible PNG data URL (header + tiny payload).
+ * Empty captures from html-to-image return `"data:,"` (length 6).
+ */
+const MIN_PNG_DATA_URL_LENGTH = 32
+
+/** Returns whether the string is a non-empty PNG data URL. */
+function isValidPngDataUrl(dataUrl: string): boolean {
+  return (
+    dataUrl.startsWith("data:image/png") &&
+    dataUrl.length >= MIN_PNG_DATA_URL_LENGTH
+  )
+}
+
+/**
  * Captures the given element as a PNG data URL.
  *
  * `toPng` is called twice deliberately: html-to-image renders the DOM
@@ -110,6 +124,10 @@ let cachedToPng: ((node: HTMLElement, options?: object) => Promise<string>) | nu
  * On the first pass the browser has not yet cached the data-URL images,
  * so the first scene's image draws blank. The second pass finds every
  * image already in the browser's internal cache and captures them all.
+ *
+ * If the node is unmounted between passes (board switch / AnimatePresence),
+ * the second pass returns an empty `"data:,"` URL — fall back to the first
+ * valid pass instead of downloading a blank file.
  */
 export async function captureNodePngDataUrl(node: HTMLElement): Promise<string> {
   if (cachedToPng === null) {
@@ -121,9 +139,29 @@ export async function captureNodePngDataUrl(node: HTMLElement): Promise<string> 
   const options = { pixelRatio: 2 }
 
   // Prime the browser's image cache so all data-URL images are ready.
-  await toPng(node, options)
+  const primed = await toPng(node, options)
 
-  return toPng(node, options)
+  // Board switches unmount the capture target; a second pass then yields
+  // an empty data URL. Prefer the primed frame over a blank download.
+  if (!node.isConnected) {
+    if (isValidPngDataUrl(primed)) {
+      return primed
+    }
+
+    throw new Error("The storyboard grid was unmounted during capture.")
+  }
+
+  const result = await toPng(node, options)
+
+  if (isValidPngDataUrl(result)) {
+    return result
+  }
+
+  if (isValidPngDataUrl(primed)) {
+    return primed
+  }
+
+  throw new Error("PNG capture produced an empty image.")
 }
 
 /**
@@ -137,6 +175,10 @@ export async function exportNodePng(
   const dataUrl = await captureNodePngDataUrl(node)
   const response = await fetch(dataUrl)
   const blob = await response.blob()
+
+  if (blob.size === 0 || !blob.type.startsWith("image/")) {
+    throw new Error("PNG capture produced an empty image.")
+  }
 
   downloadBlob(blob, `${fileStem(title)}.png`)
 }

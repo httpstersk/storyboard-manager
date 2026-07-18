@@ -44,6 +44,7 @@ function autosaveLabel(generatingCount: number): string {
 function StoryboardWorkspace() {
   const setVideoByBoardId = useSetAtom(videoGenerationByBoardIdAtom)
   const {
+    assignGridRef,
     canNavigateNextScene,
     canNavigatePreviousScene,
     deleteRequestBoard,
@@ -141,7 +142,7 @@ function StoryboardWorkspace() {
                 isGenerating={isSelectedBoardGenerating}
                 onEditScene={handleEditScene}
                 onUpdateScene={handleUpdateScene}
-                ref={gridRef}
+                ref={assignGridRef}
                 rows={state.rows}
                 scenes={selectedBoard.scenes}
                 showParameters={state.showParameters}

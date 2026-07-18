@@ -42,6 +42,12 @@ import {
 } from "@/lib/storyboard-workspace-state"
 
 interface StoryboardWorkspaceModel {
+  /**
+   * Callback ref for the scene-grid capture target. Ignores null from
+   * AnimatePresence exit cleanup when a newer connected grid is already
+   * attached — otherwise board switches permanently clear {@link gridRef}.
+   */
+  assignGridRef: (node: HTMLElement | null) => void
   canNavigateNextScene: boolean
   canNavigatePreviousScene: boolean
   deleteRequestBoard: Board | null
@@ -92,6 +98,23 @@ function useStoryboardWorkspaceModel(): StoryboardWorkspaceModel {
   const gridRef = React.useRef<HTMLElement>(null)
   const importInputRef = React.useRef<HTMLInputElement>(null)
   const saveTimerRef = React.useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  /**
+   * Keeps {@link gridRef} pointed at the live scene grid across board
+   * transitions. AnimatePresence unmounts the exiting board after the
+   * entering board has already attached; a plain ref would then be
+   * cleared to null and PNG / video capture would silently no-op.
+   */
+  const assignGridRef = React.useCallback((node: HTMLElement | null) => {
+    if (node !== null) {
+      gridRef.current = node
+      return
+    }
+
+    if (gridRef.current !== null && !gridRef.current.isConnected) {
+      gridRef.current = null
+    }
+  }, [])
 
   React.useEffect(() => {
     let cancelled = false
@@ -272,6 +295,10 @@ function useStoryboardWorkspaceModel(): StoryboardWorkspaceModel {
 
   async function handleExportPng(board: Board) {
     if (gridRef.current === null) {
+      dispatch({
+        error: "The storyboard grid could not be captured.",
+        type: "setIoError",
+      })
       return
     }
 
@@ -331,6 +358,7 @@ function useStoryboardWorkspaceModel(): StoryboardWorkspaceModel {
   }
 
   return {
+    assignGridRef,
     canNavigateNextScene,
     canNavigatePreviousScene,
     deleteRequestBoard,
