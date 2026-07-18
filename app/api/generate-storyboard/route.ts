@@ -34,7 +34,8 @@ Craft rules, applied to every plan:
 - Choose shot sizes for narrative function: WS to establish geography, MS for interaction, MCU for reaction, CU for decision or detail. Alternate sizes so no three consecutive scenes share one.
 - Keep a coherent lighting grammar. Light follows the story's time and mood arc; adjacent scenes in the same location and moment share the same lighting condition, and lighting changes mark story turns.
 - Pace with intent. Scene durations form a rhythm: longer establishing and emotional beats, shorter action and reaction beats.
-- Bind characters by @handle. When character material exists, actions name subjects with their @handle (e.g. @XYZ) and re-bind them with concrete identifiers (wardrobe, hair, silhouette), never bare pronouns.`
+- Bind characters by @handle. When character material exists, actions name subjects with their @handle (e.g. @XYZ) and re-bind them with concrete identifiers (wardrobe, hair, silhouette), never bare pronouns.
+- Respect visual style. When a written style and/or style reference images are declared, plan lighting, mood, and action language that fit that medium. Do not assume photoreal live-action when the style is illustration, animation, painterly, or any other non-photoreal treatment.`
 
 /**
  * Plans a storyline, generates one Nano Banana contact sheet, then returns
@@ -70,6 +71,7 @@ export async function POST(request: Request): Promise<Response> {
       prompt,
       resolution,
       styleImageRefs,
+      visualStyle,
     } = parsedRequest.data
     const referenceImages = [...characterImageRefs, ...styleImageRefs]
     const { output: plan } = await generateText({
@@ -81,11 +83,13 @@ export async function POST(request: Request): Promise<Response> {
         name: "storyboard_plan",
         schema: storyboardPlanSchema,
       }),
-      prompt: buildPlanningPrompt(
-        characterImageRefs.length,
+      prompt: buildPlanningPrompt({
+        characterImageCount: characterImageRefs.length,
         characterSheets,
-        prompt
-      ),
+        storyline: prompt,
+        styleImageCount: styleImageRefs.length,
+        visualStyle,
+      }),
       system: DIRECTOR_SYSTEM_PROMPT,
     })
 
@@ -102,6 +106,7 @@ export async function POST(request: Request): Promise<Response> {
       scenes: plan.scenes,
       storyline: prompt,
       styleImageCount: styleImageRefs.length,
+      visualStyle,
     })
     const modelId = resolveNanoBananaModelId({
       hasReferenceImages: referenceImages.length > 0,
@@ -153,12 +158,27 @@ export async function POST(request: Request): Promise<Response> {
   }
 }
 
-/** Builds the structured scene-planning brief sent to OpenAI. */
-function buildPlanningPrompt(
-  characterImageCount: number,
-  characterSheets: string[],
+interface PlanningPromptOptions {
+  /** Number of character reference images supplied for the renderer. */
+  characterImageCount: number
+  /** Written character continuity sheets. */
+  characterSheets: string[]
+  /** Original logline or full story material. */
   storyline: string
-): string {
+  /** Number of visual-style reference images supplied for the renderer. */
+  styleImageCount: number
+  /** Optional textual visual-style description. */
+  visualStyle: string
+}
+
+/** Builds the structured scene-planning brief sent to OpenAI. */
+function buildPlanningPrompt({
+  characterImageCount,
+  characterSheets,
+  storyline,
+  styleImageCount,
+  visualStyle,
+}: PlanningPromptOptions): string {
   const writtenCharacterContext =
     characterSheets.length === 0
       ? "No separate character sheets were supplied."
@@ -169,6 +189,11 @@ function buildPlanningPrompt(
     characterImageCount === 0
       ? "No character reference images were supplied."
       : `${characterImageCount} character reference image${characterImageCount === 1 ? " was" : "s were"} supplied for the renderer. Use @handles and concrete identifiers available in the story or written sheets; do not invent unseen visual details solely to describe those images.`
+  const trimmedVisualStyle = visualStyle.trim()
+  const visualStyleContext = buildPlanningVisualStyleContext(
+    styleImageCount,
+    trimmedVisualStyle
+  )
 
   return `Plan a cinematic storyboard from this story material.
 
@@ -190,6 +215,34 @@ ${writtenCharacterContext}
 
 ${visualCharacterContext}
 
+${visualStyleContext}
+
 Story material:
 ${storyline}`
+}
+
+/** Describes declared visual style for the planner when present. */
+function buildPlanningVisualStyleContext(
+  styleImageCount: number,
+  visualStyle: string
+): string {
+  if (visualStyle === "" && styleImageCount === 0) {
+    return "No visual style was declared. Plan for photoreal live-action cinematography."
+  }
+
+  const parts = [
+    "Visual style — plan lighting, mood, and drawable action language that fit this medium. Do not assume photoreal live-action if the style is non-photoreal:",
+  ]
+
+  if (visualStyle !== "") {
+    parts.push(`Written style: ${visualStyle}`)
+  }
+
+  if (styleImageCount > 0) {
+    parts.push(
+      `${styleImageCount} visual-style reference image${styleImageCount === 1 ? " was" : "s were"} supplied for the renderer. Treat them as the authoritative look for medium, palette, and treatment.`
+    )
+  }
+
+  return parts.join("\n")
 }

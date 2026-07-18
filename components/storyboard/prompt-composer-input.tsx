@@ -23,6 +23,7 @@ import {
   MAX_CHARACTER_NAME_LENGTH,
   MAX_CHARACTER_NOTES_LENGTH,
   MAX_CHARACTER_SHEETS,
+  MAX_VISUAL_STYLE_LENGTH,
 } from "@/lib/generation"
 import { cn } from "@/lib/utils"
 
@@ -165,7 +166,9 @@ function PromptComposerInput() {
     mode,
     prompt,
     setPrompt,
+    setVisualStyle,
     submit,
+    visualStyle,
   } = usePromptComposer()
   const textareaRef = React.useRef<HTMLTextAreaElement>(null)
   const [mentionSession, setMentionSession] =
@@ -350,6 +353,21 @@ function PromptComposerInput() {
             ))
           )}
         </CharacterMentionList>
+      ) : null}
+      {!isImageEdit ? (
+        <Field className="min-h-8 justify-start px-4 pt-1 pb-2">
+          <Field.Label className="w-24 shrink-0">Visual style</Field.Label>
+          <Field.Control>
+            <InlineInput
+              className="w-full text-left disabled:cursor-not-allowed disabled:opacity-60"
+              disabled={isDisabled}
+              maxLength={MAX_VISUAL_STYLE_LENGTH}
+              onChange={(event) => setVisualStyle(event.target.value)}
+              placeholder="Watercolor storybook, muted pastels, soft paper texture…"
+              value={visualStyle}
+            />
+          </Field.Control>
+        </Field>
       ) : null}
       {isCharacterSheetOpen ? <CharacterNotesEditor /> : null}
     </div>

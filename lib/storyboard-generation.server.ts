@@ -47,6 +47,22 @@ interface CompositePromptOptions {
   storyline: string
   /** Number of trailing input images that define visual treatment. */
   styleImageCount: number
+  /** Optional textual description of the desired visual treatment. */
+  visualStyle: string
+}
+
+interface VisualStyleSectionOptions {
+  /** Number of trailing input images that define visual treatment. */
+  styleImageCount: number
+  /** Optional textual description of the desired visual treatment. */
+  visualStyle: string
+}
+
+interface SceneImageEditPromptOptions {
+  /** User instruction describing how to change the frame. */
+  instruction: string
+  /** Optional textual visual-style guidance to preserve while editing. */
+  visualStyle: string
 }
 
 /**
@@ -71,6 +87,7 @@ export function buildCompositePrompt({
   scenes,
   storyline,
   styleImageCount,
+  visualStyle,
 }: CompositePromptOptions): string {
   const sceneList = scenes
     .map(
@@ -83,6 +100,10 @@ export function buildCompositePrompt({
   const emptyCellCount = rows * columns - scenes.length
   const hasCharacterReferences =
     characterImageCount > 0 || characterSheets.length > 0
+  const hasStyleGuidance = hasVisualStyleGuidance({
+    styleImageCount,
+    visualStyle,
+  })
   const continuity = !hasCharacterReferences
     ? "Infer consistent character appearances and wardrobe from the storyline and keep them identical in every cell."
     : `Maintain the supplied character designs exactly across every frame. Re-assert each character's identity inside every cell they appear in — same face, hair, wardrobe, and silhouette.${
@@ -96,14 +117,20 @@ export function buildCompositePrompt({
     characterImageCount,
     styleImageCount
   )
-  const renderingDirection =
-    styleImageCount === 0
-      ? "Every cell is photorealistic live-action cinematography — real human skin texture, real fabric and materials, natural depth of field, and the optical character of the camera body and lens named for that cell. Absolutely no illustration, storyboard sketch, pencil or ink drawing, comic art, anime, cel-shading, watercolor, concept-art painting, or 3D cartoon rendering."
-      : "Lock the style of every cell by referring to the style of the attached visual-style image(s): preserve their medium, palette, contrast, lighting language, texture, production design, and image-making treatment across the entire sheet. Apply that locked style to this story rather than copying any referenced person, pose, composition, location, or narrative event."
+  const styleSection = buildVisualStyleSection({
+    styleImageCount,
+    visualStyle,
+  })
+  const renderingDirection = hasStyleGuidance
+    ? "STYLE LOCK (hard requirement): Every cell must match the declared visual style exactly — same medium, palette, contrast, lighting language, texture, production design, and image-making treatment. Do not fall back to photoreal live-action, illustration defaults, or any other look. Apply that locked style to this story rather than copying any referenced person, pose, composition, location, or narrative event."
+    : "Every cell is photorealistic live-action cinematography — real human skin texture, real fabric and materials, natural depth of field, and the optical character of the camera body and lens named for that cell. Absolutely no illustration, storyboard sketch, pencil or ink drawing, comic art, anime, cel-shading, watercolor, concept-art painting, or 3D cartoon rendering."
+  const visualDirection = hasStyleGuidance
+    ? "Coherent production design and strong visual continuity within the locked style. Each cell follows its bracketed [shot size | camera | lens | movement | lighting] specification as framing and staging guidance interpreted through the locked medium — not as a mandate for photoreal optics. Compose with variety — at most 2 cells on the whole sheet may center the subject; vary blocking, angle, and depth layering between adjacent cells so no two neighbours read the same."
+    : "Premium cinematic previsualization with coherent production design and strong visual continuity. Each cell follows its bracketed [shot size | camera | lens | movement | lighting] specification: frame the subject at the stated shot size, render the lens's field of view and compression, imply the movement through motion blur or composition energy, and light the cell with the stated condition. Compose with variety — at most 2 cells on the whole sheet may center the subject; vary blocking, angle, and depth layering between adjacent cells so no two neighbours read the same."
 
   return `Create ONE finished cinematic storyboard contact sheet, not separate images.
 
-GRID SPECIFICATION:
+${styleSection === "" ? "" : `${styleSection}\n\n`}GRID SPECIFICATION:
 - Exactly ${columns} columns by ${rows} rows.
 - Read left-to-right, then top-to-bottom.
 - Every cell has the same dimensions and a cinematic 16:9 composition.
@@ -118,7 +145,7 @@ CONTAINMENT (hard requirement):
 Absolutely no text anywhere on the sheet — no shot numbers, labels, captions, titles, subtitles, borders, watermarks, or UI chrome. Pure imagery only.
 
 VISUAL DIRECTION:
-Premium cinematic previsualization with coherent production design and strong visual continuity. Each cell follows its bracketed [shot size | camera | lens | movement | lighting] specification: frame the subject at the stated shot size, render the lens's field of view and compression, imply the movement through motion blur or composition energy, and light the cell with the stated condition. Compose with variety — at most 2 cells on the whole sheet may center the subject; vary blocking, angle, and depth layering between adjacent cells so no two neighbours read the same.
+${visualDirection}
 
 REFERENCE IMAGE MAP:
 ${referenceDirections}
@@ -137,11 +164,71 @@ ${sceneList}`
  * Combines an editor instruction with the mandatory single-frame composition
  * constraints before sending it to Nano Banana.
  */
-export function buildSceneImageEditPrompt(instruction: string): string {
+export function buildSceneImageEditPrompt({
+  instruction,
+  visualStyle,
+}: SceneImageEditPromptOptions): string {
+  const styleSection = buildVisualStyleSection({
+    styleImageCount: 0,
+    visualStyle,
+  })
+  const styleLock =
+    styleSection === ""
+      ? "Preserve the existing frame's visual language while applying the edit."
+      : `${styleSection}
+
+STYLE LOCK (hard requirement): Preserve and apply this visual style while editing. Do not drift toward a different medium, palette, or image-making treatment.`
+
   return `${SCENE_IMAGE_EDIT_SYSTEM_PROMPT}
+
+${styleLock}
 
 EDIT INSTRUCTION:
 ${instruction}`
+}
+
+/**
+ * Whether textual style, style images, or both provide visual-style guidance.
+ */
+export function hasVisualStyleGuidance({
+  styleImageCount,
+  visualStyle,
+}: VisualStyleSectionOptions): boolean {
+  return styleImageCount > 0 || visualStyle.trim() !== ""
+}
+
+/**
+ * Shared visual-style block for composite generation and scene editing.
+ */
+export function buildVisualStyleSection({
+  styleImageCount,
+  visualStyle,
+}: VisualStyleSectionOptions): string {
+  const trimmedStyle = visualStyle.trim()
+
+  if (trimmedStyle === "" && styleImageCount === 0) {
+    return ""
+  }
+
+  const lines = ["VISUAL STYLE (hard requirement):"]
+
+  if (trimmedStyle !== "") {
+    lines.push(`Written style: ${trimmedStyle}`)
+  }
+
+  if (styleImageCount > 0) {
+    lines.push(
+      styleImageCount === 1
+        ? "A visual-style reference image is attached — lock medium, palette, lighting, texture, production design, and treatment from it."
+        : `${styleImageCount} visual-style reference images are attached — lock medium, palette, lighting, texture, production design, and treatment from them.`
+    )
+  }
+
+  lines.push(
+    "This style overrides any default photoreal live-action look. Do not invent a different medium."
+  )
+
+  return lines.join("\n")
 }
 
 /** Maps ordered model input images to their distinct continuity and style roles. */

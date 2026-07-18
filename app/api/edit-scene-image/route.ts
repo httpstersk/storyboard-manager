@@ -50,13 +50,17 @@ export async function POST(request: Request): Promise<Response> {
   }
 
   try {
-    const { imageModel, prompt, resolution, sourceImage } = parsedRequest.data
+    const { imageModel, prompt, resolution, sourceImage, visualStyle } =
+      parsedRequest.data
     const { image } = await generateImage({
       model: fal.image(resolveNanoBananaEditModelId(imageModel)),
       n: 1,
       prompt: {
         images: [sourceImage],
-        text: buildSceneImageEditPrompt(prompt),
+        text: buildSceneImageEditPrompt({
+          instruction: prompt,
+          visualStyle,
+        }),
       },
       providerOptions: {
         fal: {

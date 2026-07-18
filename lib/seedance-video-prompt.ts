@@ -21,6 +21,8 @@ export interface BuildSeedanceVideoPromptInput {
   characterNotes: SeedanceCharacterNote[]
   /** Ordered scenes of the current board. */
   scenes: Scene[]
+  /** Optional textual visual-style guidance from the prompt composer. */
+  visualStyle: string
 }
 
 /**
@@ -78,12 +80,20 @@ export function buildSeedanceVideoPrompt({
   characterImageCount,
   characterNotes,
   scenes,
+  visualStyle,
 }: BuildSeedanceVideoPromptInput): string {
   if (scenes.length === 0) {
     return ""
   }
 
   const lines: string[] = [STORYBOARD_BASE_PROMPT]
+  const trimmedVisualStyle = visualStyle.trim()
+
+  if (trimmedVisualStyle !== "") {
+    lines.push(
+      `Visual style lock: ${trimmedVisualStyle}. Preserve this medium, palette, lighting language, and image-making treatment across every shot — do not drift toward a different look.`
+    )
+  }
 
   const characterReferences = formatCharacterReferences(characterImageCount)
   if (characterReferences !== "") {

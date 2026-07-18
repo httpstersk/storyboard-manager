@@ -19,6 +19,7 @@ import { imageModelAtom } from "@/lib/image-model-settings"
 import { imageResolutionAtom } from "@/lib/image-resolution-settings"
 import { type Scene } from "@/lib/storyboard"
 import { validateImageFile } from "@/lib/validation"
+import { composerVisualStyleAtom } from "@/lib/video-section-atoms"
 
 /**
  * New reference image state for the scene being edited:
@@ -124,6 +125,7 @@ function EditSceneDialog({
 }: EditSceneDialogProps) {
   const imageModel = useAtomValue(imageModelAtom)
   const imageResolution = useAtomValue(imageResolutionAtom)
+  const visualStyle = useAtomValue(composerVisualStyleAtom)
   const drawingCanvasRef = React.useRef<DrawingCanvasHandle>(null)
   const fileInputRef = React.useRef<HTMLInputElement>(null)
   const [state, dispatch] = React.useReducer(dialogReducer, initialDialogState)
@@ -210,6 +212,7 @@ function EditSceneDialog({
         prompt,
         resolution: imageResolution,
         sourceImage: previewImage,
+        visualStyle: visualStyle.trim(),
       })
 
       dispatch({ payload: image, type: "SET_DRAFT_IMAGE" })

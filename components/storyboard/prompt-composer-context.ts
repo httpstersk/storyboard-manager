@@ -35,8 +35,10 @@ export interface PromptComposerContextValue {
   setIsCharacterSheetOpen: (isOpen: boolean) => void
   setPrompt: (value: string) => void
   setStyleImageReferences: (files: File[]) => void
+  setVisualStyle: (value: string) => void
   styleImageReferences: File[]
   submit: () => void
+  visualStyle: string
 }
 
 /** Cohesive form state for the composer, driven by {@link composerReducer}. */
@@ -48,6 +50,7 @@ export interface ComposerState {
   nextCharacterNoteId: number
   prompt: string
   styleImageReferences: File[]
+  visualStyle: string
 }
 
 export type ComposerAction =
@@ -61,6 +64,7 @@ export type ComposerAction =
   | { styleImageReferences: File[]; type: "setStyleImageReferences" }
   | { type: "reset" }
   | { type: "resetPrompt" }
+  | { type: "setVisualStyle"; visualStyle: string }
 
 export const INITIAL_COMPOSER_STATE: ComposerState = {
   characterImageReferences: [],
@@ -70,6 +74,7 @@ export const INITIAL_COMPOSER_STATE: ComposerState = {
   nextCharacterNoteId: 1,
   prompt: "",
   styleImageReferences: [],
+  visualStyle: "",
 }
 
 /** Reducer backing the prompt composer form state. */
@@ -128,6 +133,8 @@ export function composerReducer(
       return { ...state, prompt: action.prompt }
     case "setStyleImageReferences":
       return { ...state, styleImageReferences: action.styleImageReferences }
+    case "setVisualStyle":
+      return { ...state, visualStyle: action.visualStyle }
   }
 }
 

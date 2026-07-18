@@ -21,6 +21,8 @@ export interface VideoPromptSource {
   characterNotes: SeedanceCharacterNote[]
   /** Ordered scenes of the selected board. */
   scenes: Scene[]
+  /** Optional textual visual-style guidance from the composer. */
+  visualStyle: string
 }
 
 /** Empty prompt source used before the first sync. */
@@ -28,7 +30,14 @@ export const EMPTY_VIDEO_PROMPT_SOURCE: VideoPromptSource = {
   characterImageCount: 0,
   characterNotes: [],
   scenes: [],
+  visualStyle: "",
 }
+
+/**
+ * Textual visual-style description from the floating composer.
+ * Held in memory only — not persisted. Read at scene-edit time.
+ */
+export const composerVisualStyleAtom = atom("")
 
 /** Writable source for the derived Seedance video prompt. */
 export const videoPromptSourceAtom = atom<VideoPromptSource>(

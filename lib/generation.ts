@@ -44,6 +44,12 @@ export const MAX_GENERATED_SCENES = 12
 /** Maximum length of a single-scene image editing instruction. */
 export const MAX_SCENE_IMAGE_EDIT_PROMPT_LENGTH = 2_000
 
+/**
+ * Maximum length of the optional textual visual-style description.
+ * Kept short so style guidance stays focused alongside reference images.
+ */
+export const MAX_VISUAL_STYLE_LENGTH = 2_000
+
 /** Minimum number of beats produced for even a short logline. */
 export const MIN_GENERATED_SCENES = 3
 
@@ -118,6 +124,7 @@ export const storyboardGenerationRequestSchema = z
     prompt: z.string().trim().min(1).max(MAX_PROMPT_LENGTH),
     resolution: imageResolutionSchema,
     styleImageRefs: z.array(dataUrlSchema).max(MAX_IMAGE_REFERENCES),
+    visualStyle: z.string().trim().max(MAX_VISUAL_STYLE_LENGTH),
   })
   .refine(
     ({ characterImageRefs, styleImageRefs }) =>
@@ -191,6 +198,7 @@ export const sceneImageEditRequestSchema = z.object({
   prompt: z.string().trim().min(1).max(MAX_SCENE_IMAGE_EDIT_PROMPT_LENGTH),
   resolution: imageResolutionSchema,
   sourceImage: dataUrlSchema,
+  visualStyle: z.string().trim().max(MAX_VISUAL_STYLE_LENGTH),
 })
 
 /** Runtime schema for a successful single-scene image editing response. */
@@ -206,6 +214,7 @@ export interface StoryboardGenerationRequest {
   prompt: string
   resolution: ImageResolution
   styleImageRefs: string[]
+  visualStyle: string
 }
 
 /** Client request submitted to modify one generated scene image. */
@@ -214,6 +223,7 @@ export interface SceneImageEditRequest {
   prompt: string
   resolution: ImageResolution
   sourceImage: string
+  visualStyle: string
 }
 
 /**

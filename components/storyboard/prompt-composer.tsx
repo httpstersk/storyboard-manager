@@ -23,6 +23,7 @@ import { cn } from "@/lib/utils"
 import { MAX_SEEDANCE_CHARACTER_IMAGES } from "@/lib/video-generation"
 import {
   composerCharacterImageFilesAtom,
+  composerVisualStyleAtom,
   videoPromptSourceAtom,
 } from "@/lib/video-section-atoms"
 
@@ -51,6 +52,7 @@ function PromptComposerRoot({
   const imageModel = useAtomValue(imageModelAtom)
   const imageResolution = useAtomValue(imageResolutionAtom)
   const setCharacterImageFiles = useSetAtom(composerCharacterImageFilesAtom)
+  const setComposerVisualStyle = useSetAtom(composerVisualStyleAtom)
   const setVideoPromptSource = useSetAtom(videoPromptSourceAtom)
   const [state, dispatch] = React.useReducer(
     composerReducer,
@@ -58,11 +60,12 @@ function PromptComposerRoot({
   )
   const [isSubmitting, startSubmitTransition] = React.useTransition()
 
-  // Sync character data into the video prompt source atom.
+  // Sync character/style data into video + edit atoms.
   // NOTE: The companion sync for `scenes` lives in VideoSectionRoot.
   // Each component owns its own slice; neither should overwrite the other.
   React.useEffect(() => {
     setCharacterImageFiles(state.characterImageReferences)
+    setComposerVisualStyle(state.visualStyle)
     setVideoPromptSource((previous) => ({
       ...previous,
       characterImageCount: Math.min(
@@ -73,12 +76,15 @@ function PromptComposerRoot({
         name,
         notes,
       })),
+      visualStyle: state.visualStyle.trim(),
     }))
   }, [
     setCharacterImageFiles,
+    setComposerVisualStyle,
     setVideoPromptSource,
     state.characterImageReferences,
     state.characterNotes,
+    state.visualStyle,
   ])
 
   const removeCharacterImageReference = (index: number) => {
@@ -164,6 +170,7 @@ function PromptComposerRoot({
           prompt: trimmedPrompt,
           resolution: imageResolution,
           styleImageRefs,
+          visualStyle: state.visualStyle.trim(),
         })
 
         dispatch({ type: "resetPrompt" })
@@ -206,8 +213,11 @@ function PromptComposerRoot({
     setPrompt: (prompt) => dispatch({ prompt, type: "setPrompt" }),
     setStyleImageReferences: (styleImageReferences) =>
       dispatch({ styleImageReferences, type: "setStyleImageReferences" }),
+    setVisualStyle: (visualStyle) =>
+      dispatch({ type: "setVisualStyle", visualStyle }),
     styleImageReferences: state.styleImageReferences,
     submit,
+    visualStyle: state.visualStyle,
   }
 
   const isImageEdit = mode === "image-edit"
