@@ -349,6 +349,39 @@ export function createGeneratedBoard(
 }
 
 /**
+ * Creates the blank board shown while a generation is in flight. The
+ * provisional title comes from the prompt and the composer draft that
+ * requested the generation stays attached, so the board already carries
+ * its context before the generated scenes arrive.
+ */
+export function createPlaceholderBoard(
+  id: string,
+  prompt: string,
+  composer: BoardComposerDraft
+): Board {
+  return { ...createBlankBoard(id, provisionalBoardTitle(prompt)), composer }
+}
+
+/** Maximum prompt characters reused as a provisional board title. */
+const PROVISIONAL_TITLE_MAX_LENGTH = 48
+
+/**
+ * Derives a short provisional board title from the generation prompt,
+ * used until the generated title replaces it.
+ */
+export function provisionalBoardTitle(prompt: string): string {
+  const normalized = prompt.trim().replace(/\s+/g, " ")
+
+  if (normalized === "") {
+    return UNTITLED_BOARD_TITLE
+  }
+
+  return normalized.length <= PROVISIONAL_TITLE_MAX_LENGTH
+    ? normalized
+    : `${normalized.slice(0, PROVISIONAL_TITLE_MAX_LENGTH).trimEnd()}…`
+}
+
+/**
  * Picks the next free "Untitled board" title, counting up from the
  * existing board titles: "Untitled board", "Untitled board 2", ...
  */

@@ -20,6 +20,8 @@ const SIDEBAR_CONTENT_TRANSITION = { duration: 0.15, ease: EASE_OUT } as const
 interface StoryboardWorkspaceSidebarOverlayProps {
   /** All boards available in the workspace. */
   boards: Board[]
+  /** Ids of placeholder boards whose generation is still in flight. */
+  generatingBoardIds: string[]
   /** Reference time for relative edited labels. */
   now: number
   /** Creates a new blank storyboard. */
@@ -49,6 +51,7 @@ interface StoryboardWorkspaceSidebarOverlayProps {
 /** Floating sidebar overlay rendered above the main workspace content. */
 function StoryboardWorkspaceSidebarOverlay({
   boards,
+  generatingBoardIds,
   now,
   onCollapse,
   onDeleteRequest,
@@ -103,7 +106,11 @@ function StoryboardWorkspaceSidebarOverlay({
                     active={board.id === selectedBoard.id}
                     canDelete={boards.length > 1}
                     key={board.id}
-                    meta={`${board.scenes.length} scenes · ${formatSeconds(totalRuntimeSeconds(board.scenes))} · ${formatEditedAt(board.updatedAt, now)}`}
+                    meta={
+                      generatingBoardIds.includes(board.id)
+                        ? "Generating…"
+                        : `${board.scenes.length} scenes · ${formatSeconds(totalRuntimeSeconds(board.scenes))} · ${formatEditedAt(board.updatedAt, now)}`
+                    }
                     onDeleteRequest={() => onDeleteRequest(board.id)}
                     onRename={(newTitle) => onRenameBoard(board.id, newTitle)}
                     onSelect={() => onSelectBoard(board.id)}

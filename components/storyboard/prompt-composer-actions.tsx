@@ -1,6 +1,5 @@
 "use client"
 
-import { AnimatePresence, m } from "motion/react"
 import { SFArrowUp } from "sf-symbols-lib/monochrome"
 import * as React from "react"
 
@@ -13,7 +12,6 @@ import {
   MAX_IMAGE_REFERENCES,
   MAX_IMAGE_REFERENCES_ERROR,
 } from "@/lib/generation"
-import { TRANSITION_FADE_FAST } from "@/lib/motion"
 import { IMAGE_UPLOAD_RULES, validateImageFile } from "@/lib/validation"
 
 /** Attachment affordances and generation submit control. */
@@ -23,7 +21,6 @@ function PromptComposerActions() {
     characterNotes,
     isCharacterSheetOpen,
     isDisabled,
-    isSubmitting,
     mode,
     prompt,
     setCharacterImageReferences,
@@ -138,22 +135,6 @@ function PromptComposerActions() {
         />
       </div>
       <div className="flex shrink-0 items-center gap-2">
-        <AnimatePresence initial={false}>
-          {isSubmitting ? (
-            <m.span
-              animate={{ opacity: 1, y: 0 }}
-              aria-live="polite"
-              className="hidden text-caption text-ink-muted sm:inline"
-              exit={{ opacity: 0, y: -2 }}
-              initial={{ opacity: 0, y: -2 }}
-              key="composer-submitting"
-              role="status"
-              transition={TRANSITION_FADE_FAST}
-            >
-              Directing scenes…
-            </m.span>
-          ) : null}
-        </AnimatePresence>
         <button
           aria-label="Generate storyboard"
           className="grid size-9 place-items-center rounded-full bg-emphasis text-emphasis-foreground transition-[background-color,transform] duration-150 ease-out outline-none hover:bg-emphasis/85 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1 focus-visible:ring-offset-surface-panel active:scale-[0.94] disabled:cursor-not-allowed disabled:opacity-40"

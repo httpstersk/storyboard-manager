@@ -26,6 +26,7 @@ import {
   type Board,
   createBlankBoard,
   createGeneratedBoard,
+  createPlaceholderBoard,
   formatSeconds,
   nextUntitledBoardTitle,
   type Scene,
@@ -71,7 +72,7 @@ interface StoryboardWorkspaceModel {
   handleExportPng: (board: Board) => Promise<void>
   handleGenerateStoryboard: (
     generationRequest: StoryboardGenerationRequest
-  ) => Promise<void>
+  ) => void
   handleImageModelChange: (value: string) => void
   handleImageResolutionChange: (value: string) => void
   handleImportClick: () => void
@@ -85,6 +86,8 @@ interface StoryboardWorkspaceModel {
   imageModel: ImageModel
   imageResolution: ImageResolution
   importInputRef: React.RefObject<HTMLInputElement | null>
+  /** Whether the currently open board is a generation placeholder. */
+  isSelectedBoardGenerating: boolean
   nextEditingSceneId: string | null
   previousEditingSceneId: string | null
   runtime: string
@@ -139,8 +142,12 @@ function useStoryboardWorkspaceModel(): StoryboardWorkspaceModel {
     saveTimerRef.current = setTimeout(() => {
       saveTimerRef.current = null
 
+      // Generation placeholders are session-only: their fetches cannot
+      // survive a reload, so they never reach IndexedDB.
       void saveStoredWorkspace({
-        boards: state.boards,
+        boards: state.boards.filter(
+          (board) => !state.generatingBoardIds.includes(board.id)
+        ),
         columns: state.columns,
         rows: state.rows,
         selectedBoardId: state.selectedBoardId,
@@ -162,6 +169,7 @@ function useStoryboardWorkspaceModel(): StoryboardWorkspaceModel {
   }, [
     state.boards,
     state.columns,
+    state.generatingBoardIds,
     state.hydrated,
     state.rows,
     state.selectedBoardId,
@@ -171,6 +179,9 @@ function useStoryboardWorkspaceModel(): StoryboardWorkspaceModel {
   const selectedBoard =
     state.boards.find((board) => board.id === state.selectedBoardId) ??
     state.boards[0]
+  const isSelectedBoardGenerating = state.generatingBoardIds.includes(
+    selectedBoard.id
+  )
   const deferredQuery = React.useDeferredValue(state.query)
   const normalizedQuery = deferredQuery.trim().toLowerCase()
   const visibleBoards = state.boards.filter((board) =>
@@ -287,47 +298,51 @@ function useStoryboardWorkspaceModel(): StoryboardWorkspaceModel {
     }
   }
 
-  async function handleGenerateStoryboard(
+  function handleGenerateStoryboard(
     generationRequest: StoryboardGenerationRequest
   ) {
     // Captured up front so the draft that produced this generation moves
     // to the new board even if the selection changes mid-flight.
     const composerDraft = selectedBoard.composer
+    const boardId = createBoardId()
 
-    dispatch({ error: null, type: "setIoError" })
-    dispatch({ isGenerating: true, type: "setIsGenerating" })
-
-    const generationResult = await requestStoryboardGeneration(
-      generationRequest
-    )
-      .then((result) => ({ ok: true as const, result }))
-      .catch((error: unknown) => ({
-        error:
-          error instanceof Error
-            ? error.message
-            : "The storyboard could not be generated.",
-        ok: false as const,
-      }))
-
-    dispatch({ isGenerating: false, type: "setIsGenerating" })
-
-    if (!generationResult.ok) {
-      dispatch({ error: generationResult.error, type: "setIoError" })
-      return
-    }
-
-    const board = createGeneratedBoard(
-      createBoardId(),
-      generationResult.result.scenes,
-      generationResult.result.title,
-      composerDraft
-    )
-
-    React.startTransition(() => {
-      dispatch({ board, type: "addBoard" })
-      dispatch({ columns: generationResult.result.columns, type: "setColumns" })
-      dispatch({ rows: generationResult.result.rows, type: "setRows" })
+    dispatch({
+      board: createPlaceholderBoard(
+        boardId,
+        generationRequest.prompt,
+        composerDraft
+      ),
+      type: "startGeneration",
     })
+
+    // Runs detached so further generations can start while this one is
+    // in flight; the result is keyed back to its placeholder board.
+    void requestStoryboardGeneration(generationRequest)
+      .then((result) => {
+        React.startTransition(() => {
+          dispatch({
+            board: createGeneratedBoard(
+              boardId,
+              result.scenes,
+              result.title,
+              composerDraft
+            ),
+            columns: result.columns,
+            rows: result.rows,
+            type: "completeGeneration",
+          })
+        })
+      })
+      .catch((error: unknown) => {
+        dispatch({
+          boardId,
+          error:
+            error instanceof Error
+              ? error.message
+              : "The storyboard could not be generated.",
+          type: "failGeneration",
+        })
+      })
   }
 
   return {
@@ -356,6 +371,7 @@ function useStoryboardWorkspaceModel(): StoryboardWorkspaceModel {
     imageModel,
     imageResolution,
     importInputRef,
+    isSelectedBoardGenerating,
     nextEditingSceneId,
     previousEditingSceneId,
     runtime,

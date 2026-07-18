@@ -18,6 +18,17 @@ import { useStoryboardWorkspaceModel } from "@/components/storyboard/use-storybo
 import { VideoSection } from "@/components/storyboard/video-section"
 import { formatSceneNumber } from "@/lib/storyboard"
 
+/** Status-bar autosave label reflecting the number of in-flight generations. */
+function autosaveLabel(generatingCount: number): string {
+  if (generatingCount === 0) {
+    return "Autosaved just now"
+  }
+
+  return generatingCount === 1
+    ? "Generating storyboard"
+    : `Generating ${generatingCount} storyboards`
+}
+
 /**
  * Client-side shell of the storyboard studio: owns all board state and
  * composes the sidebar, toolbar, scene grid, status bar, and scene
@@ -50,6 +61,7 @@ function StoryboardWorkspace() {
     imageModel,
     imageResolution,
     importInputRef,
+    isSelectedBoardGenerating,
     nextEditingSceneId,
     previousEditingSceneId,
     runtime,
@@ -109,7 +121,7 @@ function StoryboardWorkspace() {
         <div className="flex min-h-0 flex-1 flex-col gap-3.5 overflow-y-auto">
           <SceneGrid
             columns={state.columns}
-            isGenerating={state.isGenerating}
+            isGenerating={isSelectedBoardGenerating}
             onEditScene={handleEditScene}
             onUpdateScene={handleUpdateScene}
             ref={gridRef}
@@ -128,7 +140,6 @@ function StoryboardWorkspace() {
         </div>
         <div className="absolute inset-x-0 bottom-10 z-50 mx-auto w-full max-w-3xl px-4">
           <WorkspacePromptComposer
-            disabled={state.isGenerating}
             draft={selectedBoard.composer}
             onActiveChange={handleComposerActiveChange}
             onDraftChange={handleUpdateBoardComposer}
@@ -142,10 +153,10 @@ function StoryboardWorkspace() {
           {state.ioError !== null && (
             <BoardStatusBar.Error>{state.ioError}</BoardStatusBar.Error>
           )}
-          <BoardStatusBar.Autosave pulsing={state.isGenerating}>
-            {state.isGenerating
-              ? "Generating storyboard"
-              : "Autosaved just now"}
+          <BoardStatusBar.Autosave
+            pulsing={state.generatingBoardIds.length > 0}
+          >
+            {autosaveLabel(state.generatingBoardIds.length)}
           </BoardStatusBar.Autosave>
         </BoardStatusBar>
       </main>
@@ -167,6 +178,7 @@ function StoryboardWorkspace() {
       </AnimatePresence>
       <StoryboardWorkspaceSidebarOverlay
         boards={state.boards}
+        generatingBoardIds={state.generatingBoardIds}
         now={state.now}
         onCollapse={() =>
           dispatch({ collapsed: true, type: "setSidebarCollapsed" })

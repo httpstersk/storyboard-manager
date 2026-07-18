@@ -96,8 +96,11 @@ export interface PromptComposerRootProps extends Omit<
   onDraftChange?: (patch: Partial<BoardComposerDraft>) => void
   /** Sends a validated scene image editing instruction to the dialog. */
   onImageEditSubmit?: (prompt: string) => Promise<void>
-  /** Sends a validated generation request to the workspace. */
-  onSubmit?: (request: StoryboardGenerationRequest) => Promise<void>
+  /**
+   * Starts a storyboard generation in the workspace. Fire-and-forget:
+   * the generation continues in the background after this returns.
+   */
+  onSubmit?: (request: StoryboardGenerationRequest) => void
 }
 
 export const PromptComposerContext =

@@ -197,7 +197,9 @@ function PromptComposerRoot({
           .map(serializeCharacterNote)
           .filter(Boolean)
 
-        await onSubmit({
+        // Fire-and-forget: the workspace tracks the generation per board,
+        // so the composer frees up for the next prompt immediately.
+        onSubmit({
           characterImageRefs,
           characterSheets,
           imageModel,
@@ -213,7 +215,7 @@ function PromptComposerRoot({
           error:
             submissionError instanceof Error
               ? submissionError.message
-              : "Storyboard generation failed.",
+              : "The attached images could not be read.",
           type: "setError",
         })
       }

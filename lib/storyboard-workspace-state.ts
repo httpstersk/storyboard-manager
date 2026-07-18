@@ -18,11 +18,12 @@ export interface WorkspaceState {
   /** Board pending delete confirmation, or null when none is pending. */
   deleteRequestBoardId: string | null
   editingSceneId: string | null
+  /** Ids of placeholder boards whose generation is still in flight. */
+  generatingBoardIds: string[]
   hydrated: boolean
   ioError: string | null
   /** Whether the prompt composer currently holds focus. */
   isComposerActive: boolean
-  isGenerating: boolean
   /** Reference time for relative "edited" labels, refreshed per action. */
   now: number
   query: string
@@ -34,15 +35,17 @@ export interface WorkspaceState {
 
 export type WorkspaceAction =
   | { board: Board; type: "addBoard" }
+  | { board: Board; columns: number; rows: number; type: "completeGeneration" }
   | { boardId: string; type: "deleteBoard" }
+  | { boardId: string; error: string; type: "failGeneration" }
   | { boardId: string; title: string; type: "renameBoard" }
   | { boardId: string; type: "selectBoard" }
   | { columns: number; type: "setColumns" }
   | { boardId: string | null; type: "setDeleteRequest" }
   | { isComposerActive: boolean; type: "setComposerActive" }
   | { error: string | null; type: "setIoError" }
-  | { isGenerating: boolean; type: "setIsGenerating" }
   | { query: string; type: "setQuery" }
+  | { board: Board; type: "startGeneration" }
   | { rows: number; type: "setRows" }
   | { sceneId: string | null; type: "setEditingScene" }
   | { showParameters: boolean; type: "setShowParameters" }
@@ -67,6 +70,31 @@ export function workspaceReducer(
         now,
         selectedBoardId: action.board.id,
       }
+    case "completeGeneration": {
+      const generatingBoardIds = state.generatingBoardIds.filter(
+        (id) => id !== action.board.id
+      )
+
+      // The placeholder may have been deleted mid-flight; drop the result.
+      if (!state.boards.some((board) => board.id === action.board.id)) {
+        return { ...state, generatingBoardIds, now }
+      }
+
+      const isSelected = state.selectedBoardId === action.board.id
+
+      return {
+        ...state,
+        boards: state.boards.map((board) =>
+          board.id === action.board.id ? action.board : board
+        ),
+        columns: isSelected
+          ? clampInteger(action.columns, COLUMN_LIMITS)
+          : state.columns,
+        generatingBoardIds,
+        now,
+        rows: isSelected ? clampInteger(action.rows, ROW_LIMITS) : state.rows,
+      }
+    }
     case "deleteBoard": {
       if (state.boards.length <= 1) {
         return state
@@ -83,6 +111,40 @@ export function workspaceReducer(
           state.deleteRequestBoardId === action.boardId
             ? null
             : state.deleteRequestBoardId,
+        generatingBoardIds: state.generatingBoardIds.filter(
+          (id) => id !== action.boardId
+        ),
+        now,
+        selectedBoardId:
+          state.selectedBoardId === action.boardId
+            ? remainingBoards[0].id
+            : state.selectedBoardId,
+      }
+    }
+    case "failGeneration": {
+      const generatingBoardIds = state.generatingBoardIds.filter(
+        (id) => id !== action.boardId
+      )
+      const remainingBoards = state.boards.filter(
+        (board) => board.id !== action.boardId
+      )
+
+      // The placeholder may have been deleted mid-flight, and the last
+      // remaining board is never removed.
+      if (remainingBoards.length === 0 ||
+        remainingBoards.length === state.boards.length) {
+        return { ...state, generatingBoardIds, ioError: action.error, now }
+      }
+
+      return {
+        ...state,
+        boards: remainingBoards,
+        deleteRequestBoardId:
+          state.deleteRequestBoardId === action.boardId
+            ? null
+            : state.deleteRequestBoardId,
+        generatingBoardIds,
+        ioError: action.error,
         now,
         selectedBoardId:
           state.selectedBoardId === action.boardId
@@ -129,8 +191,6 @@ export function workspaceReducer(
       return { ...state, editingSceneId: action.sceneId }
     case "setIoError":
       return { ...state, ioError: action.error }
-    case "setIsGenerating":
-      return { ...state, isGenerating: action.isGenerating }
     case "setQuery":
       return { ...state, query: action.query }
     case "setRows":
@@ -139,6 +199,15 @@ export function workspaceReducer(
       return { ...state, showParameters: action.showParameters }
     case "setSidebarCollapsed":
       return { ...state, sidebarCollapsed: action.collapsed }
+    case "startGeneration":
+      return {
+        ...state,
+        boards: [action.board, ...state.boards],
+        generatingBoardIds: [...state.generatingBoardIds, action.board.id],
+        ioError: null,
+        now,
+        selectedBoardId: action.board.id,
+      }
     case "updateBoardComposer":
       return {
         ...state,
@@ -183,10 +252,10 @@ export function createInitialWorkspaceState(): WorkspaceState {
     columns: COLUMN_LIMITS.max - 1,
     deleteRequestBoardId: null,
     editingSceneId: null,
+    generatingBoardIds: [],
     hydrated: false,
     ioError: null,
     isComposerActive: false,
-    isGenerating: false,
     now: board.updatedAt,
     query: "",
     rows: DEFAULT_ROWS,
