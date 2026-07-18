@@ -12,7 +12,13 @@ import { SegmentedControl } from "@/components/ui/segmented-control"
 import { Stepper } from "@/components/ui/stepper"
 import { Switch } from "@/components/ui/switch"
 import { exportBoardJson } from "@/lib/board-io"
-import { type ImageModel, type ImageResolution } from "@/lib/generation"
+import {
+  IMAGE_MODEL_CONFIGS,
+  IMAGE_MODELS,
+  IMAGE_RESOLUTIONS,
+  type ImageModel,
+  type ImageResolution,
+} from "@/lib/image-models"
 import { COLUMN_LIMITS, ROW_LIMITS, type Board } from "@/lib/storyboard"
 import { seedanceVideoPromptAtom } from "@/lib/video-section-atoms"
 
@@ -103,12 +109,100 @@ function GridSteppers({
   )
 }
 
+interface ImageModelFieldProps {
+  /** Currently selected image generation model. */
+  imageModel: ImageModel
+  /** Updates the image generation model. */
+  onImageModelChange: (value: string) => void
+}
+
+/** Image model switcher of the board toolbar. */
+function ImageModelField({
+  imageModel,
+  onImageModelChange,
+}: ImageModelFieldProps) {
+  return (
+    <Field>
+      <Field.Label>Model</Field.Label>
+      <Field.Control>
+        <div>
+          <SegmentedControl
+            label="Image model"
+            onValueChange={onImageModelChange}
+            value={imageModel}
+          >
+            {IMAGE_MODELS.map((model) => (
+              <SegmentedControl.Option key={model} value={model}>
+                {IMAGE_MODEL_CONFIGS[model].label}
+              </SegmentedControl.Option>
+            ))}
+          </SegmentedControl>
+        </div>
+      </Field.Control>
+    </Field>
+  )
+}
+
+interface ImageResolutionFieldProps {
+  /** Currently selected model, which bounds the available resolutions. */
+  imageModel: ImageModel
+  /** Currently selected output resolution. */
+  imageResolution: ImageResolution
+  /** Updates the output resolution preference. */
+  onImageResolutionChange: (value: string) => void
+}
+
+/** Resolution control; options the selected model can't output are disabled. */
+function ImageResolutionField({
+  imageModel,
+  imageResolution,
+  onImageResolutionChange,
+}: ImageResolutionFieldProps) {
+  const { label: modelLabel, supportedResolutions } =
+    IMAGE_MODEL_CONFIGS[imageModel]
+
+  return (
+    <Field>
+      <Field.Label>Resolution</Field.Label>
+      <Field.Control>
+        <div>
+          <SegmentedControl
+            label="Output resolution"
+            onValueChange={onImageResolutionChange}
+            value={imageResolution}
+          >
+            {IMAGE_RESOLUTIONS.map((resolution) => {
+              const isSupported = supportedResolutions.includes(resolution)
+
+              return (
+                <SegmentedControl.Option
+                  aria-label={
+                    isSupported
+                      ? undefined
+                      : `${resolution} (unavailable with ${modelLabel})`
+                  }
+                  className="disabled:pointer-events-none disabled:opacity-40"
+                  disabled={!isSupported}
+                  key={resolution}
+                  value={resolution}
+                >
+                  {resolution}
+                </SegmentedControl.Option>
+              )
+            })}
+          </SegmentedControl>
+        </div>
+      </Field.Control>
+    </Field>
+  )
+}
+
 interface WorkspaceToolbarProps {
   /** Selected number of scene columns. */
   columns: number
   /** Image generation model selected for new storyboards. */
   imageModel: ImageModel
-  /** Output resolution selected for Pro generation and editing. */
+  /** Output resolution selected for generation and editing. */
   imageResolution: ImageResolution
   /** Updates the selected number of scene columns. */
   onColumnsChange: (columns: number) => void
@@ -145,8 +239,6 @@ function WorkspaceToolbar({
   rows,
   showParameters,
 }: WorkspaceToolbarProps) {
-  const isResolutionDisabled = imageModel === "lite"
-
   return (
     <BoardToolbar>
       <BoardToolbar.Brand name="Boooards" version="v1.3" />
@@ -157,52 +249,15 @@ function WorkspaceToolbar({
           onRowsChange={onRowsChange}
           rows={rows}
         />
-        <Field>
-          <Field.Label>Nano Banana</Field.Label>
-          <Field.Control>
-            <div>
-              <SegmentedControl
-                label="Image model"
-                onValueChange={onImageModelChange}
-                value={imageModel}
-              >
-                <SegmentedControl.Option value="lite">
-                  Lite
-                </SegmentedControl.Option>
-                <SegmentedControl.Option value="pro">
-                  Pro
-                </SegmentedControl.Option>
-              </SegmentedControl>
-            </div>
-          </Field.Control>
-        </Field>
-        <Field>
-          <Field.Label>Resolution</Field.Label>
-          <Field.Control>
-            <div>
-              <SegmentedControl
-                disabled={isResolutionDisabled}
-                label={
-                  isResolutionDisabled
-                    ? "Output resolution (available with Nano Banana Pro)"
-                    : "Output resolution"
-                }
-                onValueChange={onImageResolutionChange}
-                value={imageResolution}
-              >
-                <SegmentedControl.Option value="1K">
-                  1K
-                </SegmentedControl.Option>
-                <SegmentedControl.Option value="2K">
-                  2K
-                </SegmentedControl.Option>
-                <SegmentedControl.Option value="4K">
-                  4K
-                </SegmentedControl.Option>
-              </SegmentedControl>
-            </div>
-          </Field.Control>
-        </Field>
+        <ImageModelField
+          imageModel={imageModel}
+          onImageModelChange={onImageModelChange}
+        />
+        <ImageResolutionField
+          imageModel={imageModel}
+          imageResolution={imageResolution}
+          onImageResolutionChange={onImageResolutionChange}
+        />
         <Field>
           <Field.Label>Parameters</Field.Label>
           <Field.Control>

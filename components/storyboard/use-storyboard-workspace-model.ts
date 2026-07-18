@@ -7,14 +7,15 @@ import { flushSync } from "react-dom"
 import type { BoardComposerDraft } from "@/lib/board-composer"
 import { exportNodePng, parseBoardFile } from "@/lib/board-io"
 import { requestStoryboardGeneration } from "@/lib/generate-storyboard-client"
+import { type StoryboardGenerationRequest } from "@/lib/generation"
+import { imageModelAtom } from "@/lib/image-model-settings"
 import {
+  clampResolution,
   isImageModel,
   isImageResolution,
   type ImageModel,
   type ImageResolution,
-  type StoryboardGenerationRequest,
-} from "@/lib/generation"
-import { imageModelAtom } from "@/lib/image-model-settings"
+} from "@/lib/image-models"
 import { imageResolutionAtom } from "@/lib/image-resolution-settings"
 import {
   loadStoredWorkspace,
@@ -213,6 +214,9 @@ function useStoryboardWorkspaceModel(): StoryboardWorkspaceModel {
   const handleImageModelChange = (value: string) => {
     if (isImageModel(value)) {
       setImageModel(value)
+      // Keep the stored resolution valid for the newly selected model
+      // (e.g. 4K snaps to 2K when switching to Seedream 5 Pro).
+      setImageResolution(clampResolution(value, imageResolution))
     }
   }
 

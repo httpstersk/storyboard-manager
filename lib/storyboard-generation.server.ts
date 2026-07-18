@@ -1,12 +1,26 @@
 import sharp from "sharp"
 
 import { type StoryboardLayout } from "@/lib/generation"
+import {
+  clampResolution,
+  type ImageModel,
+  type ImageResolution,
+} from "@/lib/image-models"
 
 /** Width of every normalized storyboard frame in pixels. */
 const FRAME_WIDTH = 640
 
 /** Height of every normalized storyboard frame in pixels. */
 const FRAME_HEIGHT = 360
+
+/**
+ * Total-pixel bounds accepted by Seedream's custom `image_size` input.
+ * 1K targets the API minimum; 2K targets the API maximum.
+ */
+const SEEDREAM_TOTAL_PIXEL_BOUNDS = {
+  max: 2_048 * 2_048,
+  min: 1_024 * 1_024,
+} as const
 
 /**
  * Aspect ratios accepted by Fal Nano Banana (`aspect_ratio` provider option).
@@ -68,7 +82,7 @@ interface SceneImageEditPromptOptions {
 
 /**
  * Non-negotiable composition rules prepended to every single-frame edit.
- * Nano Banana receives this as part of its image-editing prompt.
+ * The selected edit model receives this as part of its image-editing prompt.
  */
 const SCENE_IMAGE_EDIT_SYSTEM_PROMPT = `Edit the supplied storyboard frame while preserving its cinematic visual language.
 
@@ -163,7 +177,7 @@ ${sceneList}`
 
 /**
  * Combines an editor instruction with the mandatory single-frame composition
- * constraints before sending it to Nano Banana.
+ * constraints before sending it to the selected edit model.
  */
 export function buildSceneImageEditPrompt({
   instruction,
@@ -268,6 +282,77 @@ function buildReferenceDirections(
   }
 
   return directions.join("\n")
+}
+
+interface CompositeProviderOptionsInput {
+  /** Selected image model for this generation. */
+  imageModel: ImageModel
+  /** Grid dimensions of the composite contact sheet. */
+  layout: StoryboardLayout
+  /** Number of reference images attached to the prompt. */
+  referenceImageCount: number
+  /** Preferred output resolution; clamped to what the model supports. */
+  resolution: ImageResolution
+}
+
+/**
+ * Builds the fal provider options for composite generation. Nano Banana
+ * sizes via `aspect_ratio` + `resolution`; Seedream via a custom
+ * `image_size` computed for the grid.
+ */
+export function buildCompositeProviderOptions({
+  imageModel,
+  layout,
+  referenceImageCount,
+  resolution,
+}: CompositeProviderOptionsInput): Record<
+  string,
+  boolean | string | { height: number; width: number }
+> {
+  const sharedOptions = {
+    outputFormat: "jpeg",
+    // Both models' edit endpoints require image_urls even for one
+    // reference image.
+    useMultipleImages: referenceImageCount > 0,
+  }
+
+  if (imageModel === "seedream-5-pro") {
+    return {
+      ...sharedOptions,
+      image_size: chooseCompositeImageSize(layout, resolution),
+    }
+  }
+
+  return {
+    ...sharedOptions,
+    aspect_ratio: chooseCompositeAspectRatio(layout),
+    limit_generations: true,
+    resolution,
+  }
+}
+
+/**
+ * Computes a custom Seedream `image_size` matching the grid's aspect ratio.
+ * 1K fills the API's minimum total-pixel bound and 2K its maximum, so the
+ * dimensions round outward or inward respectively to stay in range.
+ */
+export function chooseCompositeImageSize(
+  { columns, rows }: StoryboardLayout,
+  resolution: ImageResolution
+): { height: number; width: number } {
+  const targetRatio = (columns * FRAME_WIDTH) / (rows * FRAME_HEIGHT)
+  const isMinimumBudget =
+    clampResolution("seedream-5-pro", resolution) === "1K"
+  const pixelBudget = isMinimumBudget
+    ? SEEDREAM_TOTAL_PIXEL_BOUNDS.min
+    : SEEDREAM_TOTAL_PIXEL_BOUNDS.max
+  const round = isMinimumBudget ? Math.ceil : Math.floor
+  const exactHeight = Math.sqrt(pixelBudget / targetRatio)
+
+  return {
+    height: round(exactHeight),
+    width: round(exactHeight * targetRatio),
+  }
 }
 
 /**

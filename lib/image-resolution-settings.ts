@@ -1,15 +1,15 @@
 /**
- * Persisted user preference for Nano Banana Pro output resolution.
+ * Persisted user preference for image output resolution.
  *
  * Backed by `atomWithStorage` on Jotai's default store, so no Provider is
  * required. Storage is read after mount (the `atomWithStorage` default),
- * keeping the server and first client render in sync. Lite ignores this
- * preference (fixed at 1K on fal).
+ * keeping the server and first client render in sync. Models that do not
+ * support the stored resolution clamp it to their highest supported one.
  */
 
 import { atomWithStorage } from "jotai/utils"
 
-import { type ImageResolution } from "@/lib/generation"
+import { type ImageResolution } from "@/lib/image-models"
 
 /** Default preference: 2K, matching the previous hardcoded generate setting. */
 const DEFAULT_IMAGE_RESOLUTION: ImageResolution = "2K"

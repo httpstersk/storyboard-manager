@@ -1,5 +1,5 @@
 /**
- * Persisted user preference for the Nano Banana image model.
+ * Persisted user preference for the image generation model.
  *
  * Backed by `atomWithStorage` on Jotai's default store, so no Provider is
  * required. Storage is read after mount (the `atomWithStorage` default),
@@ -8,15 +8,18 @@
 
 import { atomWithStorage } from "jotai/utils"
 
-import { type ImageModel } from "@/lib/generation"
+import { type ImageModel } from "@/lib/image-models"
 
-/** Default preference: Lite for fast, cost-effective generation. */
-const DEFAULT_IMAGE_MODEL: ImageModel = "lite"
+/** Default preference: Nano Banana Pro, the previous default lineup's Pro tier. */
+const DEFAULT_IMAGE_MODEL: ImageModel = "nano-banana-pro"
 
-/** Versioned localStorage key for {@link imageModelAtom}. */
-const IMAGE_MODEL_SETTINGS_KEY = "storyboard-studio:image-model:v1"
+/**
+ * Versioned localStorage key for {@link imageModelAtom}.
+ * v2 switched values from `lite` / `pro` to full model identifiers.
+ */
+const IMAGE_MODEL_SETTINGS_KEY = "storyboard-studio:image-model:v2"
 
-/** Global, persisted Nano Banana Lite / Pro preference. */
+/** Global, persisted Nano Banana Pro / Seedream 5 Pro preference. */
 export const imageModelAtom = atomWithStorage<ImageModel>(
   IMAGE_MODEL_SETTINGS_KEY,
   DEFAULT_IMAGE_MODEL

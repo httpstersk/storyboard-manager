@@ -5,10 +5,10 @@ import {
   resolveFalApiKey,
 } from "@/lib/api-route-config"
 import {
-  resolveNanoBananaEditModelId,
   sceneImageEditRequestSchema,
   sceneImageEditResponseSchema,
 } from "@/lib/generation"
+import { resolveEditModelId } from "@/lib/image-models"
 import { buildSceneImageEditPrompt } from "@/lib/storyboard-generation.server"
 
 /** Long-running media generation allowance for supported Next.js hosts. */
@@ -18,8 +18,8 @@ export const maxDuration = 300
 export const runtime = "nodejs"
 
 /**
- * Applies an instruction to one stored scene image using the selected Nano
- * Banana model. The returned data URL is safe to persist in the workspace.
+ * Applies an instruction to one stored scene image using the selected image
+ * model. The returned data URL is safe to persist in the workspace.
  */
 export async function POST(request: Request): Promise<Response> {
   if (resolveFalApiKey() === undefined) {
@@ -53,7 +53,7 @@ export async function POST(request: Request): Promise<Response> {
     const { imageModel, prompt, resolution, sourceImage, visualStyle } =
       parsedRequest.data
     const { image } = await generateImage({
-      model: fal.image(resolveNanoBananaEditModelId(imageModel)),
+      model: fal.image(resolveEditModelId(imageModel)),
       n: 1,
       prompt: {
         images: [sourceImage],
@@ -64,12 +64,14 @@ export async function POST(request: Request): Promise<Response> {
       },
       providerOptions: {
         fal: {
-          limit_generations: true,
           outputFormat: "png",
-          // Nano Banana Lite is fixed at 1K; only Pro accepts resolution.
-          ...(imageModel === "pro" ? { resolution } : {}),
-          // This endpoint accepts image_urls, not the singular image_url that
-          // the Fal provider uses by default for a prompt image.
+          // Seedream sizes via image_size; `auto` follows the source frame's
+          // aspect ratio and caps at 2K, absorbing an out-of-range 4K choice.
+          ...(imageModel === "seedream-5-pro"
+            ? { image_size: resolution === "1K" ? "auto_1K" : "auto_2K" }
+            : { limit_generations: true, resolution }),
+          // Both edit endpoints accept image_urls, not the singular image_url
+          // that the Fal provider uses by default for a prompt image.
           useMultipleImages: true,
         },
       },

@@ -7,14 +7,14 @@ import {
 } from "@/lib/api-route-config"
 import {
   layoutForSceneCount,
-  resolveNanoBananaModelId,
   storyboardGenerationRequestSchema,
   storyboardGenerationResponseSchema,
   storyboardPlanSchema,
 } from "@/lib/generation"
+import { resolveImageModelId } from "@/lib/image-models"
 import {
   buildCompositePrompt,
-  chooseCompositeAspectRatio,
+  buildCompositeProviderOptions,
   normalizeAndSliceComposite,
 } from "@/lib/storyboard-generation.server"
 
@@ -38,8 +38,8 @@ Craft rules, applied to every plan:
 - Respect visual style. When a written style and/or style reference images are declared, plan lighting, mood, and action language that fit that medium. Do not assume photoreal live-action when the style is illustration, animation, painterly, or any other non-photoreal treatment.`
 
 /**
- * Plans a storyline, generates one Nano Banana contact sheet, then returns
- * its server-sliced scene frames.
+ * Plans a storyline, generates one contact sheet with the selected image
+ * model, then returns its server-sliced scene frames.
  */
 export async function POST(request: Request): Promise<Response> {
   if (
@@ -108,7 +108,7 @@ export async function POST(request: Request): Promise<Response> {
       styleImageCount: styleImageRefs.length,
       visualStyle,
     })
-    const modelId = resolveNanoBananaModelId({
+    const modelId = resolveImageModelId({
       hasReferenceImages: referenceImages.length > 0,
       imageModel,
     })
@@ -121,16 +121,12 @@ export async function POST(request: Request): Promise<Response> {
       n: 1,
       prompt: imagePrompt,
       providerOptions: {
-        fal: {
-          aspect_ratio: chooseCompositeAspectRatio(layout),
-          limit_generations: true,
-          outputFormat: "jpeg",
-          // Nano Banana Lite is fixed at 1K; only Pro accepts resolution.
-          ...(imageModel === "pro" ? { resolution } : {}),
-          // Nano Banana's edit endpoint requires image_urls even for one
-          // reference image.
-          useMultipleImages: referenceImages.length > 0,
-        },
+        fal: buildCompositeProviderOptions({
+          imageModel,
+          layout,
+          referenceImageCount: referenceImages.length,
+          resolution,
+        }),
       },
     })
     const frames = await normalizeAndSliceComposite(

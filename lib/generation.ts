@@ -6,6 +6,12 @@ import {
   MAX_VISUAL_STYLE_LENGTH,
 } from "@/lib/board-composer"
 import {
+  IMAGE_MODELS,
+  IMAGE_RESOLUTIONS,
+  type ImageModel,
+  type ImageResolution,
+} from "@/lib/image-models"
+import {
   CAMERA_OPTIONS,
   COLUMN_LIMITS,
   type GeneratedBoardScene,
@@ -20,7 +26,8 @@ import { IMAGE_UPLOAD_RULES, MAX_NOTE_LENGTH } from "@/lib/validation"
 
 /**
  * Maximum number of image references accepted per generation request.
- * Nano Banana Lite edit supports up to 14 input images; keep headroom below that.
+ * Both models' edit endpoints accept at least 10 input images; keep
+ * headroom below that.
  */
 export const MAX_IMAGE_REFERENCES = 9
 
@@ -35,45 +42,6 @@ export const MAX_SCENE_IMAGE_EDIT_PROMPT_LENGTH = 2_000
 
 /** Minimum number of beats produced for even a short logline. */
 export const MIN_GENERATED_SCENES = 3
-
-/** Supported Nano Banana image models for generation and scene editing.
- * `lite` is the default fast path; `pro` uses fal's Nano Banana Pro endpoints.
- */
-export const IMAGE_MODELS = ["lite", "pro"] as const
-
-/** Selected Nano Banana image model for fal generation and editing. */
-export type ImageModel = (typeof IMAGE_MODELS)[number]
-
-/** Type guard for values emitted by the Model segmented control. */
-export function isImageModel(value: string): value is ImageModel {
-  return (IMAGE_MODELS as readonly string[]).includes(value)
-}
-
-/**
- * Output resolutions accepted by Nano Banana Pro on fal.
- * Lite is fixed at 1K and ignores this preference.
- */
-export const IMAGE_RESOLUTIONS = ["1K", "2K", "4K"] as const
-
-/** Selected fal output resolution for Pro generation and editing. */
-export type ImageResolution = (typeof IMAGE_RESOLUTIONS)[number]
-
-/** Type guard for values emitted by the Resolution segmented control. */
-export function isImageResolution(value: string): value is ImageResolution {
-  return (IMAGE_RESOLUTIONS as readonly string[]).includes(value)
-}
-
-/** Fal model IDs for Nano Banana Lite text-to-image and edit. */
-const NANO_BANANA_LITE_MODEL_IDS = {
-  edit: "google/nano-banana-lite/edit",
-  generate: "google/nano-banana-lite",
-} as const
-
-/** Fal model IDs for Nano Banana Pro text-to-image and edit. */
-const NANO_BANANA_PRO_MODEL_IDS = {
-  edit: "fal-ai/nano-banana-pro/edit",
-  generate: "fal-ai/nano-banana-pro",
-} as const
 
 /** Maximum text length of the submitted logline or storyline. */
 const MAX_PROMPT_LENGTH = 12_000
@@ -90,8 +58,8 @@ export const dataUrlSchema = z
     "Reference images must be PNG or JPEG data URLs."
   )
 
-/** Runtime schema for the Lite / Pro image model preference. */
-export const imageModelSchema = z.enum(IMAGE_MODELS).default("lite")
+/** Runtime schema for the image model preference. */
+export const imageModelSchema = z.enum(IMAGE_MODELS).default("nano-banana-pro")
 
 /** Runtime schema for the 1K / 2K / 4K output resolution preference. */
 export const imageResolutionSchema = z.enum(IMAGE_RESOLUTIONS).default("2K")
@@ -207,34 +175,6 @@ export interface SceneImageEditRequest {
   resolution: ImageResolution
   sourceImage: string
   visualStyle: string
-}
-
-/**
- * Resolves the fal edit model ID for single-scene image editing.
- */
-export function resolveNanoBananaEditModelId(imageModel: ImageModel): string {
-  return imageModel === "pro"
-    ? NANO_BANANA_PRO_MODEL_IDS.edit
-    : NANO_BANANA_LITE_MODEL_IDS.edit
-}
-
-/**
- * Resolves the fal model ID for storyboard composite generation.
- * Uses the edit endpoint whenever reference images are attached.
- */
-export function resolveNanoBananaModelId({
-  hasReferenceImages,
-  imageModel,
-}: {
-  hasReferenceImages: boolean
-  imageModel: ImageModel
-}): string {
-  const modelIds =
-    imageModel === "pro"
-      ? NANO_BANANA_PRO_MODEL_IDS
-      : NANO_BANANA_LITE_MODEL_IDS
-
-  return hasReferenceImages ? modelIds.edit : modelIds.generate
 }
 
 /** Successful response from the storyboard generation API. */
