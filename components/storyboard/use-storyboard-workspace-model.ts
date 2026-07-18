@@ -2,7 +2,6 @@
 
 import { useAtom } from "jotai"
 import * as React from "react"
-import { flushSync } from "react-dom"
 
 import type { BoardComposerDraft } from "@/lib/board-composer"
 import { exportNodePng, parseBoardFile } from "@/lib/board-io"
@@ -39,24 +38,6 @@ import {
   type WorkspaceState,
   workspaceReducer,
 } from "@/lib/storyboard-workspace-state"
-
-/**
- * Runs a DOM-mutating state update inside a View Transition when the
- * browser supports it and the user has not requested reduced motion.
- */
-function withViewTransition(update: () => void): void {
-  if (
-    typeof document !== "undefined" &&
-    "startViewTransition" in document &&
-    !window.matchMedia("(prefers-reduced-motion: reduce)").matches
-  ) {
-    document.startViewTransition(() => flushSync(update))
-
-    return
-  }
-
-  update()
-}
 
 interface StoryboardWorkspaceModel {
   canNavigateNextScene: boolean
@@ -256,7 +237,7 @@ function useStoryboardWorkspaceModel(): StoryboardWorkspaceModel {
       return
     }
 
-    withViewTransition(() => dispatch({ boardId, type: "selectBoard" }))
+    dispatch({ boardId, type: "selectBoard" })
   }
 
   const handleRowsChange = (rows: number) => {

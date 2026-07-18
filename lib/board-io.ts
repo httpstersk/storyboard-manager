@@ -97,6 +97,12 @@ export function parseBoardFile(text: string, boardId: string): BoardImportResult
 }
 
 /**
+ * Resolved `toPng` reference — cached after the first successful import so
+ * all subsequent captures bypass the dynamic-import overhead.
+ */
+let cachedToPng: ((node: HTMLElement, options?: object) => Promise<string>) | null = null
+
+/**
  * Captures the given element as a PNG data URL.
  *
  * `toPng` is called twice deliberately: html-to-image renders the DOM
@@ -106,7 +112,12 @@ export function parseBoardFile(text: string, boardId: string): BoardImportResult
  * image already in the browser's internal cache and captures them all.
  */
 export async function captureNodePngDataUrl(node: HTMLElement): Promise<string> {
-  const { toPng } = await import("html-to-image")
+  if (cachedToPng === null) {
+    const module = await import("html-to-image")
+    cachedToPng = module.toPng
+  }
+
+  const toPng = cachedToPng
   const options = { pixelRatio: 2 }
 
   // Prime the browser's image cache so all data-URL images are ready.

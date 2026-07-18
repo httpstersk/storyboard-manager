@@ -1,12 +1,13 @@
 "use client"
 
-import { useAtom, useAtomValue, useSetAtom } from "jotai"
+import { useAtomValue, useSetAtom } from "jotai"
 import * as React from "react"
 import { SFDocumentOnDocument } from "sf-symbols-lib/monochrome"
 
 import { readFileAsDataUrl } from "@/components/storyboard/prompt-composer-context"
 import { IconButton } from "@/components/ui/icon-button"
 import { captureNodePngDataUrl } from "@/lib/board-io"
+import { enqueueCapture } from "@/lib/capture-queue"
 import { requestVideoGeneration } from "@/lib/generate-video-client"
 import type { Scene } from "@/lib/storyboard"
 import { cn } from "@/lib/utils"
@@ -15,7 +16,7 @@ import {
   completeBoardVideoGeneration,
   composerCharacterImageFilesAtom,
   failBoardVideoGeneration,
-  getBoardVideoState,
+  makeBoardVideoAtom,
   seedanceVideoPromptAtom,
   startBoardVideoGeneration,
   videoGenerationByBoardIdAtom,
@@ -113,8 +114,8 @@ function VideoSectionPlayer({
   ...props
 }: React.ComponentProps<"div">) {
   const { boardId } = useVideoSection()
-  const videoByBoardId = useAtomValue(videoGenerationByBoardIdAtom)
-  const { isGenerating, videoUrl } = getBoardVideoState(boardId, videoByBoardId)
+  const boardVideoAtom = React.useMemo(() => makeBoardVideoAtom(boardId), [boardId])
+  const { isGenerating, videoUrl } = useAtomValue(boardVideoAtom)
 
   return (
     <div
@@ -158,11 +159,13 @@ function VideoSectionPrompt({
   const copiedResetRef = React.useRef<ReturnType<typeof setTimeout> | null>(
     null
   )
-  const [videoByBoardId, setVideoByBoardId] = useAtom(
-    videoGenerationByBoardIdAtom
-  )
+  /** Stable per-board derived atom — only re-renders when this board changes. */
+  const boardVideoAtom = React.useMemo(() => makeBoardVideoAtom(boardId), [boardId])
+  const { error, isGenerating } = useAtomValue(boardVideoAtom)
+  const setVideoByBoardId = useSetAtom(videoGenerationByBoardIdAtom)
   const prompt = useAtomValue(seedanceVideoPromptAtom)
-  const { error, isGenerating } = getBoardVideoState(boardId, videoByBoardId)
+  /** Caches data-URL conversions so the same File is never re-read twice. */
+  const characterImageCacheRef = React.useRef<WeakMap<File, string>>(new WeakMap())
 
   const canGenerate = !isGenerating && prompt.trim() !== ""
 
@@ -226,9 +229,19 @@ function VideoSectionPrompt({
     // Detached so further boards can generate while this one is in flight.
     void (async () => {
       try {
-        const storyboardImage = await captureNodePngDataUrl(generationGrid)
+        // Serialise DOM captures one at a time so concurrent generations do
+        // not simultaneously saturate the main thread with html-to-image work.
+        const storyboardImage = await enqueueCapture(() =>
+          captureNodePngDataUrl(generationGrid)
+        )
         const characterImageRefs = await Promise.all(
-          generationCharacterFiles.map((file) => readFileAsDataUrl(file))
+          generationCharacterFiles.map(async (file) => {
+            const cached = characterImageCacheRef.current.get(file)
+            if (cached !== undefined) return cached
+            const dataUrl = await readFileAsDataUrl(file)
+            characterImageCacheRef.current.set(file, dataUrl)
+            return dataUrl
+          })
         )
         const { videoUrl } = await requestVideoGeneration({
           characterImageRefs,
@@ -236,19 +249,23 @@ function VideoSectionPrompt({
           storyboardImage,
         })
 
-        setVideoByBoardId((previous) =>
-          completeBoardVideoGeneration(generationBoardId, previous, videoUrl)
-        )
-      } catch (generationError) {
-        setVideoByBoardId((previous) =>
-          failBoardVideoGeneration(
-            generationBoardId,
-            generationError instanceof Error
-              ? generationError.message
-              : "The video could not be generated.",
-            previous
+        React.startTransition(() => {
+          setVideoByBoardId((previous) =>
+            completeBoardVideoGeneration(generationBoardId, previous, videoUrl)
           )
-        )
+        })
+      } catch (generationError) {
+        React.startTransition(() => {
+          setVideoByBoardId((previous) =>
+            failBoardVideoGeneration(
+              generationBoardId,
+              generationError instanceof Error
+                ? generationError.message
+                : "The video could not be generated.",
+              previous
+            )
+          )
+        })
       }
     })()
   }

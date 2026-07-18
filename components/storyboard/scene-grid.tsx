@@ -82,7 +82,7 @@ function SceneGrid({
     // target and keeps its natural full height for exports.
     <div
       aria-busy={isGenerating}
-      className="@container/scene-grid relative shrink-0 overflow-x-hidden rounded-2xl bg-grid-line [view-transition-name:scene-board]"
+      className="@container/scene-grid relative shrink-0 overflow-x-hidden rounded-2xl bg-grid-line"
     >
       <section
         aria-label="Scenes"

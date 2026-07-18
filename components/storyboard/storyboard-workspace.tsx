@@ -18,6 +18,7 @@ import { WorkspacePromptComposer } from "@/components/storyboard/storyboard-work
 import { WorkspaceToolbar } from "@/components/storyboard/storyboard-workspace-toolbar"
 import { useStoryboardWorkspaceModel } from "@/components/storyboard/use-storyboard-workspace-model"
 import { VideoSection } from "@/components/storyboard/video-section"
+import { TRANSITION_FADE_STANDARD } from "@/lib/motion"
 import { formatSceneNumber } from "@/lib/storyboard"
 import {
   removeBoardVideoState,
@@ -125,26 +126,37 @@ function StoryboardWorkspace() {
           ref={importInputRef}
           type="file"
         />
-        <div className="flex min-h-0 flex-1 flex-col gap-3.5 overflow-y-auto">
-          <SceneGrid
-            columns={state.columns}
-            isGenerating={isSelectedBoardGenerating}
-            onEditScene={handleEditScene}
-            onUpdateScene={handleUpdateScene}
-            ref={gridRef}
-            rows={state.rows}
-            scenes={selectedBoard.scenes}
-            showParameters={state.showParameters}
-          />
-          <VideoSection.Root
-            boardId={selectedBoard.id}
-            className="pb-112"
-            gridRef={gridRef}
-            scenes={visibleScenes}
-          >
-            <VideoSection.Prompt />
-            <VideoSection.Player />
-          </VideoSection.Root>
+        <div className="relative min-h-0 flex-1">
+          <AnimatePresence initial={false}>
+            <m.div
+              animate={{ opacity: 1 }}
+              className="absolute inset-0 flex flex-col gap-3.5 overflow-y-auto"
+              exit={{ opacity: 0 }}
+              initial={{ opacity: 0 }}
+              key={selectedBoard.id}
+              transition={TRANSITION_FADE_STANDARD}
+            >
+              <SceneGrid
+                columns={state.columns}
+                isGenerating={isSelectedBoardGenerating}
+                onEditScene={handleEditScene}
+                onUpdateScene={handleUpdateScene}
+                ref={gridRef}
+                rows={state.rows}
+                scenes={selectedBoard.scenes}
+                showParameters={state.showParameters}
+              />
+              <VideoSection.Root
+                boardId={selectedBoard.id}
+                className="pb-112"
+                gridRef={gridRef}
+                scenes={visibleScenes}
+              >
+                <VideoSection.Prompt />
+                <VideoSection.Player />
+              </VideoSection.Root>
+            </m.div>
+          </AnimatePresence>
         </div>
         <div className="absolute inset-x-0 bottom-10 z-50 mx-auto w-full max-w-3xl px-4">
           <WorkspacePromptComposer

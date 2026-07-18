@@ -4,6 +4,7 @@
  */
 
 import { atom } from "jotai"
+import { selectAtom } from "jotai/utils"
 
 import type { SeedanceCharacterNote } from "@/lib/seedance-video-prompt"
 import { buildSeedanceVideoPrompt } from "@/lib/seedance-video-prompt"
@@ -85,6 +86,24 @@ export const seedanceVideoPromptAtom = atom((get) => {
 
   return buildSeedanceVideoPrompt(source)
 })
+
+/**
+ * Returns a read-only derived atom scoped to a single board's video state.
+ * Components that read this atom only re-render when *their* board's state
+ * changes, not when any other board's generation state changes.
+ *
+ * Use with `useMemo` so the derived atom instance is stable across renders:
+ * ```tsx
+ * const boardVideoAtom = useMemo(() => makeBoardVideoAtom(boardId), [boardId])
+ * const { isGenerating, videoUrl } = useAtomValue(boardVideoAtom)
+ * ```
+ */
+export function makeBoardVideoAtom(boardId: string) {
+  return selectAtom(
+    videoGenerationByBoardIdAtom,
+    (map) => getBoardVideoState(boardId, map)
+  )
+}
 
 /**
  * Records a successful generation for a board.
