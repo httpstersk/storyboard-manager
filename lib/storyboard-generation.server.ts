@@ -8,7 +8,10 @@ const FRAME_WIDTH = 640
 /** Height of every normalized storyboard frame in pixels. */
 const FRAME_HEIGHT = 360
 
-/** Aspect ratios accepted by Nano Banana Lite. */
+/**
+ * Aspect ratios accepted by Fal Nano Banana (`aspect_ratio` provider option).
+ * Keep this list in sync with the API — wider composites snap to `21:9`.
+ */
 const SUPPORTED_ASPECT_RATIOS = [
   { label: "1:1", value: 1 },
   { label: "4:5", value: 4 / 5 },
@@ -20,8 +23,6 @@ const SUPPORTED_ASPECT_RATIOS = [
   { label: "3:2", value: 3 / 2 },
   { label: "16:9", value: 16 / 9 },
   { label: "21:9", value: 21 / 9 },
-  { label: "4:1", value: 4 },
-  { label: "8:1", value: 8 },
 ] as const
 
 interface CompositePromptOptions {
