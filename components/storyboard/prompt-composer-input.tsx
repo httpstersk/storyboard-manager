@@ -106,6 +106,31 @@ function CharacterNoteRow({
   )
 }
 
+/** Optional textual visual-style description shown as a collapsible section. */
+function VisualStyleField() {
+  const { isDisabled, setVisualStyle, visualStyle } = usePromptComposer()
+
+  return (
+    <div className="mx-4 mb-3">
+      <Field className="min-h-8 justify-start px-3 py-1.5">
+        <Field.Label className="w-16 shrink-0 sm:w-24">
+          Visual style
+        </Field.Label>
+        <Field.Control>
+          <InlineInput
+            className="w-full text-left disabled:cursor-not-allowed disabled:opacity-60"
+            disabled={isDisabled}
+            maxLength={MAX_VISUAL_STYLE_LENGTH}
+            onChange={(event) => setVisualStyle(event.target.value)}
+            placeholder="Watercolor storybook, muted pastels, soft paper texture…"
+            value={visualStyle}
+          />
+        </Field.Control>
+      </Field>
+    </div>
+  )
+}
+
 /** Table-like editor for written character definitions. */
 function CharacterNotesEditor() {
   const {
@@ -161,12 +186,11 @@ function PromptComposerInput() {
     inputId,
     isCharacterSheetOpen,
     isDisabled,
+    isVisualStyleOpen,
     mode,
     prompt,
     setPrompt,
-    setVisualStyle,
     submit,
-    visualStyle,
   } = usePromptComposer()
   const textareaRef = React.useRef<HTMLTextAreaElement>(null)
   const [mentionSession, setMentionSession] =
@@ -352,22 +376,8 @@ function PromptComposerInput() {
           )}
         </CharacterMentionList>
       ) : null}
-      {!isImageEdit ? (
-        <Field className="min-h-8 justify-start px-4 pt-1 pb-2">
-          <Field.Label className="w-24 shrink-0">Visual style</Field.Label>
-          <Field.Control>
-            <InlineInput
-              className="w-full text-left disabled:cursor-not-allowed disabled:opacity-60"
-              disabled={isDisabled}
-              maxLength={MAX_VISUAL_STYLE_LENGTH}
-              onChange={(event) => setVisualStyle(event.target.value)}
-              placeholder="Watercolor storybook, muted pastels, soft paper texture…"
-              value={visualStyle}
-            />
-          </Field.Control>
-        </Field>
-      ) : null}
       {isCharacterSheetOpen ? <CharacterNotesEditor /> : null}
+      {!isImageEdit && isVisualStyleOpen ? <VisualStyleField /> : null}
     </div>
   )
 }

@@ -20,6 +20,7 @@ export interface PromptComposerContextValue {
   isCompact: boolean
   isDisabled: boolean
   isSubmitting: boolean
+  isVisualStyleOpen: boolean
   mode: PromptComposerMode
   prompt: string
   removeCharacterImageReference: (index: number) => void
@@ -29,6 +30,7 @@ export interface PromptComposerContextValue {
   setCharacterNote: (characterNote: CharacterNote) => void
   setError: (error: string | null) => void
   setIsCharacterSheetOpen: (isOpen: boolean) => void
+  setIsVisualStyleOpen: (isOpen: boolean) => void
   setPrompt: (value: string) => void
   setStyleImageReferences: (files: File[]) => void
   setVisualStyle: (value: string) => void
@@ -45,18 +47,21 @@ export interface PromptComposerContextValue {
 export interface ComposerState {
   error: string | null
   isCharacterSheetOpen: boolean
+  isVisualStyleOpen: boolean
   prompt: string
 }
 
 export type ComposerAction =
   | { error: string | null; type: "setError" }
   | { isCharacterSheetOpen: boolean; type: "setCharacterSheetOpen" }
+  | { isVisualStyleOpen: boolean; type: "setVisualStyleOpen" }
   | { prompt: string; type: "setPrompt" }
   | { type: "resetPrompt" }
 
 export const INITIAL_COMPOSER_STATE: ComposerState = {
   error: null,
   isCharacterSheetOpen: false,
+  isVisualStyleOpen: false,
   prompt: "",
 }
 
@@ -74,6 +79,8 @@ export function composerReducer(
       return { ...state, error: action.error }
     case "setPrompt":
       return { ...state, prompt: action.prompt }
+    case "setVisualStyleOpen":
+      return { ...state, isVisualStyleOpen: action.isVisualStyleOpen }
   }
 }
 

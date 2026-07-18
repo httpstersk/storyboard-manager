@@ -5,6 +5,7 @@ import * as React from "react"
 
 import { CharacterNotesControl } from "@/components/storyboard/prompt-composer-character-notes-control"
 import { usePromptComposer } from "@/components/storyboard/prompt-composer-context"
+import { DisclosureControl } from "@/components/storyboard/prompt-composer-disclosure-control"
 import { PromptComposerImageEditActions } from "@/components/storyboard/prompt-composer-image-edit-actions"
 import { ImageReferenceControl } from "@/components/storyboard/prompt-composer-image-reference-control"
 import { isCharacterNoteFilled } from "@/lib/board-composer"
@@ -21,11 +22,13 @@ function PromptComposerActions() {
     characterNotes,
     isCharacterSheetOpen,
     isDisabled,
+    isVisualStyleOpen,
     mode,
     prompt,
     setCharacterImageReferences,
     setError,
     setIsCharacterSheetOpen,
+    setIsVisualStyleOpen,
     setStyleImageReferences,
     styleImageReferences,
     submit,
@@ -87,14 +90,20 @@ function PromptComposerActions() {
           isOpen={isCharacterSheetOpen}
           onToggle={() => setIsCharacterSheetOpen(!isCharacterSheetOpen)}
         />
+        <DisclosureControl
+          isDisabled={isDisabled}
+          isOpen={isVisualStyleOpen}
+          label="Visual style"
+          onToggle={() => setIsVisualStyleOpen(!isVisualStyleOpen)}
+        />
         <ImageReferenceControl
           canAdd={canAddReference}
-          label="Characters"
+          label="Character images"
           onAdd={() => characterImageInputRef.current?.click()}
         />
         <ImageReferenceControl
           canAdd={canAddReference}
-          label="Visual style"
+          label="Style images"
           onAdd={() => styleImageInputRef.current?.click()}
         />
         <input

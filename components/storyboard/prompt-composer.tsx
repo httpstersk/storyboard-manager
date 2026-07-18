@@ -236,6 +236,7 @@ function PromptComposerRoot({
     isCompact,
     isDisabled: disabled || isSubmitting,
     isSubmitting,
+    isVisualStyleOpen: state.isVisualStyleOpen,
     mode,
     prompt: state.prompt,
     removeCharacterImageReference,
@@ -257,6 +258,8 @@ function PromptComposerRoot({
     setError: (error) => dispatch({ error, type: "setError" }),
     setIsCharacterSheetOpen: (isCharacterSheetOpen) =>
       dispatch({ isCharacterSheetOpen, type: "setCharacterSheetOpen" }),
+    setIsVisualStyleOpen: (isVisualStyleOpen) =>
+      dispatch({ isVisualStyleOpen, type: "setVisualStyleOpen" }),
     setPrompt: (prompt) => dispatch({ prompt, type: "setPrompt" }),
     setStyleImageReferences: (styleImageReferences) =>
       onDraftChange?.({ styleImageReferences }),
