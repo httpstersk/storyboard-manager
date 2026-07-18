@@ -50,7 +50,7 @@ function CharacterNoteRow({
   rowNumber,
 }: CharacterNoteRowProps) {
   return (
-    <div className="relative grid gap-1 px-3 py-1.5 sm:grid-cols-[minmax(8rem,0.65fr)_minmax(0,1.75fr)_1.75rem] sm:items-start sm:gap-2.5">
+    <div className="relative grid gap-1 px-3 py-1.5 sm:grid-cols-[minmax(8rem,0.65fr)_minmax(0,1.75fr)_1.75rem] sm:items-center sm:gap-2.5">
       <Field
         className={cn("min-h-8 justify-start sm:pr-0", canRemove && "pr-8")}
       >
@@ -78,15 +78,14 @@ function CharacterNoteRow({
       >
         <Field.Label className="w-16 sm:sr-only">Notes</Field.Label>
         <Field.Control>
-          <textarea
-            className="field-sizing-content max-h-24 min-h-0 min-w-0 flex-1 resize-none border-b border-edge-strong bg-transparent pb-px text-left text-caption text-ink transition-colors outline-none placeholder:text-ink-faint focus-visible:border-ink-strong disabled:cursor-not-allowed disabled:opacity-60"
+          <InlineInput
+            className="w-full text-left disabled:cursor-not-allowed disabled:opacity-60"
             disabled={isDisabled}
             maxLength={MAX_CHARACTER_NOTES_LENGTH}
             onChange={(event) =>
               onChange({ ...characterNote, notes: event.target.value })
             }
             placeholder="Appearance, wardrobe, personality, continuity…"
-            rows={1}
             value={characterNote.notes}
           />
         </Field.Control>

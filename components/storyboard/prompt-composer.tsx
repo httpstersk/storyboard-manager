@@ -166,7 +166,7 @@ function PromptComposerRoot({
           styleImageRefs,
         })
 
-        dispatch({ type: "reset" })
+        dispatch({ type: "resetPrompt" })
       } catch (submissionError) {
         dispatch({
           error:
