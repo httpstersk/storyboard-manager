@@ -153,7 +153,7 @@ function SidebarRail({
       {/* Divider separating actions from the per-board switcher */}
       <div aria-hidden className="h-px w-4 shrink-0 bg-surface-inset" />
       {/* Numbered board buttons — scrollable when there are many boards */}
-      <div className="flex min-h-0 flex-1 flex-col items-center gap-1 overflow-y-auto">
+      <div className="flex min-h-0 flex-1 flex-col items-center gap-1 overflow-y-auto scrollbar-none">
         {boards.map((board, index) => (
           <BoardSwitcherButton
             key={board.id}
@@ -250,7 +250,7 @@ function SidebarBoardList({
   return (
     <ul
       className={cn(
-        "flex min-h-0 flex-1 flex-col gap-1.5 overflow-y-auto",
+        "flex min-h-0 flex-1 flex-col gap-1.5 overflow-y-auto scrollbar-none",
         className
       )}
       {...props}
