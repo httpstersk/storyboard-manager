@@ -1,16 +1,20 @@
 /**
  * IndexedDB persistence for the storyboard workspace via Dexie.
  *
- * Boards and scene parameters are stored as structured records. Scene
- * images are stored as Blobs. On load, Blobs are converted back to data
- * URLs for in-memory UI. Untrusted payloads are re-validated through
+ * Boards, scene parameters, and composer drafts are stored as structured
+ * records. Scene images and composer reference uploads are stored as
+ * Blobs; on load, scene Blobs become data URLs and upload Blobs become
+ * `File` objects again. Untrusted payloads are re-validated through
  * `lib/validation.ts`.
  */
 
 import {
   db,
+  referenceImageId,
   sceneImageId,
+  type ReferenceImageKind,
   type StoredBoardRecord,
+  type StoredReferenceImage,
   type StoredSceneImage,
   toStoredScene,
   type WorkspaceMetaRecord,
@@ -23,6 +27,55 @@ import {
   ROW_LIMITS,
 } from "@/lib/storyboard"
 import { clampInteger, coerceBoard } from "@/lib/validation"
+
+/** Draft file arrays addressed by their stored attachment kind. */
+const REFERENCE_KIND_FIELDS = {
+  character: "characterImageReferences",
+  style: "styleImageReferences",
+} as const satisfies Record<
+  ReferenceImageKind,
+  "characterImageReferences" | "styleImageReferences"
+>
+
+/** Rebuilds the uploaded `File` objects of one board from its blob rows. */
+function referenceFilesForBoard(
+  records: StoredReferenceImage[],
+  boardId: string,
+  kind: ReferenceImageKind
+): File[] {
+  return records
+    .filter((record) => record.boardId === boardId && record.kind === kind)
+    .sort((a, b) => a.index - b.index)
+    .map(
+      (record) =>
+        new File([record.blob], record.name, { type: record.mimeType })
+    )
+}
+
+/** Flattens every board's uploads into `referenceImages` rows for saving. */
+function toReferenceImageRecords(boards: Board[]): StoredReferenceImage[] {
+  const records: StoredReferenceImage[] = []
+
+  for (const board of boards) {
+    for (const kind of Object.keys(
+      REFERENCE_KIND_FIELDS
+    ) as ReferenceImageKind[]) {
+      board.composer[REFERENCE_KIND_FIELDS[kind]].forEach((file, index) => {
+        records.push({
+          blob: file,
+          boardId: board.id,
+          id: referenceImageId(board.id, kind, index),
+          index,
+          kind,
+          mimeType: file.type || "image/png",
+          name: file.name,
+        })
+      })
+    }
+  }
+
+  return records
+}
 
 /** Legacy localStorage key used before IndexedDB migration. */
 const LEGACY_STORAGE_KEY = "storyboard-studio:v1"
@@ -62,11 +115,13 @@ export async function loadStoredWorkspace(): Promise<StoredWorkspace | null> {
       return null
     }
 
-    const [boardRecords, imageRecords, meta] = await Promise.all([
-      db.boards.toArray(),
-      db.sceneImages.toArray(),
-      db.workspaceMeta.get("settings"),
-    ])
+    const [boardRecords, imageRecords, referenceRecords, meta] =
+      await Promise.all([
+        db.boards.toArray(),
+        db.sceneImages.toArray(),
+        db.referenceImages.toArray(),
+        db.workspaceMeta.get("settings"),
+      ])
 
     const imagesByKey = new Map(
       imageRecords.map((record) => [record.id, record] as const)
@@ -96,7 +151,26 @@ export async function loadStoredWorkspace(): Promise<StoredWorkspace | null> {
       boardsWithImages
         .map((board, index) => coerceBoard(board, `board-${index + 1}`))
         .filter((board): board is Board => board !== null)
-        .map((board) => [board.id, board] as const)
+        .map((board) => {
+          const boardWithUploads: Board = {
+            ...board,
+            composer: {
+              ...board.composer,
+              characterImageReferences: referenceFilesForBoard(
+                referenceRecords,
+                board.id,
+                "character"
+              ),
+              styleImageReferences: referenceFilesForBoard(
+                referenceRecords,
+                board.id,
+                "style"
+              ),
+            },
+          }
+
+          return [board.id, boardWithUploads] as const
+        })
     )
 
     if (boardsById.size === 0) {
@@ -147,10 +221,12 @@ export async function saveStoredWorkspace(
   }
 
   const boardRecords: StoredBoardRecord[] = workspace.boards.map((board) => ({
+    characterNotes: board.composer.characterNotes,
     id: board.id,
     scenes: board.scenes.map(toStoredScene),
     title: board.title,
     updatedAt: board.updatedAt,
+    visualStyle: board.composer.visualStyle,
   }))
 
   const nextImageIds = new Set<string>()
@@ -181,6 +257,9 @@ export async function saveStoredWorkspace(
     }
   }
 
+  const referenceRecords = toReferenceImageRecords(workspace.boards)
+  const nextReferenceIds = new Set(referenceRecords.map((record) => record.id))
+
   const meta: WorkspaceMetaRecord = {
     boardOrder: workspace.boards.map((board) => board.id),
     columns: workspace.columns,
@@ -193,6 +272,7 @@ export async function saveStoredWorkspace(
   await db.transaction(
     "rw",
     db.boards,
+    db.referenceImages,
     db.sceneImages,
     db.workspaceMeta,
     async () => {
@@ -207,6 +287,10 @@ export async function saveStoredWorkspace(
       if (boardsToDelete.length > 0) {
         await db.boards.bulkDelete(boardsToDelete)
         await db.sceneImages.where("boardId").anyOf(boardsToDelete).delete()
+        await db.referenceImages
+          .where("boardId")
+          .anyOf(boardsToDelete)
+          .delete()
       }
 
       await db.boards.bulkPut(boardRecords)
@@ -222,6 +306,21 @@ export async function saveStoredWorkspace(
 
       if (imageRecords.length > 0) {
         await db.sceneImages.bulkPut(imageRecords)
+      }
+
+      const existingReferenceIds = await db.referenceImages
+        .toCollection()
+        .primaryKeys()
+      const referencesToDelete = existingReferenceIds.filter(
+        (id) => !nextReferenceIds.has(id)
+      )
+
+      if (referencesToDelete.length > 0) {
+        await db.referenceImages.bulkDelete(referencesToDelete)
+      }
+
+      if (referenceRecords.length > 0) {
+        await db.referenceImages.bulkPut(referenceRecords)
       }
 
       await db.workspaceMeta.put(meta)

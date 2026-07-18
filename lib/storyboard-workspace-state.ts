@@ -1,3 +1,4 @@
+import type { BoardComposerDraft } from "@/lib/board-composer"
 import type { StoredWorkspace } from "@/lib/persistence"
 import {
   type Board,
@@ -46,6 +47,7 @@ export type WorkspaceAction =
   | { sceneId: string | null; type: "setEditingScene" }
   | { showParameters: boolean; type: "setShowParameters" }
   | { collapsed: boolean; type: "setSidebarCollapsed" }
+  | { patch: Partial<BoardComposerDraft>; type: "updateBoardComposer" }
   | { patch: Partial<Scene>; sceneId: string; type: "updateScene" }
   | { type: "hydrate"; workspace: StoredWorkspace | null }
 
@@ -137,6 +139,20 @@ export function workspaceReducer(
       return { ...state, showParameters: action.showParameters }
     case "setSidebarCollapsed":
       return { ...state, sidebarCollapsed: action.collapsed }
+    case "updateBoardComposer":
+      return {
+        ...state,
+        boards: state.boards.map((board) =>
+          board.id === state.selectedBoardId
+            ? {
+                ...board,
+                composer: { ...board.composer, ...action.patch },
+                updatedAt: now,
+              }
+            : board
+        ),
+        now,
+      }
     case "updateScene":
       return {
         ...state,

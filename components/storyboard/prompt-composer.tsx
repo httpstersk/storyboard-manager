@@ -13,9 +13,14 @@ import {
   type PromptComposerContextValue,
   type PromptComposerRootProps,
   readFileAsDataUrl,
-  serializeCharacterNote,
 } from "@/components/storyboard/prompt-composer-context"
 import { PromptComposerInput } from "@/components/storyboard/prompt-composer-input"
+import {
+  createEmptyComposerDraft,
+  MAX_CHARACTER_SHEETS,
+  nextCharacterNoteId,
+  serializeCharacterNote,
+} from "@/lib/board-composer"
 import { imageModelAtom } from "@/lib/image-model-settings"
 import { imageResolutionAtom } from "@/lib/image-resolution-settings"
 import { TRANSITION_FADE_FAST } from "@/lib/motion"
@@ -28,10 +33,20 @@ import {
 } from "@/lib/video-section-atoms"
 
 /**
+ * Draft used when no per-board draft is supplied (image-edit mode).
+ * Module-level so its identity stays stable across renders.
+ */
+const FALLBACK_DRAFT = createEmptyComposerDraft()
+
+/**
  * Bottom-anchored cinematic prompt composer.
  *
+ * Characters, uploads, and visual style are controlled through the
+ * `draft` / `onDraftChange` props so they stay scoped to the owning
+ * board; only the prompt text, errors, and disclosure state live here.
+ *
  * ```tsx
- * <PromptComposer.Root onSubmit={generateStoryboard}>
+ * <PromptComposer.Root draft={draft} onDraftChange={patchDraft} onSubmit={generateStoryboard}>
  *   <PromptComposer.Input />
  *   <PromptComposer.Attachments />
  *   <PromptComposer.Actions />
@@ -42,9 +57,11 @@ function PromptComposerRoot({
   children,
   className,
   disabled = false,
+  draft = FALLBACK_DRAFT,
   inputId = "storyboard-prompt",
   mode = "storyboard",
   onActiveChange,
+  onDraftChange,
   onImageEditSubmit,
   onSubmit,
   ...props
@@ -60,48 +77,65 @@ function PromptComposerRoot({
   )
   const [isSubmitting, startSubmitTransition] = React.useTransition()
 
-  // Sync character/style data into video + edit atoms.
+  // Sync character/style data into video + edit atoms. Keyed off the
+  // per-board draft, so switching boards re-syncs to the new selection.
   // NOTE: The companion sync for `scenes` lives in VideoSectionRoot.
   // Each component owns its own slice; neither should overwrite the other.
   React.useEffect(() => {
-    setCharacterImageFiles(state.characterImageReferences)
-    setComposerVisualStyle(state.visualStyle)
+    if (mode === "image-edit") {
+      return
+    }
+
+    setCharacterImageFiles(draft.characterImageReferences)
+    setComposerVisualStyle(draft.visualStyle)
     setVideoPromptSource((previous) => ({
       ...previous,
       characterImageCount: Math.min(
-        state.characterImageReferences.length,
+        draft.characterImageReferences.length,
         MAX_SEEDANCE_CHARACTER_IMAGES
       ),
-      characterNotes: state.characterNotes.map(({ name, notes }) => ({
+      characterNotes: draft.characterNotes.map(({ name, notes }) => ({
         name,
         notes,
       })),
-      visualStyle: state.visualStyle.trim(),
+      visualStyle: draft.visualStyle.trim(),
     }))
   }, [
+    draft.characterImageReferences,
+    draft.characterNotes,
+    draft.visualStyle,
+    mode,
     setCharacterImageFiles,
     setComposerVisualStyle,
     setVideoPromptSource,
-    state.characterImageReferences,
-    state.characterNotes,
-    state.visualStyle,
   ])
 
+  const addCharacterNote = () => {
+    if (draft.characterNotes.length >= MAX_CHARACTER_SHEETS) {
+      return
+    }
+
+    onDraftChange?.({
+      characterNotes: [
+        ...draft.characterNotes,
+        { id: nextCharacterNoteId(draft.characterNotes), name: "", notes: "" },
+      ],
+    })
+  }
+
   const removeCharacterImageReference = (index: number) => {
-    dispatch({
-      characterImageReferences: state.characterImageReferences.filter(
+    onDraftChange?.({
+      characterImageReferences: draft.characterImageReferences.filter(
         (unusedFile, fileIndex) => fileIndex !== index
       ),
-      type: "setCharacterImageReferences",
     })
   }
 
   const removeStyleImageReference = (index: number) => {
-    dispatch({
-      styleImageReferences: state.styleImageReferences.filter(
+    onDraftChange?.({
+      styleImageReferences: draft.styleImageReferences.filter(
         (unusedFile, fileIndex) => fileIndex !== index
       ),
-      type: "setStyleImageReferences",
     })
   }
 
@@ -151,15 +185,15 @@ function PromptComposerRoot({
       try {
         const [characterImageRefs, styleImageRefs] = await Promise.all([
           Promise.all(
-            state.characterImageReferences.map((file) =>
+            draft.characterImageReferences.map((file) =>
               readFileAsDataUrl(file)
             )
           ),
           Promise.all(
-            state.styleImageReferences.map((file) => readFileAsDataUrl(file))
+            draft.styleImageReferences.map((file) => readFileAsDataUrl(file))
           ),
         ])
-        const characterSheets = state.characterNotes
+        const characterSheets = draft.characterNotes
           .map(serializeCharacterNote)
           .filter(Boolean)
 
@@ -170,7 +204,7 @@ function PromptComposerRoot({
           prompt: trimmedPrompt,
           resolution: imageResolution,
           styleImageRefs,
-          visualStyle: state.visualStyle.trim(),
+          visualStyle: draft.visualStyle.trim(),
         })
 
         dispatch({ type: "resetPrompt" })
@@ -187,9 +221,9 @@ function PromptComposerRoot({
   }
 
   const contextValue: PromptComposerContextValue = {
-    addCharacterNote: () => dispatch({ type: "addCharacterNote" }),
-    characterImageReferences: state.characterImageReferences,
-    characterNotes: state.characterNotes,
+    addCharacterNote,
+    characterImageReferences: draft.characterImageReferences,
+    characterNotes: draft.characterNotes,
     error: state.error,
     inputId,
     isCharacterSheetOpen: state.isCharacterSheetOpen,
@@ -198,26 +232,31 @@ function PromptComposerRoot({
     mode,
     prompt: state.prompt,
     removeCharacterImageReference,
-    removeCharacterNote: (id) => dispatch({ id, type: "removeCharacterNote" }),
+    removeCharacterNote: (id) =>
+      onDraftChange?.({
+        characterNotes: draft.characterNotes.filter(
+          (characterNote) => characterNote.id !== id
+        ),
+      }),
     removeStyleImageReference,
     setCharacterImageReferences: (characterImageReferences) =>
-      dispatch({
-        characterImageReferences,
-        type: "setCharacterImageReferences",
-      }),
+      onDraftChange?.({ characterImageReferences }),
     setCharacterNote: (characterNote) =>
-      dispatch({ characterNote, type: "setCharacterNote" }),
+      onDraftChange?.({
+        characterNotes: draft.characterNotes.map((existingNote) =>
+          existingNote.id === characterNote.id ? characterNote : existingNote
+        ),
+      }),
     setError: (error) => dispatch({ error, type: "setError" }),
     setIsCharacterSheetOpen: (isCharacterSheetOpen) =>
       dispatch({ isCharacterSheetOpen, type: "setCharacterSheetOpen" }),
     setPrompt: (prompt) => dispatch({ prompt, type: "setPrompt" }),
     setStyleImageReferences: (styleImageReferences) =>
-      dispatch({ styleImageReferences, type: "setStyleImageReferences" }),
-    setVisualStyle: (visualStyle) =>
-      dispatch({ type: "setVisualStyle", visualStyle }),
-    styleImageReferences: state.styleImageReferences,
+      onDraftChange?.({ styleImageReferences }),
+    setVisualStyle: (visualStyle) => onDraftChange?.({ visualStyle }),
+    styleImageReferences: draft.styleImageReferences,
     submit,
-    visualStyle: state.visualStyle,
+    visualStyle: draft.visualStyle,
   }
 
   const isImageEdit = mode === "image-edit"

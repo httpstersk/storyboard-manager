@@ -45,6 +45,7 @@ function StoryboardWorkspace() {
     handleRowsChange,
     handleSelectBoard,
     handleShowParametersChange,
+    handleUpdateBoardComposer,
     handleUpdateScene,
     imageModel,
     imageResolution,
@@ -128,7 +129,9 @@ function StoryboardWorkspace() {
         <div className="absolute inset-x-0 bottom-10 z-50 mx-auto w-full max-w-3xl px-4">
           <WorkspacePromptComposer
             disabled={state.isGenerating}
+            draft={selectedBoard.composer}
             onActiveChange={handleComposerActiveChange}
+            onDraftChange={handleUpdateBoardComposer}
             onSubmit={handleGenerateStoryboard}
           />
         </div>

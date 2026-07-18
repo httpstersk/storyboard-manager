@@ -6,6 +6,15 @@
  */
 
 import {
+  type BoardComposerDraft,
+  type CharacterNote,
+  createEmptyComposerDraft,
+  MAX_CHARACTER_NAME_LENGTH,
+  MAX_CHARACTER_NOTES_LENGTH,
+  MAX_CHARACTER_SHEETS,
+  MAX_VISUAL_STYLE_LENGTH,
+} from "@/lib/board-composer"
+import {
   type Board,
   type Scene,
   SCENE_TIME_LIMITS,
@@ -52,7 +61,7 @@ export function clampInteger(value: number, limits: ValueLimits): number {
  * {@link MAX_NOTE_LENGTH}.
  */
 export function sanitizeNote(value: string): string {
-  return value.replace(/[\u0000-\u001f\u007f]/g, "").slice(0, MAX_NOTE_LENGTH)
+  return sanitizeText(value, MAX_NOTE_LENGTH)
 }
 
 /** Maximum length of a board title. */
@@ -63,10 +72,7 @@ const MAX_TITLE_LENGTH = 60
  * {@link MAX_TITLE_LENGTH}.
  */
 function sanitizeTitle(value: string): string {
-  return value
-    .replace(/[\u0000-\u001f\u007f]/g, "")
-    .slice(0, MAX_TITLE_LENGTH)
-    .trim()
+  return sanitizeText(value, MAX_TITLE_LENGTH).trim()
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -118,6 +124,43 @@ function coerceShader(value: unknown): SceneShaderPreset | null {
     scale: clampFloat(value.scale, 0.01, 4, 1),
     speed: clampFloat(value.speed, 0, 2, 0.4),
     swirl: clampFloat(value.swirl, 0, 1, 0.2),
+  }
+}
+
+/** Strips control characters and caps a free-text value at the given length. */
+function sanitizeText(value: unknown, maxLength: number): string {
+  return typeof value === "string"
+    ? value.replace(/[\u0000-\u001f\u007f]/g, "").slice(0, maxLength)
+    : ""
+}
+
+/**
+ * Validates and normalises the composer draft fields of one board from
+ * untrusted JSON (imports and IndexedDB). Uploads are attached later from
+ * their own blob rows, so the returned draft always starts without files.
+ */
+export function coerceComposerDraft(
+  value: Record<string, unknown>
+): BoardComposerDraft {
+  const draft = createEmptyComposerDraft()
+  const characterNotes = (
+    Array.isArray(value.characterNotes) ? value.characterNotes : []
+  )
+    .filter(isRecord)
+    .slice(0, MAX_CHARACTER_SHEETS)
+    .map(
+      (note, index): CharacterNote => ({
+        id: index,
+        name: sanitizeText(note.name, MAX_CHARACTER_NAME_LENGTH),
+        notes: sanitizeText(note.notes, MAX_CHARACTER_NOTES_LENGTH),
+      })
+    )
+
+  return {
+    ...draft,
+    characterNotes:
+      characterNotes.length > 0 ? characterNotes : draft.characterNotes,
+    visualStyle: sanitizeText(value.visualStyle, MAX_VISUAL_STYLE_LENGTH),
   }
 }
 
@@ -203,6 +246,7 @@ export function coerceBoard(value: unknown, fallbackId: string): Board | null {
   }
 
   return {
+    composer: coerceComposerDraft(value),
     id: typeof value.id === "string" && value.id !== "" ? value.id : fallbackId,
     scenes,
     title,

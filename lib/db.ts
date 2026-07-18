@@ -2,12 +2,13 @@
  * Dexie IndexedDB schema for the storyboard studio.
  *
  * Boards store scene parameters without image bytes. Scene frames live in
- * `sceneImages` as Blobs so large generated contact sheets do not hit
- * localStorage quotas.
+ * `sceneImages` and composer reference uploads in `referenceImages` as
+ * Blobs so large binary payloads do not hit localStorage quotas.
  */
 
 import Dexie, { type EntityTable } from "dexie"
 
+import type { CharacterNote } from "@/lib/board-composer"
 import type { Scene, SceneShaderPreset, ShotSize } from "@/lib/storyboard"
 
 /** Scene record persisted without an embedded image data URL. */
@@ -36,8 +37,10 @@ export interface StoredScene {
   timeSeconds: number
 }
 
-/** Board record stored in IndexedDB (images live in `sceneImages`). */
+/** Board record stored in IndexedDB (binary uploads live in blob tables). */
 export interface StoredBoardRecord {
+  /** Written character definitions of the board's composer draft. */
+  characterNotes: CharacterNote[]
   /** Stable identifier for the board. */
   id: string
   /** Scenes of the board, in order, without image data URLs. */
@@ -46,6 +49,8 @@ export interface StoredBoardRecord {
   title: string
   /** Epoch milliseconds of the last edit. */
   updatedAt: number
+  /** Textual visual-style description of the board's composer draft. */
+  visualStyle: string
 }
 
 /** Binary image attached to a scene. */
@@ -65,6 +70,30 @@ export interface StoredSceneImage {
   sceneId: string
 }
 
+/** Attachment slot a composer reference upload belongs to. */
+export type ReferenceImageKind = "character" | "style"
+
+/** Composer reference upload attached to a board. */
+export interface StoredReferenceImage {
+  /** Image bytes as uploaded. */
+  blob: Blob
+  /** Owning board id (for cascade deletes). */
+  boardId: string
+  /**
+   * Primary key: `${boardId}::${kind}::${index}` so uploads stay unique
+   * per board and attachment slot.
+   */
+  id: string
+  /** Position of the upload within its attachment group. */
+  index: number
+  /** Whether the upload is a character or visual-style reference. */
+  kind: ReferenceImageKind
+  /** MIME type recorded when the Blob was written. */
+  mimeType: string
+  /** Original file name, used to rebuild the `File` on load. */
+  name: string
+}
+
 /** Singleton workspace UI preferences and selection. */
 export interface WorkspaceMetaRecord {
   /** Board ids in sidebar order. */
@@ -81,9 +110,10 @@ export interface WorkspaceMetaRecord {
   sidebarCollapsed: boolean
 }
 
-/** Dexie database holding boards, scene images, and workspace meta. */
+/** Dexie database holding boards, blob uploads, and workspace meta. */
 const db = new Dexie("storyboard-studio") as Dexie & {
   boards: EntityTable<StoredBoardRecord, "id">
+  referenceImages: EntityTable<StoredReferenceImage, "id">
   sceneImages: EntityTable<StoredSceneImage, "id">
   workspaceMeta: EntityTable<WorkspaceMetaRecord, "id">
 }
@@ -94,7 +124,24 @@ db.version(1).stores({
   workspaceMeta: "id",
 })
 
+// v2 adds composer reference uploads. Existing board records simply lack
+// the new draft fields and are defaulted during load-time coercion.
+db.version(2).stores({
+  referenceImages: "id, boardId",
+})
+
 export { db }
+
+/**
+ * Builds the primary key for a composer reference upload row.
+ */
+export function referenceImageId(
+  boardId: string,
+  kind: ReferenceImageKind,
+  index: number
+): string {
+  return `${boardId}::${kind}::${index}`
+}
 
 /**
  * Builds the primary key for a scene image row.

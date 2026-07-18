@@ -5,12 +5,10 @@ import { SFArrowUp } from "sf-symbols-lib/monochrome"
 import * as React from "react"
 
 import { CharacterNotesControl } from "@/components/storyboard/prompt-composer-character-notes-control"
-import {
-  isCharacterNoteFilled,
-  usePromptComposer,
-} from "@/components/storyboard/prompt-composer-context"
+import { usePromptComposer } from "@/components/storyboard/prompt-composer-context"
 import { PromptComposerImageEditActions } from "@/components/storyboard/prompt-composer-image-edit-actions"
 import { ImageReferenceControl } from "@/components/storyboard/prompt-composer-image-reference-control"
+import { isCharacterNoteFilled } from "@/lib/board-composer"
 import {
   MAX_IMAGE_REFERENCES,
   MAX_IMAGE_REFERENCES_ERROR,

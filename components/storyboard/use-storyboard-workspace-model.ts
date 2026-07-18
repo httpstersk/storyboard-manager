@@ -4,6 +4,7 @@ import { useAtom } from "jotai"
 import * as React from "react"
 import { flushSync } from "react-dom"
 
+import type { BoardComposerDraft } from "@/lib/board-composer"
 import { exportNodePng, parseBoardFile } from "@/lib/board-io"
 import { requestStoryboardGeneration } from "@/lib/generate-storyboard-client"
 import {
@@ -78,6 +79,7 @@ interface StoryboardWorkspaceModel {
   handleRowsChange: (rows: number) => void
   handleSelectBoard: (boardId: string) => void
   handleShowParametersChange: (showParameters: boolean) => void
+  handleUpdateBoardComposer: (patch: Partial<BoardComposerDraft>) => void
   handleUpdateScene: (sceneId: string, patch: Partial<Scene>) => void
   imageModel: ImageModel
   imageResolution: ImageResolution
@@ -250,6 +252,10 @@ function useStoryboardWorkspaceModel(): StoryboardWorkspaceModel {
     dispatch({ showParameters, type: "setShowParameters" })
   }
 
+  const handleUpdateBoardComposer = (patch: Partial<BoardComposerDraft>) => {
+    dispatch({ patch, type: "updateBoardComposer" })
+  }
+
   const handleUpdateScene = (sceneId: string, patch: Partial<Scene>) => {
     dispatch({ patch, sceneId, type: "updateScene" })
   }
@@ -280,6 +286,10 @@ function useStoryboardWorkspaceModel(): StoryboardWorkspaceModel {
   async function handleGenerateStoryboard(
     generationRequest: StoryboardGenerationRequest
   ) {
+    // Captured up front so the draft that produced this generation moves
+    // to the new board even if the selection changes mid-flight.
+    const composerDraft = selectedBoard.composer
+
     dispatch({ error: null, type: "setIoError" })
     dispatch({ isGenerating: true, type: "setIsGenerating" })
 
@@ -305,7 +315,8 @@ function useStoryboardWorkspaceModel(): StoryboardWorkspaceModel {
     const board = createGeneratedBoard(
       createBoardId(),
       generationResult.result.scenes,
-      generationResult.result.title
+      generationResult.result.title,
+      composerDraft
     )
 
     React.startTransition(() => {
@@ -336,6 +347,7 @@ function useStoryboardWorkspaceModel(): StoryboardWorkspaceModel {
     handleRowsChange,
     handleSelectBoard,
     handleShowParametersChange,
+    handleUpdateBoardComposer,
     handleUpdateScene,
     imageModel,
     imageResolution,

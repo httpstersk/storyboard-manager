@@ -5,8 +5,15 @@
  * limits, and so on) live here so components never hardcode them.
  */
 
+import {
+  type BoardComposerDraft,
+  createEmptyComposerDraft,
+} from "@/lib/board-composer"
+
 /** A storyboard: an ordered list of scenes with a title. */
 export interface Board {
+  /** Characters, notes, uploads, and visual style scoped to this board. */
+  composer: BoardComposerDraft
   /** Stable identifier for the board. */
   id: string
   /** Scenes of the board, in order. */
@@ -305,6 +312,7 @@ function createBlankScene(index: number): Scene {
  */
 export function createBlankBoard(id: string, title: string): Board {
   return {
+    composer: createEmptyComposerDraft(),
     id,
     scenes: Array.from({ length: NEW_BOARD_SCENE_COUNT }, (unused, index) =>
       createBlankScene(index)
@@ -315,17 +323,21 @@ export function createBlankBoard(id: string, title: string): Board {
 }
 
 /**
- * Creates a full-capacity board populated with generated scenes at the start.
+ * Creates a full-capacity board populated with generated scenes at the
+ * start. The composer draft that produced the generation travels with the
+ * new board so its characters and style stay attached to the result.
  */
 export function createGeneratedBoard(
   id: string,
   scenes: GeneratedBoardScene[],
-  title: string
+  title: string,
+  composer?: BoardComposerDraft
 ): Board {
   const board = createBlankBoard(id, title)
 
   return {
     ...board,
+    composer: composer ?? board.composer,
     scenes: board.scenes.map((scene, index) => {
       const generatedScene = scenes[index]
 

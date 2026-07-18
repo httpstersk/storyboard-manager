@@ -1,6 +1,11 @@
 import { z } from "zod"
 
 import {
+  MAX_CHARACTER_SHEET_LENGTH,
+  MAX_CHARACTER_SHEETS,
+  MAX_VISUAL_STYLE_LENGTH,
+} from "@/lib/board-composer"
+import {
   CAMERA_OPTIONS,
   COLUMN_LIMITS,
   type GeneratedBoardScene,
@@ -10,24 +15,8 @@ import {
   ROW_LIMITS,
   SCENE_TIME_LIMITS,
   type SelectOption,
-  type ShotSize,
 } from "@/lib/storyboard"
 import { IMAGE_UPLOAD_RULES, MAX_NOTE_LENGTH } from "@/lib/validation"
-
-/** Maximum text length of a character name in the character notes editor. */
-export const MAX_CHARACTER_NAME_LENGTH = 120
-
-/** Maximum number of character sheets accepted by one generation request. */
-export const MAX_CHARACTER_SHEETS = 4
-
-/** Maximum text length of one character sheet. */
-export const MAX_CHARACTER_SHEET_LENGTH = 20_000
-
-/**
- * Maximum notes length after reserving room for a character name and separator.
- */
-export const MAX_CHARACTER_NOTES_LENGTH =
-  MAX_CHARACTER_SHEET_LENGTH - MAX_CHARACTER_NAME_LENGTH - 1
 
 /**
  * Maximum number of image references accepted per generation request.
@@ -43,12 +32,6 @@ export const MAX_GENERATED_SCENES = 12
 
 /** Maximum length of a single-scene image editing instruction. */
 export const MAX_SCENE_IMAGE_EDIT_PROMPT_LENGTH = 2_000
-
-/**
- * Maximum length of the optional textual visual-style description.
- * Kept short so style guidance stays focused alongside reference images.
- */
-export const MAX_VISUAL_STYLE_LENGTH = 2_000
 
 /** Minimum number of beats produced for even a short logline. */
 export const MIN_GENERATED_SCENES = 3

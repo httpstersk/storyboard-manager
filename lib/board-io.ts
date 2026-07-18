@@ -6,8 +6,8 @@
 import type { Board } from "@/lib/storyboard"
 import { coerceBoard } from "@/lib/validation"
 
-/** Version written into exported board files. */
-const BOARD_FILE_VERSION = 2
+/** Version written into exported board files (v3 adds composer fields). */
+const BOARD_FILE_VERSION = 3
 
 /** Result of parsing an imported board file. */
 export type BoardImportResult =
@@ -47,18 +47,22 @@ function downloadBlob(blob: Blob, filename: string): void {
 /**
  * Downloads the given board as a versioned JSON file. Scene `shader`
  * presets are omitted — they are UI-only empty-state gradients and are
- * restored to defaults on import when missing. Includes the Seedance
- * video prompt when provided.
+ * restored to defaults on import when missing. Composer uploads are
+ * binary and stay out of exports; written character notes and the
+ * visual style travel with the file. Includes the Seedance video
+ * prompt when provided.
  */
 export function exportBoardJson(
   board: Board,
   options: BoardJsonExportOptions = {}
 ): void {
   const payload = {
+    characterNotes: board.composer.characterNotes,
     scenes: board.scenes.map(({ shader: _shader, ...scene }) => scene),
     title: board.title,
     version: BOARD_FILE_VERSION,
     videoPrompt: options.videoPrompt ?? "",
+    visualStyle: board.composer.visualStyle,
   }
   const blob = new Blob([JSON.stringify(payload, null, 2)], {
     type: "application/json",

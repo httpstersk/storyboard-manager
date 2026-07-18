@@ -10,21 +10,19 @@ import {
   insertCharacterMention,
   type CharacterMentionToken,
 } from "@/components/storyboard/prompt-composer-character-mention"
-import type { CharacterNote } from "@/components/storyboard/prompt-composer-context"
-import {
-  getCharacterMentionOptions,
-  normalizeCharacterName,
-  usePromptComposer,
-} from "@/components/storyboard/prompt-composer-context"
+import { usePromptComposer } from "@/components/storyboard/prompt-composer-context"
 import { Field } from "@/components/ui/field"
 import { IconButton } from "@/components/ui/icon-button"
 import { InlineInput } from "@/components/ui/inline-input"
 import {
+  type CharacterNote,
+  getCharacterMentionOptions,
   MAX_CHARACTER_NAME_LENGTH,
   MAX_CHARACTER_NOTES_LENGTH,
   MAX_CHARACTER_SHEETS,
   MAX_VISUAL_STYLE_LENGTH,
-} from "@/lib/generation"
+  normalizeCharacterName,
+} from "@/lib/board-composer"
 import { cn } from "@/lib/utils"
 
 /** In-progress `@mention` session driven by caret position in the storyline. */
