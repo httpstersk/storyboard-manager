@@ -1,6 +1,8 @@
 import { fal } from "@ai-sdk/fal"
 import { openai } from "@ai-sdk/openai"
 import { generateImage, generateText, Output } from "ai"
+import { readFile } from "fs/promises"
+import path from "path"
 
 import {
   resolveFalApiKey,
@@ -98,33 +100,35 @@ export async function POST(request: Request): Promise<Response> {
     }
 
     const layout = layoutForSceneCount(plan.scenes.length)
+    const layoutPlaceholder = await readLayoutPlaceholder(layout)
+    // Layout placeholder is always image 1; character + style refs follow.
+    const allReferenceImages = [layoutPlaceholder, ...referenceImages]
     const compositePrompt = buildCompositePrompt({
       characterImageCount: characterImageRefs.length,
       characterSheets,
       columns: layout.columns,
+      layoutPlaceholderColumns: layout.columns,
+      layoutPlaceholderRows: layout.rows,
       rows: layout.rows,
       scenes: plan.scenes,
       storyline: prompt,
       styleImageCount: styleImageRefs.length,
       visualStyle,
     })
+    // Always use the edit endpoint so the layout placeholder is accepted.
     const modelId = resolveImageModelId({
-      hasReferenceImages: referenceImages.length > 0,
+      hasReferenceImages: true,
       imageModel,
     })
-    const imagePrompt =
-      referenceImages.length === 0
-        ? compositePrompt
-        : { images: referenceImages, text: compositePrompt }
     const { image } = await generateImage({
       model: fal.image(modelId),
       n: 1,
-      prompt: imagePrompt,
+      prompt: { images: allReferenceImages, text: compositePrompt },
       providerOptions: {
         fal: buildCompositeProviderOptions({
           imageModel,
           layout,
-          referenceImageCount: referenceImages.length,
+          referenceImageCount: allReferenceImages.length,
           resolution,
         }),
       },
@@ -215,6 +219,26 @@ ${visualStyleContext}
 
 Story material:
 ${storyline}`
+}
+
+/**
+ * Reads the static layout-placeholder PNG for `layout` from `public/images`
+ * and returns it as a base64 PNG data URL.
+ *
+ * @throws If the file cannot be read (should never happen for a valid preset).
+ */
+async function readLayoutPlaceholder(layout: {
+  columns: number
+  rows: number
+}): Promise<string> {
+  const filePath = path.join(
+    process.cwd(),
+    "public/images",
+    `storyboards-${layout.columns}x${layout.rows}.png`
+  )
+  const buffer = await readFile(filePath)
+
+  return `data:image/png;base64,${buffer.toString("base64")}`
 }
 
 /** Describes declared visual style for the planner when present. */

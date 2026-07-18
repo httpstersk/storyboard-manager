@@ -29,6 +29,8 @@ import {
   formatSeconds,
   nextUntitledBoardTitle,
   type Scene,
+  snapColumnChange,
+  snapRowChange,
   totalRuntimeSeconds,
 } from "@/lib/storyboard"
 import {
@@ -192,7 +194,8 @@ function useStoryboardWorkspaceModel(): StoryboardWorkspaceModel {
     null
 
   const handleColumnsChange = (columns: number) => {
-    dispatch({ columns, type: "setColumns" })
+    const preset = snapColumnChange(columns, state.rows)
+    dispatch({ columns: preset.columns, rows: preset.rows, type: "setGrid" })
   }
 
   const handleComposerActiveChange = (isComposerActive: boolean) => {
@@ -241,7 +244,8 @@ function useStoryboardWorkspaceModel(): StoryboardWorkspaceModel {
   }
 
   const handleRowsChange = (rows: number) => {
-    dispatch({ rows, type: "setRows" })
+    const preset = snapRowChange(state.columns, rows)
+    dispatch({ columns: preset.columns, rows: preset.rows, type: "setGrid" })
   }
 
   const handleShowParametersChange = (showParameters: boolean) => {

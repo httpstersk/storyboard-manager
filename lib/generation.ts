@@ -15,6 +15,7 @@ import {
   CAMERA_OPTIONS,
   COLUMN_LIMITS,
   type GeneratedBoardScene,
+  GRID_PRESETS,
   LENS_OPTIONS,
   LIGHTING_OPTIONS,
   MOVEMENT_OPTIONS,
@@ -192,17 +193,20 @@ export interface StoryboardLayout {
 }
 
 /**
- * Fits scenes to a compact 3–4-column grid while respecting workspace limits.
+ * Maps a scene count to the tightest valid {@link StoryboardLayout} preset:
+ * - 3–4 scenes  → 2×2  (up to 1 empty cell)
+ * - 5–6 scenes  → 3×2  (up to 1 empty cell)
+ * - 7–9 scenes  → 3×3  (up to 2 empty cells)
+ * - 10–12 scenes → 4×3  (up to 2 empty cells)
  */
 export function layoutForSceneCount(sceneCount: number): StoryboardLayout {
-  const boundedSceneCount = Math.min(
+  const bounded = Math.min(
     MAX_GENERATED_SCENES,
     Math.max(MIN_GENERATED_SCENES, Math.round(sceneCount))
   )
-  const columns = boundedSceneCount <= 6 ? 3 : 4
 
-  return {
-    columns,
-    rows: Math.ceil(boundedSceneCount / columns),
-  }
+  if (bounded <= 4) return GRID_PRESETS[0] // 2×2
+  if (bounded <= 6) return GRID_PRESETS[1] // 3×2
+  if (bounded <= 9) return GRID_PRESETS[2] // 3×3
+  return GRID_PRESETS[4]                   // 4×3
 }

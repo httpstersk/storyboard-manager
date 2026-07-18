@@ -7,6 +7,7 @@ import {
   DEFAULT_ROWS,
   ROW_LIMITS,
   type Scene,
+  snapToClosestPreset,
   UNTITLED_BOARD_TITLE,
 } from "@/lib/storyboard"
 import { clampInteger } from "@/lib/validation"
@@ -40,6 +41,7 @@ export type WorkspaceAction =
   | { boardId: string; error: string; type: "failGeneration" }
   | { boardId: string; title: string; type: "renameBoard" }
   | { boardId: string; type: "selectBoard" }
+  | { columns: number; rows: number; type: "setGrid" }
   | { columns: number; type: "setColumns" }
   | { boardId: string | null; type: "setDeleteRequest" }
   | { isComposerActive: boolean; type: "setComposerActive" }
@@ -152,19 +154,31 @@ export function workspaceReducer(
             : state.selectedBoardId,
       }
     }
-    case "hydrate":
-      return action.workspace === null
-        ? { ...state, hydrated: true, now }
-        : {
-            ...state,
-            boards: action.workspace.boards,
-            columns: clampInteger(action.workspace.columns, COLUMN_LIMITS),
-            hydrated: true,
-            now,
-            rows: clampInteger(action.workspace.rows, ROW_LIMITS),
-            selectedBoardId: action.workspace.selectedBoardId,
-            sidebarCollapsed: action.workspace.sidebarCollapsed,
-          }
+    case "hydrate": {
+      if (action.workspace === null) {
+        return { ...state, hydrated: true, now }
+      }
+
+      // Clamp first, then snap — stale values from before the preset
+      // constraint was introduced are nudged to the nearest valid combo.
+      const hydratedColumns = clampInteger(
+        action.workspace.columns,
+        COLUMN_LIMITS
+      )
+      const hydratedRows = clampInteger(action.workspace.rows, ROW_LIMITS)
+      const snapped = snapToClosestPreset(hydratedColumns, hydratedRows)
+
+      return {
+        ...state,
+        boards: action.workspace.boards,
+        columns: snapped.columns,
+        hydrated: true,
+        now,
+        rows: snapped.rows,
+        selectedBoardId: action.workspace.selectedBoardId,
+        sidebarCollapsed: action.workspace.sidebarCollapsed,
+      }
+    }
     case "renameBoard":
       return {
         ...state,
@@ -180,6 +194,12 @@ export function workspaceReducer(
         ...state,
         editingSceneId: null,
         selectedBoardId: action.boardId,
+      }
+    case "setGrid":
+      return {
+        ...state,
+        columns: clampInteger(action.columns, COLUMN_LIMITS),
+        rows: clampInteger(action.rows, ROW_LIMITS),
       }
     case "setColumns":
       return { ...state, columns: clampInteger(action.columns, COLUMN_LIMITS) }

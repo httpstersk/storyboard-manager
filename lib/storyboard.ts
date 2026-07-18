@@ -107,6 +107,14 @@ export interface SelectOption {
 /** Shot sizes supported by the shot segmented control. */
 export type ShotSize = "CU" | "MCU" | "MS" | "WS"
 
+/** A valid grid configuration the workspace accepts. */
+export interface GridPreset {
+  /** Number of scene columns. */
+  columns: number
+  /** Number of scene rows. */
+  rows: number
+}
+
 /** Inclusive numeric range used to clamp user input. */
 export interface ValueLimits {
   /** Largest allowed value. */
@@ -123,7 +131,7 @@ export const CAMERA_OPTIONS: SelectOption[] = [
 ]
 
 /** Allowed range for the grid column stepper. */
-export const COLUMN_LIMITS: ValueLimits = { max: 4, min: 1 }
+export const COLUMN_LIMITS: ValueLimits = { max: 4, min: 2 }
 
 /** Lenses available in the lens select. */
 export const LENS_OPTIONS: SelectOption[] = [
@@ -159,11 +167,22 @@ export const MOVEMENT_OPTIONS: SelectOption[] = [
 ]
 
 /** Allowed range for the grid row stepper. */
-export const ROW_LIMITS: ValueLimits = { max: 9, min: 1 }
+export const ROW_LIMITS: ValueLimits = { max: 4, min: 2 }
 
-/** Rows shown when a workspace first loads. Kept modest (well below
- * {@link ROW_LIMITS.max}) so a fresh board opens compact rather than
- * filling every available row. */
+/**
+ * The five grid presets the workspace accepts, in priority order.
+ * Any columns × rows combination not in this list is invalid; callers
+ * should snap to the closest entry rather than reject the input.
+ */
+export const GRID_PRESETS: readonly GridPreset[] = [
+  { columns: 2, rows: 2 },
+  { columns: 3, rows: 2 },
+  { columns: 3, rows: 3 },
+  { columns: 3, rows: 4 },
+  { columns: 4, rows: 3 },
+] as const
+
+/** Rows shown when a workspace first loads. */
 export const DEFAULT_ROWS = 2
 
 /** Allowed range for a scene duration in seconds. */
@@ -455,4 +474,75 @@ export function formatSeconds(totalSeconds: number): string {
  */
 export function totalRuntimeSeconds(scenes: Scene[]): number {
   return scenes.reduce((total, scene) => total + scene.timeSeconds, 0)
+}
+
+/**
+ * Returns the Euclidean distance between two grid configurations.
+ */
+function gridDistance(a: GridPreset, b: GridPreset): number {
+  return Math.sqrt((a.columns - b.columns) ** 2 + (a.rows - b.rows) ** 2)
+}
+
+/**
+ * Resolves the valid preset closest to `target`, preferring presets
+ * that share the `axis` value when a tie would otherwise occur.
+ */
+function closestPreset(
+  target: GridPreset,
+  axis: "columns" | "rows"
+): GridPreset {
+  const exact = target[axis]
+  // Prefer presets that already satisfy the changed axis.
+  const sameAxis = GRID_PRESETS.filter((p) => p[axis] === exact)
+  const candidates = sameAxis.length > 0 ? sameAxis : GRID_PRESETS
+
+  return candidates.reduce((best, p) =>
+    gridDistance(p, target) < gridDistance(best, target) ? p : best
+  )
+}
+
+/**
+ * Snaps a column change to the closest valid {@link GridPreset}.
+ * Prefers presets that already have `newColumns` columns, falling back
+ * to the nearest preset overall when none match.
+ *
+ * @param newColumns - The column count the user requested.
+ * @param currentRows - The row count currently active in the workspace.
+ */
+export function snapColumnChange(
+  newColumns: number,
+  currentRows: number
+): GridPreset {
+  return closestPreset({ columns: newColumns, rows: currentRows }, "columns")
+}
+
+/**
+ * Snaps a row change to the closest valid {@link GridPreset}.
+ * Prefers presets that already have `newRows` rows, falling back
+ * to the nearest preset overall when none match.
+ *
+ * @param currentColumns - The column count currently active in the workspace.
+ * @param newRows - The row count the user requested.
+ */
+export function snapRowChange(
+  currentColumns: number,
+  newRows: number
+): GridPreset {
+  return closestPreset({ columns: currentColumns, rows: newRows }, "rows")
+}
+
+/**
+ * Snaps an arbitrary columns × rows pair to the closest valid
+ * {@link GridPreset} using minimum Euclidean distance. Used during
+ * workspace hydration to migrate stale persisted values.
+ *
+ * @param columns - Persisted column count (may be outside the preset list).
+ * @param rows - Persisted row count (may be outside the preset list).
+ */
+export function snapToClosestPreset(columns: number, rows: number): GridPreset {
+  return GRID_PRESETS.reduce((best, p) =>
+    gridDistance(p, { columns, rows }) < gridDistance(best, { columns, rows })
+      ? p
+      : best
+  )
 }

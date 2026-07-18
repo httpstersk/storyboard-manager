@@ -46,6 +46,18 @@ interface CompositePromptOptions {
   characterSheets: string[]
   /** Number of cells across the composite. */
   columns: number
+  /**
+   * Column count of the layout-placeholder PNG attached as input image 1.
+   * When set (together with {@link layoutPlaceholderRows}), the GRID
+   * SPECIFICATION block references the placeholder for structural guidance.
+   */
+  layoutPlaceholderColumns?: number
+  /**
+   * Row count of the layout-placeholder PNG attached as input image 1.
+   * When set (together with {@link layoutPlaceholderColumns}), the GRID
+   * SPECIFICATION block references the placeholder for structural guidance.
+   */
+  layoutPlaceholderRows?: number
   /** Number of cell rows in the composite. */
   rows: number
   /** Ordered visual beats assigned to grid cells. */
@@ -99,12 +111,17 @@ export function buildCompositePrompt({
   characterImageCount,
   characterSheets,
   columns,
+  layoutPlaceholderColumns,
+  layoutPlaceholderRows,
   rows,
   scenes,
   storyline,
   styleImageCount,
   visualStyle,
 }: CompositePromptOptions): string {
+  const hasLayoutPlaceholder =
+    layoutPlaceholderColumns !== undefined &&
+    layoutPlaceholderRows !== undefined
   const sceneList = scenes
     .map(
       (scene, index) =>
@@ -133,7 +150,10 @@ export function buildCompositePrompt({
       }`
   const referenceDirections = buildReferenceDirections(
     characterImageCount,
-    styleImageCount
+    styleImageCount,
+    hasLayoutPlaceholder
+      ? `Input image 1: LAYOUT GRID REFERENCE — a black ${layoutPlaceholderColumns}×${layoutPlaceholderRows} contact-sheet placeholder with red cell-boundary lines. Reproduce this exact grid structure in the output: match the column and row proportions precisely.`
+      : undefined
   )
   const styleSection = buildVisualStyleSection({
     styleImageCount,
@@ -146,6 +166,10 @@ export function buildCompositePrompt({
     ? "Coherent production design and strong visual continuity within the locked style. Each cell follows its bracketed [shot size | camera | lens | movement | lighting] specification as framing and staging guidance interpreted through the locked medium — not as a mandate for photoreal optics. Compose with variety — at most 2 cells on the whole sheet may center the subject; vary blocking, angle, and depth layering between adjacent cells so no two neighbours read the same."
     : "Premium cinematic previsualization with coherent production design and strong visual continuity. Each cell follows its bracketed [shot size | camera | lens | movement | lighting] specification: frame the subject at the stated shot size, render the lens's field of view and compression, imply the movement through motion blur or composition energy, and light the cell with the stated condition. Compose with variety — at most 2 cells on the whole sheet may center the subject; vary blocking, angle, and depth layering between adjacent cells so no two neighbours read the same."
 
+  const layoutReferenceInstruction = hasLayoutPlaceholder
+    ? `- Input image 1 is the LAYOUT REFERENCE. Fill this exact ${layoutPlaceholderColumns}×${layoutPlaceholderRows} grid precisely — the red lines mark every cell boundary. Use the proportions from that image without deviation.`
+    : ""
+
   return `Create ONE finished cinematic storyboard contact sheet, not separate images.
 
 ${styleSection === "" ? "" : `${styleSection}\n\n`}GRID SPECIFICATION:
@@ -155,6 +179,7 @@ ${styleSection === "" ? "" : `${styleSection}\n\n`}GRID SPECIFICATION:
 - Cells are rendered edge-to-edge with ZERO gap: no separator lines, no borders, no gutters, no margins, no frames anywhere on the sheet.
 - Keep each shot fully contained in its own cell with a clean hard boundary between adjacent shots. Never blend imagery across cell boundaries.
 ${emptyCellCount > 0 ? `- Leave the final ${emptyCellCount} unused cell${emptyCellCount === 1 ? "" : "s"} solid black.` : ""}
+${layoutReferenceInstruction}
 
 RENDERING (hard requirement):
 ${renderingDirection}
@@ -252,38 +277,57 @@ export function buildVisualStyleSection({
   return lines.join("\n")
 }
 
-/** Maps ordered model input images to their distinct continuity and style roles. */
+/**
+ * Maps ordered model input images to their distinct roles.
+ *
+ * @param characterImageCount - Number of character reference images.
+ * @param styleImageCount - Number of visual-style reference images.
+ * @param layoutDescription - When the layout placeholder is input image 1,
+ *   pass its pre-formatted description here so indices are shifted correctly.
+ */
 function buildReferenceDirections(
   characterImageCount: number,
-  styleImageCount: number
+  styleImageCount: number,
+  layoutDescription?: string
 ): string {
-  if (characterImageCount === 0 && styleImageCount === 0) {
+  const hasLayout = layoutDescription !== undefined
+  // Layout placeholder occupies slot 1 when present; user images follow.
+  const offset = hasLayout ? 1 : 0
+  const hasUserImages = characterImageCount > 0 || styleImageCount > 0
+
+  if (!hasLayout && !hasUserImages) {
     return "No reference images were supplied."
   }
 
   const directions: string[] = []
 
+  if (layoutDescription !== undefined) {
+    directions.push(layoutDescription)
+  }
+
   if (characterImageCount > 0) {
-    const characterImageRange =
+    const first = offset + 1
+    const last = offset + characterImageCount
+    const range =
       characterImageCount === 1
-        ? "Input image 1"
-        : `Input images 1–${characterImageCount}`
+        ? `Input image ${first}`
+        : `Input images ${first}–${last}`
 
     directions.push(
-      `${characterImageRange}: CHARACTER REFERENCES. Use only for face, hair, body, wardrobe, and silhouette continuity. Do not inherit their composition, background, or visual style.`
+      `${range}: CHARACTER REFERENCES. Use only for face, hair, body, wardrobe, and silhouette continuity. Do not inherit their composition, background, or visual style.`
     )
   }
 
   if (styleImageCount > 0) {
-    const firstStyleImage = characterImageCount + 1
-    const lastStyleImage = characterImageCount + styleImageCount
-    const styleImageRange =
+    const firstStyleImage = offset + characterImageCount + 1
+    const lastStyleImage = offset + characterImageCount + styleImageCount
+    const range =
       styleImageCount === 1
         ? `Input image ${firstStyleImage}`
         : `Input images ${firstStyleImage}–${lastStyleImage}`
 
     directions.push(
-      `${styleImageRange}: VISUAL STYLE REFERENCES. Lock every cell to the style of ${styleImageCount === 1 ? "this attached image" : "these attached images"} — use only for medium, palette, lighting, texture, production design, and cinematic treatment. Do not copy people, wardrobe, poses, locations, compositions, or story content from them.`
+      `${range}: VISUAL STYLE REFERENCES. Lock every cell to the style of ${styleImageCount === 1 ? "this attached image" : "these attached images"} — use only for medium, palette, lighting, texture, production design, and cinematic treatment. Do not copy people, wardrobe, poses, locations, compositions, or story content from them.`
     )
   }
 
