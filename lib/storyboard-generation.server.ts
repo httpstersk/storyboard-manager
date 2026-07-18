@@ -89,7 +89,8 @@ const SCENE_IMAGE_EDIT_SYSTEM_PROMPT = `Edit the supplied storyboard frame while
 OUTPUT REQUIREMENTS (hard requirements):
 - Return exactly one cinematic 16:9 frame.
 - Keep the edited shot fully contained within the frame.
-- No text, typography, shot numbers, labels, captions, titles, subtitles, watermarks, borders, or UI chrome.`
+- Absolutely no text, typography, or burned-in graphics anywhere in the frame — no shot numbers, craft slates, labels, captions, titles, subtitles, watermarks, borders, or UI chrome.
+- Never render craft metadata as readable text: shot codes (WS, MS, MCU, CU), camera or lens names, movement words (e.g. Static), lighting names (e.g. Blue hour), dialogue, or @handles. Pure imagery only.`
 
 /**
  * Builds one production prompt that maps ordered beats to exact grid cells.
@@ -108,7 +109,9 @@ export function buildCompositePrompt({
     .map(
       (scene, index) =>
         `${index + 1}. [${scene.shot} | ${scene.camera} | ${scene.lens} | ${scene.movement} | ${scene.lighting}] ${scene.action}${
-          scene.dialogue === "" ? "" : ` Dialogue context: ${scene.dialogue}`
+          scene.dialogue === ""
+            ? ""
+            : ` Performance intent only (never typeset as speech, captions, or subtitles): ${scene.dialogue}`
         }`
     )
     .join("\n")
@@ -124,7 +127,7 @@ export function buildCompositePrompt({
     : `Maintain the supplied character designs exactly across every frame. Re-assert each character's identity inside every cell they appear in — same face, hair, wardrobe, and silhouette.${
         characterSheets.length === 0
           ? ""
-          : `\n\nCharacter identities use @handle form (e.g. @XYZ) in the storyline and sheets; keep each @handle visually consistent across every cell.\n\nWritten character sheets:\n${characterSheets.join(
+          : `\n\nCharacter identities use @handle form (e.g. @XYZ) in the storyline and sheets; keep each @handle visually consistent across every cell. Never draw @handles as readable text on any cell.\n\nWritten character sheets:\n${characterSheets.join(
               "\n\n---\n\n"
             )}`
       }`
@@ -157,7 +160,9 @@ RENDERING (hard requirement):
 ${renderingDirection}
 
 CONTAINMENT (hard requirement):
-Absolutely no text anywhere on the sheet — no shot numbers, labels, captions, titles, subtitles, borders, watermarks, or UI chrome. Pure imagery only.
+Absolutely no text, typography, or burned-in graphics anywhere on the sheet — pure imagery only.
+Forbidden on every cell: shot numbers, numbered slates, captions, titles, subtitles, watermarks, borders, UI chrome, dialogue as readable speech, and @handles as readable text.
+Never paint craft metadata as text — including shot codes (WS, MS, MCU, CU), camera or lens names, movement words (e.g. Static), or lighting names (e.g. Blue hour).
 
 VISUAL DIRECTION:
 ${visualDirection}
@@ -172,6 +177,7 @@ CONTINUITY:
 ${continuity}
 
 ORDERED CELLS:
+Bracketed [shot | camera | lens | movement | lighting] values are invisible camera instructions for framing, optics, and light only. Apply them to composition and atmosphere; never render them (or any abbreviation of them) as typography on any cell.
 ${sceneList}`
 }
 

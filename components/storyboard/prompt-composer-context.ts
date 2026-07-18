@@ -16,6 +16,8 @@ export interface PromptComposerContextValue {
   error: string | null
   inputId: string
   isCharacterSheetOpen: boolean
+  /** True when the storyboard composer is inactive and rendered as a dense pill. */
+  isCompact: boolean
   isDisabled: boolean
   isSubmitting: boolean
   mode: PromptComposerMode
@@ -88,6 +90,11 @@ export interface PromptComposerRootProps extends Omit<
   draft?: BoardComposerDraft
   /** Unique HTML id used to connect the primary input with its label. */
   inputId?: string
+  /**
+   * Whether the composer currently holds focus. Storyboard mode uses the
+   * inverse to enter compact (pill) chrome when the user is in main content.
+   */
+  isActive?: boolean
   /** Presents a concise image-editing input without storyboard attachments. */
   mode?: PromptComposerMode
   /** Reports whether the composer currently holds focus. */

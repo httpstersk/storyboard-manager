@@ -2,6 +2,7 @@
 
 import { useSetAtom } from "jotai"
 import { AnimatePresence, m } from "motion/react"
+import * as React from "react"
 
 import { Sidebar } from "@/components/storyboard/app-sidebar"
 import { BoardStatusBar } from "@/components/storyboard/board-status-bar"
