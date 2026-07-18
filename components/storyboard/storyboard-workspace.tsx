@@ -149,6 +149,7 @@ function StoryboardWorkspace() {
         <div className="absolute inset-x-0 bottom-10 z-50 mx-auto w-full max-w-3xl px-4">
           <WorkspacePromptComposer
             draft={selectedBoard.composer}
+            isActive={state.isComposerActive}
             onActiveChange={handleComposerActiveChange}
             onDraftChange={handleUpdateBoardComposer}
             onSubmit={handleGenerateStoryboard}

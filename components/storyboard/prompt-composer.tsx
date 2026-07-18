@@ -59,6 +59,7 @@ function PromptComposerRoot({
   disabled = false,
   draft = FALLBACK_DRAFT,
   inputId = "storyboard-prompt",
+  isActive = true,
   mode = "storyboard",
   onActiveChange,
   onDraftChange,
@@ -222,6 +223,9 @@ function PromptComposerRoot({
     })
   }
 
+  const isImageEdit = mode === "image-edit"
+  const isCompact = !isImageEdit && !isActive
+
   const contextValue: PromptComposerContextValue = {
     addCharacterNote,
     characterImageReferences: draft.characterImageReferences,
@@ -229,6 +233,7 @@ function PromptComposerRoot({
     error: state.error,
     inputId,
     isCharacterSheetOpen: state.isCharacterSheetOpen,
+    isCompact,
     isDisabled: disabled || isSubmitting,
     isSubmitting,
     mode,
@@ -260,8 +265,6 @@ function PromptComposerRoot({
     submit,
     visualStyle: draft.visualStyle,
   }
-
-  const isImageEdit = mode === "image-edit"
 
   return (
     <PromptComposerContext.Provider value={contextValue}>
