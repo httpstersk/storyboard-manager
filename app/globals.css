@@ -239,23 +239,62 @@
   }
 }
 
-/* ─── Scene grid: generation scan line ────────────────────────────────────── */
+/* ─── Scene grid: generation scan beam ────────────────────────────────────── */
 /*
- * The scanning hairline shown while a board generates. Runs as a pure CSS
- * animation (off the main thread) rather than a JS-driven one; the
+ * The scanning beam shown while a board generates: a crisp emphasis-coloured
+ * core hairline wrapped in a soft gradient glow that sweeps top → bottom in a
+ * single-direction loop. Motion is driven by `transform` (compositor-friendly)
+ * rather than `inset`; `.scene-scan` spans the full grid height so a 100%
+ * translate carries the top-pinned beam across the entire viewport. The
  * prefers-reduced-motion block below neutralises it, and the element also
  * carries `motion-reduce:hidden`.
  */
-.scene-scan-line {
-  animation: scene-scan 1.8s var(--ease-in-out) infinite alternate;
+.scene-scan {
+  animation: scene-scan 2.2s var(--ease-in-out) infinite;
+  inset: 0;
+  position: absolute;
+  will-change: transform, opacity;
+}
+
+.scene-scan-beam {
+  background: linear-gradient(
+    to bottom,
+    transparent 0%,
+    color-mix(in oklch, var(--color-emphasis) 16%, transparent) 48%,
+    color-mix(in oklch, var(--color-emphasis) 22%, transparent) 50%,
+    transparent 100%
+  );
+  block-size: 4.5rem;
+  inset-block-start: 0;
+  inset-inline: 0;
+  position: absolute;
+}
+
+.scene-scan-beam::after {
+  background: var(--color-emphasis);
+  block-size: 1px;
+  box-shadow: 0 0 10px 0 color-mix(in oklch, var(--color-emphasis) 45%, transparent);
+  content: "";
+  inset-block-start: 50%;
+  inset-inline: 0;
+  opacity: 0.85;
+  position: absolute;
 }
 
 @keyframes scene-scan {
-  from {
-    inset-block-start: 0%;
+  0% {
+    opacity: 0;
+    transform: translateY(-4.5rem);
   }
-  to {
-    inset-block-start: 100%;
+  14% {
+    opacity: 1;
+  }
+  86% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+    transform: translateY(100%);
   }
 }
 

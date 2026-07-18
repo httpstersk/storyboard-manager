@@ -130,7 +130,9 @@ function SceneGrid({
             key="generation-scan"
             transition={{ duration: 0.2, ease: EASE_OUT }}
           >
-            <div className="scene-scan-line absolute inset-x-0 h-px bg-emphasis/80 motion-reduce:hidden" />
+            <div aria-hidden className="scene-scan motion-reduce:hidden">
+              <div className="scene-scan-beam" />
+            </div>
           </m.div>
         ) : null}
       </AnimatePresence>
