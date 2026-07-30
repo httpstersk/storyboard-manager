@@ -15,6 +15,7 @@ import { EditSceneDialogToolbar } from "@/components/storyboard/edit-scene-dialo
 import { EditSceneImagePrompt } from "@/components/storyboard/edit-scene-image-prompt"
 import { Dialog } from "@/components/ui/dialog"
 import { requestSceneImageEdit } from "@/lib/edit-scene-image-client"
+import { depthMapStyleAtom } from "@/lib/depth-map-style-settings"
 import { imageModelAtom } from "@/lib/image-model-settings"
 import { imageResolutionAtom } from "@/lib/image-resolution-settings"
 import { type Scene } from "@/lib/storyboard"
@@ -123,6 +124,7 @@ function EditSceneDialog({
   scene,
   sceneNumber,
 }: EditSceneDialogProps) {
+  const depthMapStyle = useAtomValue(depthMapStyleAtom)
   const imageModel = useAtomValue(imageModelAtom)
   const imageResolution = useAtomValue(imageResolutionAtom)
   const visualStyle = useAtomValue(composerVisualStyleAtom)
@@ -208,11 +210,12 @@ function EditSceneDialog({
 
     try {
       const image = await requestSceneImageEdit({
+        depthMapStyle,
         imageModel,
         prompt,
         resolution: imageResolution,
         sourceImage: previewImage,
-        visualStyle: visualStyle.trim(),
+        visualStyle: depthMapStyle ? "" : visualStyle.trim(),
       })
 
       dispatch({ payload: image, type: "SET_DRAFT_IMAGE" })

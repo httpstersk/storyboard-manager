@@ -6,6 +6,7 @@
  * `cut to` between beats, and `@ImageN` bindings that match `image_urls` order.
  */
 
+import { DEPTH_MAP_STYLE_PROMPT } from "@/lib/depth-map-style-settings"
 import type { Scene } from "@/lib/storyboard"
 
 /**
@@ -19,6 +20,10 @@ export interface BuildSeedanceVideoPromptInput {
   characterImageCount: number
   /** Written character definitions from the prompt composer. */
   characterNotes: SeedanceCharacterNote[]
+  /**
+   * When true, animates depth-map panels and ignores free-text visual style.
+   */
+  depthMapStyle?: boolean
   /** Ordered scenes of the current board. */
   scenes: Scene[]
   /** Optional textual visual-style guidance from the prompt composer. */
@@ -65,6 +70,12 @@ export const STORYBOARD_BASE_PROMPT =
   "@Image1 is the storyboard contact sheet showing the shot sequence in reading order (left to right, top to bottom). Animate this story as continuous live-action footage with hard cuts that match each panel in order. Preserve composition, wardrobe, lighting, and production design from each panel."
 
 /**
+ * Base instruction when the contact sheet is a grayscale linear depth map.
+ */
+export const STORYBOARD_DEPTH_MAP_BASE_PROMPT =
+  "@Image1 is the storyboard contact sheet showing the shot sequence in reading order (left to right, top to bottom). Animate this story as continuous grayscale linear depth-map footage with hard cuts that match each panel in order. Preserve composition and relative depth from each panel — white nearest, black farthest. Do not introduce colour, texture, lighting, shading, outlines, normals, or ambient occlusion."
+
+/**
  * The transition command prefixed to shot beats starting from the second shot.
  */
 export const TRANSITION_TEXT = "Cut to "
@@ -79,6 +90,7 @@ export const TRANSITION_TEXT = "Cut to "
 export function buildSeedanceVideoPrompt({
   characterImageCount,
   characterNotes,
+  depthMapStyle = false,
   scenes,
   visualStyle,
 }: BuildSeedanceVideoPromptInput): string {
@@ -86,10 +98,16 @@ export function buildSeedanceVideoPrompt({
     return ""
   }
 
-  const lines: string[] = [STORYBOARD_BASE_PROMPT]
-  const trimmedVisualStyle = visualStyle.trim()
+  const lines: string[] = [
+    depthMapStyle ? STORYBOARD_DEPTH_MAP_BASE_PROMPT : STORYBOARD_BASE_PROMPT,
+  ]
+  const trimmedVisualStyle = depthMapStyle ? "" : visualStyle.trim()
 
-  if (trimmedVisualStyle !== "") {
+  if (depthMapStyle) {
+    lines.push(
+      `Visual style lock: ${DEPTH_MAP_STYLE_PROMPT} Preserve this clean depth-map treatment across every shot — do not drift toward colour, texture, lighting, or any other look.`
+    )
+  } else if (trimmedVisualStyle !== "") {
     lines.push(
       `Visual style lock: ${trimmedVisualStyle}. Preserve this medium, palette, lighting language, and image-making treatment across every shot — do not drift toward a different look.`
     )

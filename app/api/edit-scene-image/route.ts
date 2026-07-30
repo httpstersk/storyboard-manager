@@ -50,7 +50,7 @@ export async function POST(request: Request): Promise<Response> {
   }
 
   try {
-    const { imageModel, prompt, resolution, sourceImage, visualStyle } =
+    const { depthMapStyle, imageModel, prompt, resolution, sourceImage, visualStyle } =
       parsedRequest.data
     const { image } = await generateImage({
       model: fal.image(resolveEditModelId(imageModel)),
@@ -58,6 +58,7 @@ export async function POST(request: Request): Promise<Response> {
       prompt: {
         images: [sourceImage],
         text: buildSceneImageEditPrompt({
+          depthMapStyle,
           instruction: prompt,
           visualStyle,
         }),

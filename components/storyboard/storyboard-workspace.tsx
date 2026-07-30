@@ -50,11 +50,13 @@ function StoryboardWorkspace() {
     captureFilledOnly,
     captureGridPng,
     deleteRequestBoard,
+    depthMapStyle,
     dispatch,
     editingIndex,
     editingScene,
     handleColumnsChange,
     handleComposerActiveChange,
+    handleDepthMapStyleChange,
     handleEditScene,
     handleExportPng,
     handleGenerateStoryboard,
@@ -99,9 +101,11 @@ function StoryboardWorkspace() {
         <SelectedBoardContext.Provider value={selectedBoard}>
           <WorkspaceToolbar
             columns={state.columns}
+            depthMapStyle={depthMapStyle}
             imageModel={imageModel}
             imageResolution={imageResolution}
             onColumnsChange={handleColumnsChange}
+            onDepthMapStyleChange={handleDepthMapStyleChange}
             onExportPng={handleExportPng}
             onImageModelChange={handleImageModelChange}
             onImageResolutionChange={handleImageResolutionChange}

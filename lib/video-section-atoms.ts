@@ -6,6 +6,7 @@
 import { atom } from "jotai"
 import { selectAtom } from "jotai/utils"
 
+import { depthMapStyleAtom } from "@/lib/depth-map-style-settings"
 import type { SeedanceCharacterNote } from "@/lib/seedance-video-prompt"
 import { buildSeedanceVideoPrompt } from "@/lib/seedance-video-prompt"
 import type { Scene } from "@/lib/storyboard"
@@ -82,9 +83,13 @@ export const videoPromptSourceAtom = atom<VideoPromptSource>(
 
 /** Derived Seedance 2.0 prompt that updates whenever the source changes. */
 export const seedanceVideoPromptAtom = atom((get) => {
+  const depthMapStyle = get(depthMapStyleAtom)
   const source = get(videoPromptSourceAtom)
 
-  return buildSeedanceVideoPrompt(source)
+  return buildSeedanceVideoPrompt({
+    ...source,
+    depthMapStyle,
+  })
 })
 
 /**

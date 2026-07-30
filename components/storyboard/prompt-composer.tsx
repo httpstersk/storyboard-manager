@@ -21,6 +21,7 @@ import {
   nextCharacterNoteId,
   serializeCharacterNote,
 } from "@/lib/board-composer"
+import { depthMapStyleAtom } from "@/lib/depth-map-style-settings"
 import { imageModelAtom } from "@/lib/image-model-settings"
 import { imageResolutionAtom } from "@/lib/image-resolution-settings"
 import { TRANSITION_FADE_FAST } from "@/lib/motion"
@@ -67,6 +68,7 @@ function PromptComposerRoot({
   onSubmit,
   ...props
 }: PromptComposerRootProps) {
+  const depthMapStyle = useAtomValue(depthMapStyleAtom)
   const imageModel = useAtomValue(imageModelAtom)
   const imageResolution = useAtomValue(imageResolutionAtom)
   const setCharacterImageFiles = useSetAtom(composerCharacterImageFilesAtom)
@@ -190,9 +192,13 @@ function PromptComposerRoot({
               readFileAsDataUrl(file)
             )
           ),
-          Promise.all(
-            draft.styleImageReferences.map((file) => readFileAsDataUrl(file))
-          ),
+          depthMapStyle
+            ? Promise.resolve([])
+            : Promise.all(
+                draft.styleImageReferences.map((file) =>
+                  readFileAsDataUrl(file)
+                )
+              ),
         ])
         const characterSheets = draft.characterNotes
           .map(serializeCharacterNote)
@@ -203,11 +209,12 @@ function PromptComposerRoot({
         onSubmit({
           characterImageRefs,
           characterSheets,
+          depthMapStyle,
           imageModel,
           prompt: trimmedPrompt,
           resolution: imageResolution,
           styleImageRefs,
-          visualStyle: draft.visualStyle.trim(),
+          visualStyle: depthMapStyle ? "" : draft.visualStyle.trim(),
         })
 
         dispatch({ type: "resetPrompt" })
@@ -230,6 +237,7 @@ function PromptComposerRoot({
     addCharacterNote,
     characterImageReferences: draft.characterImageReferences,
     characterNotes: draft.characterNotes,
+    depthMapStyle,
     error: state.error,
     inputId,
     isCharacterSheetOpen: state.isCharacterSheetOpen,

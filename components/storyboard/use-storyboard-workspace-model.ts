@@ -12,6 +12,7 @@ import {
 } from "@/lib/board-io"
 import { requestStoryboardGeneration } from "@/lib/generate-storyboard-client"
 import { type StoryboardGenerationRequest } from "@/lib/generation"
+import { depthMapStyleAtom } from "@/lib/depth-map-style-settings"
 import { imageModelAtom } from "@/lib/image-model-settings"
 import {
   clampResolution,
@@ -64,12 +65,14 @@ interface StoryboardWorkspaceModel {
    */
   captureGridPng: () => Promise<string>
   deleteRequestBoard: Board | null
+  depthMapStyle: boolean
   dispatch: React.Dispatch<WorkspaceAction>
   editingIndex: number
   editingScene: Scene | null
   gridRef: React.RefObject<HTMLElement | null>
   handleColumnsChange: (columns: number) => void
   handleComposerActiveChange: (isComposerActive: boolean) => void
+  handleDepthMapStyleChange: (depthMapStyle: boolean) => void
   handleEditScene: (sceneId: string) => void
   handleExportPng: (board: Board) => Promise<void>
   handleGenerateStoryboard: (
@@ -101,6 +104,7 @@ interface StoryboardWorkspaceModel {
 
 /** Owns workspace state, persistence, and action handlers. */
 function useStoryboardWorkspaceModel(): StoryboardWorkspaceModel {
+  const [depthMapStyle, setDepthMapStyle] = useAtom(depthMapStyleAtom)
   const [imageModel, setImageModel] = useAtom(imageModelAtom)
   const [imageResolution, setImageResolution] = useAtom(imageResolutionAtom)
   const [state, dispatch] = React.useReducer(
@@ -237,6 +241,10 @@ function useStoryboardWorkspaceModel(): StoryboardWorkspaceModel {
 
   const handleComposerActiveChange = (isComposerActive: boolean) => {
     dispatch({ isComposerActive, type: "setComposerActive" })
+  }
+
+  const handleDepthMapStyleChange = (nextDepthMapStyle: boolean) => {
+    setDepthMapStyle(nextDepthMapStyle)
   }
 
   const handleEditScene = (sceneId: string) => {
@@ -407,12 +415,14 @@ function useStoryboardWorkspaceModel(): StoryboardWorkspaceModel {
     captureFilledOnly,
     captureGridPng,
     deleteRequestBoard,
+    depthMapStyle,
     dispatch,
     editingIndex,
     editingScene,
     gridRef,
     handleColumnsChange,
     handleComposerActiveChange,
+    handleDepthMapStyleChange,
     handleEditScene,
     handleExportPng,
     handleGenerateStoryboard,

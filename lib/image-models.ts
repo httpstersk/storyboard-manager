@@ -35,13 +35,13 @@ export const IMAGE_MODEL_CONFIGS: Record<ImageModel, ImageModelConfig> = {
   "nano-banana-pro": {
     editModelId: "fal-ai/nano-banana-pro/edit",
     generateModelId: "fal-ai/nano-banana-pro",
-    label: "Nano Banana Pro",
+    label: "Nano Banana",
     supportedResolutions: ["1K", "2K", "4K"],
   },
   "seedream-5-pro": {
     editModelId: "bytedance/seedream/v5/pro/edit",
     generateModelId: "bytedance/seedream/v5/pro/text-to-image",
-    label: "Seedream 5 Pro",
+    label: "Seedream 5",
     // Seedream 5 Pro caps total output pixels at 2048x2048 on fal, so 4K
     // is not offered.
     supportedResolutions: ["1K", "2K"],

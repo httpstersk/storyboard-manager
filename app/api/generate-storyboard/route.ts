@@ -7,6 +7,7 @@ import path from "path"
 import {
   resolveFalApiKey,
 } from "@/lib/api-route-config"
+import { DEPTH_MAP_STYLE_PROMPT } from "@/lib/depth-map-style-settings"
 import {
   layoutForSceneCount,
   storyboardGenerationRequestSchema,
@@ -69,13 +70,16 @@ export async function POST(request: Request): Promise<Response> {
     const {
       characterImageRefs,
       characterSheets,
+      depthMapStyle,
       imageModel,
       prompt,
       resolution,
       styleImageRefs,
       visualStyle,
     } = parsedRequest.data
-    const referenceImages = [...characterImageRefs, ...styleImageRefs]
+    const effectiveStyleImageRefs = depthMapStyle ? [] : styleImageRefs
+    const effectiveVisualStyle = depthMapStyle ? "" : visualStyle
+    const referenceImages = [...characterImageRefs, ...effectiveStyleImageRefs]
     const { output: plan } = await generateText({
       maxRetries: 1,
       model: openai("gpt-5.4-mini"),
@@ -88,9 +92,10 @@ export async function POST(request: Request): Promise<Response> {
       prompt: buildPlanningPrompt({
         characterImageCount: characterImageRefs.length,
         characterSheets,
+        depthMapStyle,
         storyline: prompt,
-        styleImageCount: styleImageRefs.length,
-        visualStyle,
+        styleImageCount: effectiveStyleImageRefs.length,
+        visualStyle: effectiveVisualStyle,
       }),
       system: DIRECTOR_SYSTEM_PROMPT,
     })
@@ -107,13 +112,14 @@ export async function POST(request: Request): Promise<Response> {
       characterImageCount: characterImageRefs.length,
       characterSheets,
       columns: layout.columns,
+      depthMapStyle,
       layoutPlaceholderColumns: layout.columns,
       layoutPlaceholderRows: layout.rows,
       rows: layout.rows,
       scenes: plan.scenes,
       storyline: prompt,
-      styleImageCount: styleImageRefs.length,
-      visualStyle,
+      styleImageCount: effectiveStyleImageRefs.length,
+      visualStyle: effectiveVisualStyle,
     })
     // Always use the edit endpoint so the layout placeholder is accepted.
     const modelId = resolveImageModelId({
@@ -163,6 +169,8 @@ interface PlanningPromptOptions {
   characterImageCount: number
   /** Written character continuity sheets. */
   characterSheets: string[]
+  /** When true, plan framing for a depth-map contact sheet. */
+  depthMapStyle: boolean
   /** Original logline or full story material. */
   storyline: string
   /** Number of visual-style reference images supplied for the renderer. */
@@ -175,6 +183,7 @@ interface PlanningPromptOptions {
 function buildPlanningPrompt({
   characterImageCount,
   characterSheets,
+  depthMapStyle,
   storyline,
   styleImageCount,
   visualStyle,
@@ -191,6 +200,7 @@ function buildPlanningPrompt({
       : `${characterImageCount} character reference image${characterImageCount === 1 ? " was" : "s were"} supplied for the renderer. Use @handles and concrete identifiers available in the story or written sheets; do not invent unseen visual details solely to describe those images.`
   const trimmedVisualStyle = visualStyle.trim()
   const visualStyleContext = buildPlanningVisualStyleContext(
+    depthMapStyle,
     styleImageCount,
     trimmedVisualStyle
   )
@@ -243,9 +253,17 @@ async function readLayoutPlaceholder(layout: {
 
 /** Describes declared visual style for the planner when present. */
 function buildPlanningVisualStyleContext(
+  depthMapStyle: boolean,
   styleImageCount: number,
   visualStyle: string
 ): string {
+  if (depthMapStyle) {
+    return [
+      "Visual style — the renderer will output a clean grayscale linear depth map of each beat. Plan framing, staging, and silhouette readability for depth geometry; do not plan colour, texture, lighting mood, or surface treatment.",
+      `Written style: ${DEPTH_MAP_STYLE_PROMPT}`,
+    ].join("\n")
+  }
+
   if (visualStyle === "" && styleImageCount === 0) {
     return "No visual style was declared. Plan for photoreal live-action cinematography."
   }

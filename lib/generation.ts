@@ -72,6 +72,7 @@ export const storyboardGenerationRequestSchema = z
     characterSheets: z
       .array(z.string().trim().min(1).max(MAX_CHARACTER_SHEET_LENGTH))
       .max(MAX_CHARACTER_SHEETS),
+    depthMapStyle: z.boolean().default(false),
     imageModel: imageModelSchema,
     prompt: z.string().trim().min(1).max(MAX_PROMPT_LENGTH),
     resolution: imageResolutionSchema,
@@ -146,6 +147,7 @@ export const storyboardGenerationResponseSchema = z.object({
 
 /** Runtime schema for requests that modify one existing scene image. */
 export const sceneImageEditRequestSchema = z.object({
+  depthMapStyle: z.boolean().default(false),
   imageModel: imageModelSchema,
   prompt: z.string().trim().min(1).max(MAX_SCENE_IMAGE_EDIT_PROMPT_LENGTH),
   resolution: imageResolutionSchema,
@@ -162,6 +164,7 @@ export const sceneImageEditResponseSchema = z.object({
 export interface StoryboardGenerationRequest {
   characterImageRefs: string[]
   characterSheets: string[]
+  depthMapStyle: boolean
   imageModel: ImageModel
   prompt: string
   resolution: ImageResolution
@@ -171,6 +174,7 @@ export interface StoryboardGenerationRequest {
 
 /** Client request submitted to modify one generated scene image. */
 export interface SceneImageEditRequest {
+  depthMapStyle: boolean
   imageModel: ImageModel
   prompt: string
   resolution: ImageResolution

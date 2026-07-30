@@ -125,19 +125,17 @@ function ImageModelField({
     <Field>
       <Field.Label>Model</Field.Label>
       <Field.Control>
-        <div>
-          <SegmentedControl
-            label="Image model"
-            onValueChange={onImageModelChange}
-            value={imageModel}
-          >
-            {IMAGE_MODELS.map((model) => (
-              <SegmentedControl.Option key={model} value={model}>
-                {IMAGE_MODEL_CONFIGS[model].label}
-              </SegmentedControl.Option>
-            ))}
-          </SegmentedControl>
-        </div>
+        <SegmentedControl
+          label="Image model"
+          onValueChange={onImageModelChange}
+          value={imageModel}
+        >
+          {IMAGE_MODELS.map((model) => (
+            <SegmentedControl.Option key={model} value={model}>
+              {IMAGE_MODEL_CONFIGS[model].label}
+            </SegmentedControl.Option>
+          ))}
+        </SegmentedControl>
       </Field.Control>
     </Field>
   )
@@ -163,35 +161,32 @@ function ImageResolutionField({
 
   return (
     <Field>
-      <Field.Label>Resolution</Field.Label>
       <Field.Control>
-        <div>
-          <SegmentedControl
-            label="Output resolution"
-            onValueChange={onImageResolutionChange}
-            value={imageResolution}
-          >
-            {IMAGE_RESOLUTIONS.map((resolution) => {
-              const isSupported = supportedResolutions.includes(resolution)
+        <SegmentedControl
+          label="Output resolution"
+          onValueChange={onImageResolutionChange}
+          value={imageResolution}
+        >
+          {IMAGE_RESOLUTIONS.map((resolution) => {
+            const isSupported = supportedResolutions.includes(resolution)
 
-              return (
-                <SegmentedControl.Option
-                  aria-label={
-                    isSupported
-                      ? undefined
-                      : `${resolution} (unavailable with ${modelLabel})`
-                  }
-                  className="disabled:pointer-events-none disabled:opacity-40"
-                  disabled={!isSupported}
-                  key={resolution}
-                  value={resolution}
-                >
-                  {resolution}
-                </SegmentedControl.Option>
-              )
-            })}
-          </SegmentedControl>
-        </div>
+            return (
+              <SegmentedControl.Option
+                aria-label={
+                  isSupported
+                    ? undefined
+                    : `${resolution} (unavailable with ${modelLabel})`
+                }
+                className="disabled:pointer-events-none disabled:opacity-40"
+                disabled={!isSupported}
+                key={resolution}
+                value={resolution}
+              >
+                {resolution}
+              </SegmentedControl.Option>
+            )
+          })}
+        </SegmentedControl>
       </Field.Control>
     </Field>
   )
@@ -200,12 +195,16 @@ function ImageResolutionField({
 interface WorkspaceToolbarProps {
   /** Selected number of scene columns. */
   columns: number
+  /** Whether generation locks to grayscale linear depth maps. */
+  depthMapStyle: boolean
   /** Image generation model selected for new storyboards. */
   imageModel: ImageModel
   /** Output resolution selected for generation and editing. */
   imageResolution: ImageResolution
   /** Updates the selected number of scene columns. */
   onColumnsChange: (columns: number) => void
+  /** Updates whether depth-map style generation is enabled. */
+  onDepthMapStyleChange: (depthMapStyle: boolean) => void
   /** Exports the selected board's scene grid as a PNG. */
   onExportPng: (board: Board) => Promise<void>
   /** Updates the image generation model. */
@@ -227,9 +226,11 @@ interface WorkspaceToolbarProps {
 /** Persistent toolbar shell that skips selected-board-only updates. */
 function WorkspaceToolbar({
   columns,
+  depthMapStyle,
   imageModel,
   imageResolution,
   onColumnsChange,
+  onDepthMapStyleChange,
   onExportPng,
   onImageModelChange,
   onImageResolutionChange,
@@ -264,6 +265,15 @@ function WorkspaceToolbar({
             <Switch
               checked={showParameters}
               onCheckedChange={onShowParametersChange}
+            />
+          </Field.Control>
+        </Field>
+        <Field>
+          <Field.Label>Depth map</Field.Label>
+          <Field.Control>
+            <Switch
+              checked={depthMapStyle}
+              onCheckedChange={onDepthMapStyleChange}
             />
           </Field.Control>
         </Field>

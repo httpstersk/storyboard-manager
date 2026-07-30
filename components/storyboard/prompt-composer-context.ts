@@ -13,6 +13,8 @@ export interface PromptComposerContextValue {
   addCharacterNote: () => void
   characterImageReferences: File[]
   characterNotes: CharacterNote[]
+  /** When true, visual style and style images are ignored for generation. */
+  depthMapStyle: boolean
   error: string | null
   inputId: string
   isCharacterSheetOpen: boolean

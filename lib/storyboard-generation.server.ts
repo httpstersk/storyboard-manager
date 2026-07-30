@@ -1,5 +1,6 @@
 import sharp from "sharp"
 
+import { DEPTH_MAP_STYLE_PROMPT } from "@/lib/depth-map-style-settings"
 import { type StoryboardLayout } from "@/lib/generation"
 import {
   clampResolution,
@@ -47,6 +48,11 @@ interface CompositePromptOptions {
   /** Number of cells across the composite. */
   columns: number
   /**
+   * When true, every cell is a clean grayscale linear depth map and free-text
+   * / style-image guidance is ignored.
+   */
+  depthMapStyle?: boolean
+  /**
    * Column count of the layout-placeholder PNG attached as input image 1.
    * When set (together with {@link layoutPlaceholderRows}), the GRID
    * SPECIFICATION block references the placeholder for structural guidance.
@@ -79,6 +85,11 @@ interface CompositePromptOptions {
 }
 
 interface VisualStyleSectionOptions {
+  /**
+   * When true, emits the fixed depth-map STYLE LOCK and ignores free-text /
+   * style-image guidance.
+   */
+  depthMapStyle?: boolean
   /** Number of trailing input images that define visual treatment. */
   styleImageCount: number
   /** Optional textual description of the desired visual treatment. */
@@ -86,6 +97,10 @@ interface VisualStyleSectionOptions {
 }
 
 interface SceneImageEditPromptOptions {
+  /**
+   * When true, preserves/applies the fixed depth-map STYLE LOCK while editing.
+   */
+  depthMapStyle?: boolean
   /** User instruction describing how to change the frame. */
   instruction: string
   /** Optional textual visual-style guidance to preserve while editing. */
@@ -111,6 +126,7 @@ export function buildCompositePrompt({
   characterImageCount,
   characterSheets,
   columns,
+  depthMapStyle = false,
   layoutPlaceholderColumns,
   layoutPlaceholderRows,
   rows,
@@ -122,6 +138,8 @@ export function buildCompositePrompt({
   const hasLayoutPlaceholder =
     layoutPlaceholderColumns !== undefined &&
     layoutPlaceholderRows !== undefined
+  const effectiveStyleImageCount = depthMapStyle ? 0 : styleImageCount
+  const effectiveVisualStyle = depthMapStyle ? "" : visualStyle
   const sceneList = scenes
     .map(
       (scene, index) =>
@@ -136,8 +154,9 @@ export function buildCompositePrompt({
   const hasCharacterReferences =
     characterImageCount > 0 || characterSheets.length > 0
   const hasStyleGuidance = hasVisualStyleGuidance({
-    styleImageCount,
-    visualStyle,
+    depthMapStyle,
+    styleImageCount: effectiveStyleImageCount,
+    visualStyle: effectiveVisualStyle,
   })
   const continuity = !hasCharacterReferences
     ? "Infer consistent character appearances and wardrobe from the storyline and keep them identical in every cell."
@@ -150,25 +169,34 @@ export function buildCompositePrompt({
       }`
   const referenceDirections = buildReferenceDirections(
     characterImageCount,
-    styleImageCount,
+    effectiveStyleImageCount,
     hasLayoutPlaceholder
       ? `Input image 1: LAYOUT GRID REFERENCE — a black ${layoutPlaceholderColumns}×${layoutPlaceholderRows} contact-sheet placeholder with red cell-boundary lines. Reproduce this exact grid structure in the output: match the column and row proportions precisely.`
       : undefined
   )
   const styleSection = buildVisualStyleSection({
-    styleImageCount,
-    visualStyle,
+    depthMapStyle,
+    styleImageCount: effectiveStyleImageCount,
+    visualStyle: effectiveVisualStyle,
   })
-  const renderingDirection = hasStyleGuidance
-    ? "STYLE LOCK (hard requirement): Every cell must match the declared visual style exactly — same medium, palette, contrast, lighting language, texture, production design, and image-making treatment. Do not fall back to photoreal live-action, illustration defaults, or any other look. Apply that locked style to this story rather than copying any referenced person, pose, composition, location, or narrative event."
-    : "Every cell is photorealistic live-action cinematography — real human skin texture, real fabric and materials, natural depth of field, and the optical character of the camera body and lens named for that cell. Absolutely no illustration, storyboard sketch, pencil or ink drawing, comic art, anime, cel-shading, watercolor, concept-art painting, or 3D cartoon rendering."
-  const visualDirection = hasStyleGuidance
-    ? "Coherent production design and strong visual continuity within the locked style. Each cell follows its bracketed [shot size | camera | lens | movement | lighting] specification as framing and staging guidance interpreted through the locked medium — not as a mandate for photoreal optics. Compose with variety — at most 2 cells on the whole sheet may center the subject; vary blocking, angle, and depth layering between adjacent cells so no two neighbours read the same."
-    : "Premium cinematic previsualization with coherent production design and strong visual continuity. Each cell follows its bracketed [shot size | camera | lens | movement | lighting] specification: frame the subject at the stated shot size, render the lens's field of view and compression, imply the movement through motion blur or composition energy, and light the cell with the stated condition. Compose with variety — at most 2 cells on the whole sheet may center the subject; vary blocking, angle, and depth layering between adjacent cells so no two neighbours read the same."
+  const renderingDirection = depthMapStyle
+    ? `STYLE LOCK (hard requirement): ${DEPTH_MAP_STYLE_PROMPT} Every cell is a clean grayscale linear depth map of the staged scene — white nearest, black farthest. Do not invent colour, texture, lighting, shading, outlines, normals, ambient occlusion, or any other surface treatment.`
+    : hasStyleGuidance
+      ? "STYLE LOCK (hard requirement): Every cell must match the declared visual style exactly — same medium, palette, contrast, lighting language, texture, production design, and image-making treatment. Do not fall back to photoreal live-action, illustration defaults, or any other look. Apply that locked style to this story rather than copying any referenced person, pose, composition, location, or narrative event."
+      : "Every cell is photorealistic live-action cinematography — real human skin texture, real fabric and materials, natural depth of field, and the optical character of the camera body and lens named for that cell. Absolutely no illustration, storyboard sketch, pencil or ink drawing, comic art, anime, cel-shading, watercolor, concept-art painting, or 3D cartoon rendering."
+  const visualDirection = depthMapStyle
+    ? "Each cell follows its bracketed [shot size | camera | lens | movement | lighting] specification as framing and staging guidance only — shot size, camera angle, lens compression, and implied motion shape the depth geometry. Ignore lighting names for illumination; they must not introduce colour or shading. Compose with variety — at most 2 cells on the whole sheet may center the subject; vary blocking, angle, and depth layering between adjacent cells so no two neighbours read the same."
+    : hasStyleGuidance
+      ? "Coherent production design and strong visual continuity within the locked style. Each cell follows its bracketed [shot size | camera | lens | movement | lighting] specification as framing and staging guidance interpreted through the locked medium — not as a mandate for photoreal optics. Compose with variety — at most 2 cells on the whole sheet may center the subject; vary blocking, angle, and depth layering between adjacent cells so no two neighbours read the same."
+      : "Premium cinematic previsualization with coherent production design and strong visual continuity. Each cell follows its bracketed [shot size | camera | lens | movement | lighting] specification: frame the subject at the stated shot size, render the lens's field of view and compression, imply the movement through motion blur or composition energy, and light the cell with the stated condition. Compose with variety — at most 2 cells on the whole sheet may center the subject; vary blocking, angle, and depth layering between adjacent cells so no two neighbours read the same."
 
   const layoutReferenceInstruction = hasLayoutPlaceholder
     ? `- Input image 1 is the LAYOUT REFERENCE. Fill this exact ${layoutPlaceholderColumns}×${layoutPlaceholderRows} grid precisely — the red lines mark every cell boundary. Use the proportions from that image without deviation.`
     : ""
+
+  const orderedCellsGuidance = depthMapStyle
+    ? "Bracketed [shot | camera | lens | movement | lighting] values are invisible camera instructions for framing and staging only. Apply them to composition and depth geometry; never render them (or any abbreviation of them) as typography on any cell. Do not interpret lighting names as illumination, colour, or shading."
+    : "Bracketed [shot | camera | lens | movement | lighting] values are invisible camera instructions for framing, optics, and light only. Apply them to composition and atmosphere; never render them (or any abbreviation of them) as typography on any cell."
 
   return `Create ONE finished cinematic storyboard contact sheet, not separate images.
 
@@ -202,7 +230,7 @@ CONTINUITY:
 ${continuity}
 
 ORDERED CELLS:
-Bracketed [shot | camera | lens | movement | lighting] values are invisible camera instructions for framing, optics, and light only. Apply them to composition and atmosphere; never render them (or any abbreviation of them) as typography on any cell.
+${orderedCellsGuidance}
 ${sceneList}`
 }
 
@@ -211,17 +239,23 @@ ${sceneList}`
  * constraints before sending it to the selected edit model.
  */
 export function buildSceneImageEditPrompt({
+  depthMapStyle = false,
   instruction,
   visualStyle,
 }: SceneImageEditPromptOptions): string {
   const styleSection = buildVisualStyleSection({
+    depthMapStyle,
     styleImageCount: 0,
-    visualStyle,
+    visualStyle: depthMapStyle ? "" : visualStyle,
   })
   const styleLock =
     styleSection === ""
       ? "Preserve the existing frame's visual language while applying the edit."
-      : `${styleSection}
+      : depthMapStyle
+        ? `${styleSection}
+
+STYLE LOCK (hard requirement): Preserve and apply this depth-map treatment while editing. Keep the result a clean grayscale linear depth map — white nearest, black farthest. Do not introduce colour, texture, lighting, shading, outlines, normals, or ambient occlusion.`
+        : `${styleSection}
 
 STYLE LOCK (hard requirement): Preserve and apply this visual style while editing. Do not drift toward a different medium, palette, or image-making treatment.`
 
@@ -234,22 +268,33 @@ ${instruction}`
 }
 
 /**
- * Whether textual style, style images, or both provide visual-style guidance.
+ * Whether textual style, style images, depth-map mode, or a combination
+ * provide visual-style guidance.
  */
 export function hasVisualStyleGuidance({
+  depthMapStyle = false,
   styleImageCount,
   visualStyle,
 }: VisualStyleSectionOptions): boolean {
-  return styleImageCount > 0 || visualStyle.trim() !== ""
+  return depthMapStyle || styleImageCount > 0 || visualStyle.trim() !== ""
 }
 
 /**
  * Shared visual-style block for composite generation and scene editing.
  */
 export function buildVisualStyleSection({
+  depthMapStyle = false,
   styleImageCount,
   visualStyle,
 }: VisualStyleSectionOptions): string {
+  if (depthMapStyle) {
+    return [
+      "VISUAL STYLE (hard requirement):",
+      `Written style: ${DEPTH_MAP_STYLE_PROMPT}`,
+      "This style overrides any default photoreal live-action look. Do not invent a different medium.",
+    ].join("\n")
+  }
+
   const trimmedStyle = visualStyle.trim()
 
   if (trimmedStyle === "" && styleImageCount === 0) {

@@ -108,7 +108,8 @@ function CharacterNoteRow({
 
 /** Optional textual visual-style description shown as a collapsible section. */
 function VisualStyleField() {
-  const { isDisabled, setVisualStyle, visualStyle } = usePromptComposer()
+  const { depthMapStyle, isDisabled, setVisualStyle, visualStyle } =
+    usePromptComposer()
 
   return (
     <div className="mx-4 mb-3">
@@ -119,7 +120,7 @@ function VisualStyleField() {
         <Field.Control>
           <InlineInput
             className="w-full text-left disabled:cursor-not-allowed disabled:opacity-60"
-            disabled={isDisabled}
+            disabled={isDisabled || depthMapStyle}
             maxLength={MAX_VISUAL_STYLE_LENGTH}
             onChange={(event) => setVisualStyle(event.target.value)}
             placeholder="Watercolor storybook, muted pastels, soft paper texture…"
