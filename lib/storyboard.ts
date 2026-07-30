@@ -453,6 +453,17 @@ export function formatEditedAt(updatedAt: number, now: number): string {
 }
 
 /**
+ * Column count for a PNG capture of `filledCount` artwork scenes,
+ * capped by the live grid columns (allows a single column).
+ */
+export function exportColumnCount(
+  columns: number,
+  filledCount: number
+): number {
+  return Math.min(columns, Math.max(1, filledCount))
+}
+
+/**
  * Formats a zero-based scene index as a two-digit label, for example "01".
  */
 export function formatSceneNumber(index: number): string {
@@ -499,6 +510,14 @@ function closestPreset(
   return candidates.reduce((best, p) =>
     gridDistance(p, target) < gridDistance(best, target) ? p : best
   )
+}
+
+/**
+ * Returns scenes that have artwork (an uploaded or generated image).
+ * Shader-only empty cells are excluded.
+ */
+export function scenesWithArtwork(scenes: Scene[]): Scene[] {
+  return scenes.filter((scene) => Boolean(scene.image))
 }
 
 /**

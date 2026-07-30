@@ -128,6 +128,9 @@ function isValidPngDataUrl(dataUrl: string): boolean {
  * If the node is unmounted between passes (board switch / AnimatePresence),
  * the second pass returns an empty `"data:,"` URL — fall back to the first
  * valid pass instead of downloading a blank file.
+ *
+ * Callers that need shader-empty scenes omitted should filter the React
+ * tree before invoking this (see workspace `captureGridPng`).
  */
 export async function captureNodePngDataUrl(node: HTMLElement): Promise<string> {
   if (cachedToPng === null) {
@@ -165,14 +168,12 @@ export async function captureNodePngDataUrl(node: HTMLElement): Promise<string> 
 }
 
 /**
- * Captures the given element as a PNG and downloads it. Shader
- * thumbnails are WebGL canvases and may capture blank on some browsers.
+ * Downloads a PNG data URL as `{title}.png`.
  */
-export async function exportNodePng(
-  node: HTMLElement,
+export async function downloadPngDataUrl(
+  dataUrl: string,
   title: string
 ): Promise<void> {
-  const dataUrl = await captureNodePngDataUrl(node)
   const response = await fetch(dataUrl)
   const blob = await response.blob()
 
@@ -181,4 +182,14 @@ export async function exportNodePng(
   }
 
   downloadBlob(blob, `${fileStem(title)}.png`)
+}
+
+/**
+ * Captures the given element as a PNG and downloads it.
+ */
+export async function exportNodePng(
+  node: HTMLElement,
+  title: string
+): Promise<void> {
+  await downloadPngDataUrl(await captureNodePngDataUrl(node), title)
 }

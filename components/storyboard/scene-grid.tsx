@@ -11,6 +11,7 @@ import { Tooltip } from "@/components/ui/tooltip"
 import { EASE_OUT, SPRING_LAYOUT } from "@/lib/motion"
 import {
   CAMERA_OPTIONS,
+  exportColumnCount,
   formatSceneNumber,
   LENS_OPTIONS,
   LIGHTING_OPTIONS,
@@ -40,8 +41,20 @@ const SCENE_LAYOUT_TRANSITION = {
 const SCENE_STAGGER_STEP = 0.03
 const SCENE_STAGGER_MAX = 0.3
 
+/** A visible scene paired with its original grid index (for labels). */
+interface IndexedScene {
+  index: number
+  scene: Scene
+}
+
 /** Props for {@link SceneGrid}. */
 interface SceneGridProps {
+  /**
+   * When true, render only scenes with artwork and tighten columns for
+   * PNG capture. Skips exit animations so empty cells leave the DOM
+   * immediately.
+   */
+  captureFilledOnly?: boolean
   /** Number of grid columns. */
   columns: number
   /** Whether a new board is currently being generated. */
@@ -65,6 +78,7 @@ interface SceneGridProps {
  * steppers; hairline gaps come from the grid-line background.
  */
 function SceneGrid({
+  captureFilledOnly = false,
   columns,
   isGenerating,
   onEditScene,
@@ -74,7 +88,28 @@ function SceneGrid({
   scenes,
   showParameters,
 }: SceneGridProps) {
-  const visibleScenes = scenes.slice(0, rows * columns)
+  const indexedScenes: IndexedScene[] = scenes
+    .slice(0, rows * columns)
+    .map((scene, index) => ({ index, scene }))
+  const displayScenes = captureFilledOnly
+    ? indexedScenes.filter(({ scene }) => Boolean(scene.image))
+    : indexedScenes
+  const displayColumns = captureFilledOnly
+    ? exportColumnCount(columns, displayScenes.length)
+    : columns
+
+  function renderGridScene({ index, scene }: IndexedScene) {
+    return (
+      <GridScene
+        isGenerating={isGenerating}
+        onEdit={() => onEditScene(scene.id)}
+        onUpdate={(patch) => onUpdateScene(scene.id, patch)}
+        scene={scene}
+        sceneNumber={formatSceneNumber(index)}
+        showParameters={showParameters}
+      />
+    )
+  }
 
   return (
     // Parent workspace column owns vertical scroll so the video section
@@ -87,38 +122,40 @@ function SceneGrid({
       <section
         aria-label="Scenes"
         ref={ref}
-        data-cols={columns}
+        data-cols={displayColumns}
         className="scene-grid grid content-start gap-px bg-grid-line"
       >
-        <AnimatePresence initial={false} mode="popLayout">
-          {visibleScenes.map((scene, index) => (
-            <m.div
-              animate={{ opacity: 1, scale: 1 }}
-              exit={{
-                opacity: 0,
-                scale: 0.97,
-                transition: SCENE_EXIT_TRANSITION,
-              }}
-              initial={{ opacity: 0, scale: 0.95 }}
-              key={scene.id}
-              layout="position"
-              transition={{
-                ...SCENE_ENTER_TRANSITION,
-                delay: Math.min(index * SCENE_STAGGER_STEP, SCENE_STAGGER_MAX),
-                layout: SCENE_LAYOUT_TRANSITION,
-              }}
-            >
-              <GridScene
-                isGenerating={isGenerating}
-                onEdit={() => onEditScene(scene.id)}
-                onUpdate={(patch) => onUpdateScene(scene.id, patch)}
-                scene={scene}
-                sceneNumber={formatSceneNumber(index)}
-                showParameters={showParameters}
-              />
-            </m.div>
-          ))}
-        </AnimatePresence>
+        {captureFilledOnly ? (
+          displayScenes.map((indexed) => (
+            <div key={indexed.scene.id}>{renderGridScene(indexed)}</div>
+          ))
+        ) : (
+          <AnimatePresence initial={false} mode="popLayout">
+            {displayScenes.map((indexed) => (
+              <m.div
+                animate={{ opacity: 1, scale: 1 }}
+                exit={{
+                  opacity: 0,
+                  scale: 0.97,
+                  transition: SCENE_EXIT_TRANSITION,
+                }}
+                initial={{ opacity: 0, scale: 0.95 }}
+                key={indexed.scene.id}
+                layout="position"
+                transition={{
+                  ...SCENE_ENTER_TRANSITION,
+                  delay: Math.min(
+                    indexed.index * SCENE_STAGGER_STEP,
+                    SCENE_STAGGER_MAX
+                  ),
+                  layout: SCENE_LAYOUT_TRANSITION,
+                }}
+              >
+                {renderGridScene(indexed)}
+              </m.div>
+            ))}
+          </AnimatePresence>
+        )}
       </section>
       <AnimatePresence>
         {isGenerating ? (

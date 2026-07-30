@@ -2,9 +2,14 @@
 
 import { useAtom } from "jotai"
 import * as React from "react"
+import { flushSync } from "react-dom"
 
 import type { BoardComposerDraft } from "@/lib/board-composer"
-import { exportNodePng, parseBoardFile } from "@/lib/board-io"
+import {
+  captureNodePngDataUrl,
+  downloadPngDataUrl,
+  parseBoardFile,
+} from "@/lib/board-io"
 import { requestStoryboardGeneration } from "@/lib/generate-storyboard-client"
 import { type StoryboardGenerationRequest } from "@/lib/generation"
 import { imageModelAtom } from "@/lib/image-model-settings"
@@ -29,6 +34,7 @@ import {
   formatSeconds,
   nextUntitledBoardTitle,
   type Scene,
+  scenesWithArtwork,
   snapColumnChange,
   snapRowChange,
   totalRuntimeSeconds,
@@ -50,6 +56,13 @@ interface StoryboardWorkspaceModel {
   assignGridRef: (node: HTMLElement | null) => void
   canNavigateNextScene: boolean
   canNavigatePreviousScene: boolean
+  /** When true, SceneGrid renders only scenes with artwork for capture. */
+  captureFilledOnly: boolean
+  /**
+   * Captures the scene grid as a PNG data URL with shader-empty scenes
+   * omitted. Shared by toolbar export and video generation.
+   */
+  captureGridPng: () => Promise<string>
   deleteRequestBoard: Board | null
   dispatch: React.Dispatch<WorkspaceAction>
   editingIndex: number
@@ -98,6 +111,7 @@ function useStoryboardWorkspaceModel(): StoryboardWorkspaceModel {
   const gridRef = React.useRef<HTMLElement>(null)
   const importInputRef = React.useRef<HTMLInputElement>(null)
   const saveTimerRef = React.useRef<ReturnType<typeof setTimeout> | null>(null)
+  const [captureFilledOnly, setCaptureFilledOnly] = React.useState(false)
 
   /**
    * Keeps {@link gridRef} pointed at the live scene grid across board
@@ -293,20 +307,49 @@ function useStoryboardWorkspaceModel(): StoryboardWorkspaceModel {
     }
   }
 
-  async function handleExportPng(board: Board) {
-    if (gridRef.current === null) {
-      dispatch({
-        error: "The storyboard grid could not be captured.",
-        type: "setIoError",
-      })
-      return
+  async function captureGridPng(): Promise<string> {
+    const filledScenes = scenesWithArtwork(
+      selectedBoard.scenes.slice(0, state.rows * state.columns)
+    )
+
+    if (filledScenes.length === 0) {
+      throw new Error("No scenes with images to export.")
     }
 
+    if (gridRef.current === null) {
+      throw new Error("The storyboard grid could not be captured.")
+    }
+
+    flushSync(() => {
+      setCaptureFilledOnly(true)
+    })
+
     try {
-      await exportNodePng(gridRef.current, board.title)
+      if (gridRef.current === null) {
+        throw new Error("The storyboard grid could not be captured.")
+      }
+
+      return await captureNodePngDataUrl(gridRef.current)
+    } finally {
+      flushSync(() => {
+        setCaptureFilledOnly(false)
+      })
+    }
+  }
+
+  async function handleExportPng(board: Board) {
+    try {
+      const dataUrl = await captureGridPng()
+      await downloadPngDataUrl(dataUrl, board.title)
       dispatch({ error: null, type: "setIoError" })
-    } catch {
-      dispatch({ error: "The PNG export failed.", type: "setIoError" })
+    } catch (error) {
+      const message =
+        error instanceof Error &&
+        (error.message === "No scenes with images to export." ||
+          error.message === "The storyboard grid could not be captured.")
+          ? error.message
+          : "The PNG export failed."
+      dispatch({ error: message, type: "setIoError" })
     }
   }
 
@@ -361,6 +404,8 @@ function useStoryboardWorkspaceModel(): StoryboardWorkspaceModel {
     assignGridRef,
     canNavigateNextScene,
     canNavigatePreviousScene,
+    captureFilledOnly,
+    captureGridPng,
     deleteRequestBoard,
     dispatch,
     editingIndex,

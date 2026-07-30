@@ -47,11 +47,12 @@ function StoryboardWorkspace() {
     assignGridRef,
     canNavigateNextScene,
     canNavigatePreviousScene,
+    captureFilledOnly,
+    captureGridPng,
     deleteRequestBoard,
     dispatch,
     editingIndex,
     editingScene,
-    gridRef,
     handleColumnsChange,
     handleComposerActiveChange,
     handleEditScene,
@@ -138,6 +139,7 @@ function StoryboardWorkspace() {
               transition={TRANSITION_FADE_STANDARD}
             >
               <SceneGrid
+                captureFilledOnly={captureFilledOnly}
                 columns={state.columns}
                 isGenerating={isSelectedBoardGenerating}
                 onEditScene={handleEditScene}
@@ -149,8 +151,8 @@ function StoryboardWorkspace() {
               />
               <VideoSection.Root
                 boardId={selectedBoard.id}
+                captureGridPng={captureGridPng}
                 className="pb-112"
-                gridRef={gridRef}
                 scenes={visibleScenes}
               >
                 <VideoSection.Prompt />

@@ -6,7 +6,6 @@ import { SFDocumentOnDocument } from "sf-symbols-lib/monochrome"
 
 import { readFileAsDataUrl } from "@/components/storyboard/prompt-composer-context"
 import { IconButton } from "@/components/ui/icon-button"
-import { captureNodePngDataUrl } from "@/lib/board-io"
 import { enqueueCapture } from "@/lib/capture-queue"
 import { requestVideoGeneration } from "@/lib/generate-video-client"
 import type { Scene } from "@/lib/storyboard"
@@ -27,8 +26,11 @@ import {
 interface VideoSectionRootProps extends React.ComponentProps<"section"> {
   /** Selected board id — scopes generation state to this storyboard. */
   boardId: string
-  /** Ref to the scene grid element used for PNG capture. */
-  gridRef: React.RefObject<HTMLElement | null>
+  /**
+   * Captures the scene grid as a PNG (shader-empty scenes omitted).
+   * Owned by the workspace so React can filter the grid before capture.
+   */
+  captureGridPng: () => Promise<string>
   /**
    * Visible scenes of the selected board (rows × columns), synced into the
    * prompt atom so the Seedance prompt matches the on-screen grid.
@@ -41,7 +43,11 @@ interface VideoSectionRootProps extends React.ComponentProps<"section"> {
  * generate controls, then the video player placeholder.
  *
  * ```tsx
- * <VideoSection.Root boardId={board.id} gridRef={gridRef} scenes={scenes}>
+ * <VideoSection.Root
+ *   boardId={board.id}
+ *   captureGridPng={captureGridPng}
+ *   scenes={scenes}
+ * >
  *   <VideoSection.Prompt />
  *   <VideoSection.Player />
  * </VideoSection.Root>
@@ -49,9 +55,9 @@ interface VideoSectionRootProps extends React.ComponentProps<"section"> {
  */
 function VideoSectionRoot({
   boardId,
+  captureGridPng,
   children,
   className,
-  gridRef,
   scenes,
   ...props
 }: VideoSectionRootProps) {
@@ -73,7 +79,7 @@ function VideoSectionRoot({
   }, [characterImageFiles.length, scenes, setSource])
 
   return (
-    <VideoSectionContext.Provider value={{ boardId, gridRef }}>
+    <VideoSectionContext.Provider value={{ boardId, captureGridPng }}>
       <section
         aria-label="Video"
         className={cn(
@@ -90,7 +96,7 @@ function VideoSectionRoot({
 
 interface VideoSectionContextValue {
   boardId: string
-  gridRef: React.RefObject<HTMLElement | null>
+  captureGridPng: () => Promise<string>
 }
 
 const VideoSectionContext =
@@ -153,7 +159,7 @@ function VideoSectionPrompt({
   className,
   ...props
 }: React.ComponentProps<"div">) {
-  const { boardId, gridRef } = useVideoSection()
+  const { boardId, captureGridPng } = useVideoSection()
   const characterImageFiles = useAtomValue(composerCharacterImageFilesAtom)
   const [copied, setCopied] = React.useState(false)
   const copiedResetRef = React.useRef<ReturnType<typeof setTimeout> | null>(
@@ -201,7 +207,7 @@ function VideoSectionPrompt({
   }
 
   const handleGenerate = () => {
-    if (gridRef.current === null || prompt.trim() === "") {
+    if (prompt.trim() === "") {
       setVideoByBoardId((previous) =>
         failBoardVideoGeneration(
           boardId,
@@ -215,7 +221,7 @@ function VideoSectionPrompt({
     // Capture at click time so a board switch mid-flight does not retarget
     // the request or block Generate Video on other boards.
     const generationBoardId = boardId
-    const generationGrid = gridRef.current
+    const generationCapture = captureGridPng
     const generationPrompt = prompt
     const generationCharacterFiles = characterImageFiles.slice(
       0,
@@ -231,9 +237,7 @@ function VideoSectionPrompt({
       try {
         // Serialise DOM captures one at a time so concurrent generations do
         // not simultaneously saturate the main thread with html-to-image work.
-        const storyboardImage = await enqueueCapture(() =>
-          captureNodePngDataUrl(generationGrid)
-        )
+        const storyboardImage = await enqueueCapture(() => generationCapture())
         const characterImageRefs = await Promise.all(
           generationCharacterFiles.map(async (file) => {
             const cached = characterImageCacheRef.current.get(file)
