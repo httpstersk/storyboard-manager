@@ -237,7 +237,6 @@ function PromptComposerRoot({
     addCharacterNote,
     characterImageReferences: draft.characterImageReferences,
     characterNotes: draft.characterNotes,
-    depthMapStyle,
     error: state.error,
     inputId,
     isCharacterSheetOpen: state.isCharacterSheetOpen,

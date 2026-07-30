@@ -20,7 +20,6 @@ function PromptComposerActions() {
   const {
     characterImageReferences,
     characterNotes,
-    depthMapStyle,
     isCharacterSheetOpen,
     isDisabled,
     isVisualStyleOpen,
@@ -40,8 +39,6 @@ function PromptComposerActions() {
     characterImageReferences.length + styleImageReferences.length
   const hasAvailableReferenceSlot = referenceCount < MAX_IMAGE_REFERENCES
   const canAddReference = !isDisabled && hasAvailableReferenceSlot
-  const canAddStyleReference = canAddReference && !depthMapStyle
-  const isVisualStyleDisabled = isDisabled || depthMapStyle
 
   if (mode === "image-edit") {
     return <PromptComposerImageEditActions />
@@ -94,7 +91,7 @@ function PromptComposerActions() {
           onToggle={() => setIsCharacterSheetOpen(!isCharacterSheetOpen)}
         />
         <DisclosureControl
-          isDisabled={isVisualStyleDisabled}
+          isDisabled={isDisabled}
           isOpen={isVisualStyleOpen}
           label="Visual style"
           onToggle={() => setIsVisualStyleOpen(!isVisualStyleOpen)}
@@ -105,7 +102,7 @@ function PromptComposerActions() {
           onAdd={() => characterImageInputRef.current?.click()}
         />
         <ImageReferenceControl
-          canAdd={canAddStyleReference}
+          canAdd={canAddReference}
           label="Style images"
           onAdd={() => styleImageInputRef.current?.click()}
         />
@@ -131,7 +128,7 @@ function PromptComposerActions() {
           accept={IMAGE_UPLOAD_RULES.acceptedTypes.join(",")}
           aria-label="Visual style reference images"
           className="sr-only"
-          disabled={isDisabled || depthMapStyle}
+          disabled={isDisabled}
           multiple
           onChange={(event) => {
             addImageReferences(

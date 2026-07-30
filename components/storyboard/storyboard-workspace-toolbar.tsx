@@ -269,7 +269,7 @@ function WorkspaceToolbar({
           </Field.Control>
         </Field>
         <Field>
-          <Field.Label>Depth map</Field.Label>
+          <Field.Label>Depth Map</Field.Label>
           <Field.Control>
             <Switch
               checked={depthMapStyle}

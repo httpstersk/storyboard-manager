@@ -6,7 +6,6 @@
  * `cut to` between beats, and `@ImageN` bindings that match `image_urls` order.
  */
 
-import { DEPTH_MAP_STYLE_PROMPT } from "@/lib/depth-map-style-settings"
 import type { Scene } from "@/lib/storyboard"
 
 /**
@@ -21,7 +20,8 @@ export interface BuildSeedanceVideoPromptInput {
   /** Written character definitions from the prompt composer. */
   characterNotes: SeedanceCharacterNote[]
   /**
-   * When true, animates depth-map panels and ignores free-text visual style.
+   * When true, @Image1 is a depth-map camera/composition reference; visual
+   * style still drives finished footage appearance.
    */
   depthMapStyle?: boolean
   /** Ordered scenes of the current board. */
@@ -71,9 +71,16 @@ export const STORYBOARD_BASE_PROMPT =
 
 /**
  * Base instruction when the contact sheet is a grayscale linear depth map.
+ * Depth panels drive camera, framing, and blocking only — not final look.
  */
 export const STORYBOARD_DEPTH_MAP_BASE_PROMPT =
-  "@Image1 is the storyboard contact sheet showing the shot sequence in reading order (left to right, top to bottom). Animate this story as continuous grayscale linear depth-map footage with hard cuts that match each panel in order. Preserve composition and relative depth from each panel — white nearest, black farthest. Do not introduce colour, texture, lighting, shading, outlines, normals, or ambient occlusion."
+  "@Image1 is a depth-map storyboard contact sheet (grayscale linear depth: white nearest, black farthest) showing shot sequence in reading order (left to right, top to bottom). Use it only for camera, composition, framing, blocking, and relative depth. Animate this story as continuous finished footage with hard cuts that match each panel in order — do not output grayscale depth-map video. Take medium, palette, lighting, texture, and production design from the visual style lock below, not from the depth panels."
+
+/**
+ * Default appearance when depth-map boards have no written visual style.
+ */
+export const DEPTH_MAP_DEFAULT_VIDEO_STYLE_LOCK =
+  "Visual style lock: photorealistic live-action cinematography. Render finished colour footage using the depth panels only for camera and blocking — do not output grayscale depth maps."
 
 /**
  * The transition command prefixed to shot beats starting from the second shot.
@@ -101,16 +108,14 @@ export function buildSeedanceVideoPrompt({
   const lines: string[] = [
     depthMapStyle ? STORYBOARD_DEPTH_MAP_BASE_PROMPT : STORYBOARD_BASE_PROMPT,
   ]
-  const trimmedVisualStyle = depthMapStyle ? "" : visualStyle.trim()
+  const trimmedVisualStyle = visualStyle.trim()
 
-  if (depthMapStyle) {
-    lines.push(
-      `Visual style lock: ${DEPTH_MAP_STYLE_PROMPT} Preserve this clean depth-map treatment across every shot — do not drift toward colour, texture, lighting, or any other look.`
-    )
-  } else if (trimmedVisualStyle !== "") {
+  if (trimmedVisualStyle !== "") {
     lines.push(
       `Visual style lock: ${trimmedVisualStyle}. Preserve this medium, palette, lighting language, and image-making treatment across every shot — do not drift toward a different look.`
     )
+  } else if (depthMapStyle) {
+    lines.push(DEPTH_MAP_DEFAULT_VIDEO_STYLE_LOCK)
   }
 
   const characterReferences = formatCharacterReferences(characterImageCount)
