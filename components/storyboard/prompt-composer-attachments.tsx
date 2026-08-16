@@ -6,19 +6,24 @@ import { PromptComposerAttachmentGroup } from "@/components/storyboard/prompt-co
 import { usePromptComposer } from "@/components/storyboard/prompt-composer-context"
 import { EASE_OUT } from "@/lib/motion"
 
-/** Character and visual-style references shown in distinct labelled groups. */
+/**
+ * Character, environment, and visual-style references shown in distinct
+ * labelled groups.
+ */
 function PromptComposerAttachments() {
   const {
-    characterImageReferences,
+    characters,
+    environments,
     mode,
-    removeCharacterImageReference,
     removeStyleImageReference,
     styleImageReferences,
   } = usePromptComposer()
 
   const hasAttachments =
     mode === "image-edit" ||
-    (characterImageReferences.length === 0 && styleImageReferences.length === 0)
+    (characters.imageReferences.length === 0 &&
+      environments.imageReferences.length === 0 &&
+      styleImageReferences.length === 0)
 
   return (
     <AnimatePresence initial={false}>
@@ -34,9 +39,14 @@ function PromptComposerAttachments() {
         >
           <div className="flex flex-col gap-3 bg-surface-inset px-4 py-3">
             <PromptComposerAttachmentGroup
-              files={characterImageReferences}
+              files={characters.imageReferences}
               label="Characters"
-              onRemove={removeCharacterImageReference}
+              onRemove={characters.removeImageReference}
+            />
+            <PromptComposerAttachmentGroup
+              files={environments.imageReferences}
+              label="Environments"
+              onRemove={environments.removeImageReference}
             />
             <PromptComposerAttachmentGroup
               files={styleImageReferences}

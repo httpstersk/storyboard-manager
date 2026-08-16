@@ -8,7 +8,7 @@
 
 import Dexie, { type EntityTable } from "dexie"
 
-import type { CharacterNote } from "@/lib/board-composer"
+import type { ComposerNote } from "@/lib/board-composer"
 import type { Scene, SceneShaderPreset, ShotSize } from "@/lib/storyboard"
 
 /** Scene record persisted without an embedded image data URL. */
@@ -40,7 +40,12 @@ export interface StoredScene {
 /** Board record stored in IndexedDB (binary uploads live in blob tables). */
 export interface StoredBoardRecord {
   /** Written character definitions of the board's composer draft. */
-  characterNotes: CharacterNote[]
+  characterNotes: ComposerNote[]
+  /**
+   * Written environment definitions of the board's composer draft. Absent on
+   * records written before environments existed; defaulted at load time.
+   */
+  environmentNotes: ComposerNote[]
   /** Stable identifier for the board. */
   id: string
   /** Scenes of the board, in order, without image data URLs. */
@@ -71,7 +76,7 @@ export interface StoredSceneImage {
 }
 
 /** Attachment slot a composer reference upload belongs to. */
-export type ReferenceImageKind = "character" | "style"
+export type ReferenceImageKind = "character" | "environment" | "style"
 
 /** Composer reference upload attached to a board. */
 export interface StoredReferenceImage {
@@ -86,7 +91,7 @@ export interface StoredReferenceImage {
   id: string
   /** Position of the upload within its attachment group. */
   index: number
-  /** Whether the upload is a character or visual-style reference. */
+  /** Whether the upload is a character, environment, or style reference. */
   kind: ReferenceImageKind
   /** MIME type recorded when the Blob was written. */
   mimeType: string

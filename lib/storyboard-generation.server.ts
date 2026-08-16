@@ -53,6 +53,10 @@ interface CompositePromptOptions {
    * / style-image guidance is ignored.
    */
   depthMapStyle?: boolean
+  /** Number of input images that define location and set design. */
+  environmentImageCount: number
+  /** Environment continuity instructions supplied by the user. */
+  environmentSheets: string[]
   /**
    * Column count of the layout-placeholder PNG attached as input image 1.
    * When set (together with {@link layoutPlaceholderRows}), the GRID
@@ -138,6 +142,8 @@ export function buildCompositePrompt({
   characterSheets,
   columns,
   depthMapStyle = false,
+  environmentImageCount,
+  environmentSheets,
   layoutPlaceholderColumns,
   layoutPlaceholderRows,
   rows,
@@ -163,29 +169,23 @@ export function buildCompositePrompt({
     )
     .join("\n")
   const emptyCellCount = rows * columns - scenes.length
-  const hasCharacterReferences =
-    characterImageCount > 0 || characterSheets.length > 0
   const hasStyleGuidance = hasVisualStyleGuidance({
     depthMapStyle,
     styleImageCount: effectiveStyleImageCount,
     visualStyle: effectiveVisualStyle,
   })
-  const continuity = !hasCharacterReferences
-    ? "Infer consistent character appearances and wardrobe from the storyline and keep them identical in every cell."
-    : `Maintain the supplied character designs exactly across every frame. Re-assert each character's identity inside every cell they appear in — same face, hair, wardrobe, and silhouette.${
-        characterSheets.length === 0
-          ? ""
-          : `\n\nCharacter identities use @handle form (e.g. @XYZ) in the storyline and sheets; keep each @handle visually consistent across every cell. Never draw @handles as readable text on any cell.\n\nWritten character sheets:\n${characterSheets.join(
-              "\n\n---\n\n"
-            )}`
-      }`
-  const referenceDirections = buildReferenceDirections(
+  const continuity = [
+    buildCharacterContinuity(characterImageCount, characterSheets),
+    buildEnvironmentContinuity(environmentImageCount, environmentSheets),
+  ].join("\n\n")
+  const referenceDirections = buildReferenceDirections({
     characterImageCount,
-    effectiveStyleImageCount,
-    hasLayoutPlaceholder
+    environmentImageCount,
+    layoutDescription: hasLayoutPlaceholder
       ? `Input image 1: LAYOUT GRID REFERENCE — a black ${layoutPlaceholderColumns}×${layoutPlaceholderRows} contact-sheet placeholder with red cell-boundary lines. Reproduce this exact grid structure in the output: match the column and row proportions precisely.`
-      : undefined
-  )
+      : undefined,
+    styleImageCount: effectiveStyleImageCount,
+  })
   const styleSection = buildVisualStyleSection({
     depthMapStyle,
     styleImageCount: effectiveStyleImageCount,
@@ -338,57 +338,126 @@ export function buildVisualStyleSection({
 }
 
 /**
+ * Character identity guidance for the CONTINUITY block. Falls back to
+ * inferring appearances when the board supplies no character material.
+ */
+function buildCharacterContinuity(
+  characterImageCount: number,
+  characterSheets: string[]
+): string {
+  if (characterImageCount === 0 && characterSheets.length === 0) {
+    return "Infer consistent character appearances and wardrobe from the storyline and keep them identical in every cell."
+  }
+
+  const sheets =
+    characterSheets.length === 0
+      ? ""
+      : `\n\nCharacter identities use @handle form (e.g. @XYZ) in the storyline and sheets; keep each @handle visually consistent across every cell. Never draw @handles as readable text on any cell.\n\nWritten character sheets:\n${characterSheets.join(
+          "\n\n---\n\n"
+        )}`
+
+  return `Maintain the supplied character designs exactly across every frame. Re-assert each character's identity inside every cell they appear in — same face, hair, wardrobe, and silhouette.${sheets}`
+}
+
+/**
+ * Location and set-design guidance for the CONTINUITY block. Falls back to
+ * inferring settings when the board supplies no environment material.
+ */
+function buildEnvironmentContinuity(
+  environmentImageCount: number,
+  environmentSheets: string[]
+): string {
+  if (environmentImageCount === 0 && environmentSheets.length === 0) {
+    return "Infer the settings from the storyline and keep each recurring location's architecture, set dressing, and geography identical every time it appears."
+  }
+
+  const sheets =
+    environmentSheets.length === 0
+      ? ""
+      : `\n\nLocations use @handle form (e.g. @XYZ) in the storyline and sheets; every cell set in a given @handle shares that location's architecture, materials, set dressing, and spatial layout. Never draw @handles as readable text on any cell.\n\nWritten environment sheets:\n${environmentSheets.join(
+          "\n\n---\n\n"
+        )}`
+
+  return `Maintain the supplied environment designs exactly across every frame. Re-assert each location's architecture, materials, set dressing, and spatial geography inside every cell set there, changing only the camera's vantage point on it.${sheets}`
+}
+
+/** One group of model input images sharing a single role. */
+interface ReferenceImageGroup {
+  /** How many consecutive input images the group occupies. */
+  count: number
+  /** Role instruction, receiving the formatted input-image range. */
+  describe: (range: string) => string
+}
+
+interface ReferenceDirectionsOptions {
+  /** Number of character reference images. */
+  characterImageCount: number
+  /** Number of environment reference images. */
+  environmentImageCount: number
+  /**
+   * When the layout placeholder is input image 1, its pre-formatted
+   * description, so every following index is shifted correctly.
+   */
+  layoutDescription?: string
+  /** Number of visual-style reference images. */
+  styleImageCount: number
+}
+
+/**
  * Maps ordered model input images to their distinct roles.
  *
- * @param characterImageCount - Number of character reference images.
- * @param styleImageCount - Number of visual-style reference images.
- * @param layoutDescription - When the layout placeholder is input image 1,
- *   pass its pre-formatted description here so indices are shifted correctly.
+ * Groups are emitted in the same order the caller concatenates the images —
+ * characters, environments, then styles — so the stated slot numbers always
+ * match the actual `prompt.images` array.
  */
-function buildReferenceDirections(
-  characterImageCount: number,
-  styleImageCount: number,
-  layoutDescription?: string
-): string {
-  const hasLayout = layoutDescription !== undefined
-  // Layout placeholder occupies slot 1 when present; user images follow.
-  const offset = hasLayout ? 1 : 0
-  const hasUserImages = characterImageCount > 0 || styleImageCount > 0
+function buildReferenceDirections({
+  characterImageCount,
+  environmentImageCount,
+  layoutDescription,
+  styleImageCount,
+}: ReferenceDirectionsOptions): string {
+  const groups: ReferenceImageGroup[] = [
+    {
+      count: characterImageCount,
+      describe: (range) =>
+        `${range}: CHARACTER REFERENCES. Use only for face, hair, body, wardrobe, and silhouette continuity. Do not inherit their composition, background, or visual style.`,
+    },
+    {
+      count: environmentImageCount,
+      describe: (range) =>
+        `${range}: ENVIRONMENT REFERENCES. Use only for location architecture, set dressing, geography, and production design continuity. Do not inherit their people, wardrobe, camera framing, or visual style.`,
+    },
+    {
+      count: styleImageCount,
+      describe: (range) =>
+        `${range}: VISUAL STYLE REFERENCES. Lock every cell to the style of ${styleImageCount === 1 ? "this attached image" : "these attached images"} — use only for medium, palette, lighting, texture, production design, and cinematic treatment. Do not copy people, wardrobe, poses, locations, compositions, or story content from them.`,
+    },
+  ]
+  const hasUserImages = groups.some((group) => group.count > 0)
 
-  if (!hasLayout && !hasUserImages) {
+  if (layoutDescription === undefined && !hasUserImages) {
     return "No reference images were supplied."
   }
 
-  const directions: string[] = []
+  const directions =
+    layoutDescription === undefined ? [] : [layoutDescription]
+  // Layout placeholder occupies slot 1 when present; user images follow.
+  let slot = layoutDescription === undefined ? 0 : 1
 
-  if (layoutDescription !== undefined) {
-    directions.push(layoutDescription)
-  }
+  for (const { count, describe } of groups) {
+    if (count === 0) {
+      continue
+    }
 
-  if (characterImageCount > 0) {
-    const first = offset + 1
-    const last = offset + characterImageCount
-    const range =
-      characterImageCount === 1
-        ? `Input image ${first}`
-        : `Input images ${first}–${last}`
-
-    directions.push(
-      `${range}: CHARACTER REFERENCES. Use only for face, hair, body, wardrobe, and silhouette continuity. Do not inherit their composition, background, or visual style.`
-    )
-  }
-
-  if (styleImageCount > 0) {
-    const firstStyleImage = offset + characterImageCount + 1
-    const lastStyleImage = offset + characterImageCount + styleImageCount
-    const range =
-      styleImageCount === 1
-        ? `Input image ${firstStyleImage}`
-        : `Input images ${firstStyleImage}–${lastStyleImage}`
+    const first = slot + 1
+    const last = slot + count
 
     directions.push(
-      `${range}: VISUAL STYLE REFERENCES. Lock every cell to the style of ${styleImageCount === 1 ? "this attached image" : "these attached images"} — use only for medium, palette, lighting, texture, production design, and cinematic treatment. Do not copy people, wardrobe, poses, locations, compositions, or story content from them.`
+      describe(
+        count === 1 ? `Input image ${first}` : `Input images ${first}–${last}`
+      )
     )
+    slot = last
   }
 
   return directions.join("\n")

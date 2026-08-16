@@ -1,5 +1,10 @@
+/**
+ * Storyline `@mention` parsing for the prompt composer. Handles are supplied
+ * by the caller and may name a character or an environment.
+ */
+
 /** Active `@mention` token immediately before the caret. */
-export interface CharacterMentionToken {
+export interface MentionToken {
   endIndex: number
   query: string
   startIndex: number
@@ -9,7 +14,7 @@ export interface CharacterMentionToken {
  * Filters mention handles by a case-insensitive prefix on the handle body.
  * Accepts queries with or without a leading `@`.
  */
-export function filterCharacterMentionOptions(
+export function filterMentionOptions(
   options: string[],
   query: string
 ): string[] {
@@ -24,10 +29,10 @@ export function filterCharacterMentionOptions(
  * Reads the `@handle` token ending at the caret, if one is in progress.
  * Requires no whitespace between `@` and the caret.
  */
-export function getCharacterMentionToken(
+export function getMentionToken(
   value: string,
   caretIndex: number
-): CharacterMentionToken | null {
+): MentionToken | null {
   const beforeCaret = value.slice(0, caretIndex)
   const match = beforeCaret.match(/@([\w-]*)$/)
 
@@ -45,9 +50,9 @@ export function getCharacterMentionToken(
 /**
  * Replaces an in-progress mention token with a full handle and trailing space.
  */
-export function insertCharacterMention(
+export function insertMention(
   handle: string,
-  token: CharacterMentionToken,
+  token: MentionToken,
   value: string
 ): { caretIndex: number; value: string } {
   const insertion = `${handle} `

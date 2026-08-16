@@ -1,26 +1,31 @@
 /**
- * Per-board prompt composer draft: written characters, continuity notes,
- * uploaded reference images, and visual style scoped to one storyboard.
+ * Per-board prompt composer draft: written characters, environments,
+ * continuity notes, uploaded reference images, and visual style scoped to
+ * one storyboard.
  *
- * This module owns the character/style domain types, constants, and
- * helpers so the composer UI, workspace reducer, validation, and
- * persistence layers share one source of truth.
+ * Characters and environments share one shape — an `@handle` plus free-form
+ * continuity notes — so this module owns a single {@link ComposerNote} type
+ * with kind-agnostic helpers. The composer UI, workspace reducer,
+ * validation, and persistence layers all read from here.
  */
 
-/** Maximum text length of a character name in the character notes editor. */
-export const MAX_CHARACTER_NAME_LENGTH = 120
-
-/** Maximum number of character sheets accepted by one generation request. */
-export const MAX_CHARACTER_SHEETS = 9
-
-/** Maximum text length of one character sheet. */
-export const MAX_CHARACTER_SHEET_LENGTH = 20_000
+/** Maximum text length of an `@handle` in a composer notes editor. */
+export const MAX_HANDLE_LENGTH = 120
 
 /**
- * Maximum notes length after reserving room for a character name and separator.
+ * Maximum number of note rows of one kind (characters or environments)
+ * accepted by a single generation request.
  */
-export const MAX_CHARACTER_NOTES_LENGTH =
-  MAX_CHARACTER_SHEET_LENGTH - MAX_CHARACTER_NAME_LENGTH - 1
+export const MAX_COMPOSER_SHEETS = 9
+
+/** Maximum text length of one serialized composer sheet. */
+export const MAX_COMPOSER_SHEET_LENGTH = 20_000
+
+/**
+ * Maximum notes length after reserving room for an `@handle` and separator.
+ */
+export const MAX_COMPOSER_NOTES_LENGTH =
+  MAX_COMPOSER_SHEET_LENGTH - MAX_HANDLE_LENGTH - 1
 
 /**
  * Maximum length of the optional textual visual-style description.
@@ -28,13 +33,16 @@ export const MAX_CHARACTER_NOTES_LENGTH =
  */
 export const MAX_VISUAL_STYLE_LENGTH = 2_000
 
-/** One written character definition managed by the prompt composer. */
-export interface CharacterNote {
+/**
+ * One written definition managed by the prompt composer. Used for both
+ * characters (people) and environments (locations, buildings, places).
+ */
+export interface ComposerNote {
   /** Stable identifier of the note within its board. */
   id: number
-  /** Character `@handle`, or empty when unset. */
+  /** `@handle` of the subject, or empty when unset. */
   name: string
-  /** Free-form continuity notes for the character. */
+  /** Free-form continuity notes for the subject. */
   notes: string
 }
 
@@ -43,32 +51,58 @@ export interface BoardComposerDraft {
   /** Uploaded character reference images. */
   characterImageReferences: File[]
   /** Written character definitions, always at least one (possibly empty) row. */
-  characterNotes: CharacterNote[]
+  characterNotes: ComposerNote[]
+  /** Uploaded environment reference images. */
+  environmentImageReferences: File[]
+  /**
+   * Written environment definitions (locations, buildings, places), always
+   * at least one (possibly empty) row.
+   */
+  environmentNotes: ComposerNote[]
   /** Uploaded visual-style reference images. */
   styleImageReferences: File[]
   /** Optional textual visual-style description. */
   visualStyle: string
 }
 
-/** Creates the draft a fresh board starts with: one empty character row. */
+/**
+ * Creates the draft a fresh board starts with: one empty character row and
+ * one empty environment row.
+ */
 export function createEmptyComposerDraft(): BoardComposerDraft {
   return {
     characterImageReferences: [],
-    characterNotes: [{ id: 0, name: "", notes: "" }],
+    characterNotes: [createEmptyComposerNote()],
+    environmentImageReferences: [],
+    environmentNotes: [createEmptyComposerNote()],
     styleImageReferences: [],
     visualStyle: "",
   }
 }
 
-/** Unique `@handles` from character notes eligible for storyline mentions. */
-export function getCharacterMentionOptions(
-  characterNotes: CharacterNote[]
+/** Creates a blank note row, used to seed and extend a notes editor. */
+export function createEmptyComposerNote(id = 0): ComposerNote {
+  return { id, name: "", notes: "" }
+}
+
+/**
+ * Unique `@handles` across every composer note group, in the order the
+ * groups are supplied. Drives the storyline `@mention` autocomplete, so
+ * characters and environments share one merged list.
+ */
+export function getComposerMentionOptions(
+  draft: BoardComposerDraft
 ): string[] {
+  return getMentionOptions([...draft.characterNotes, ...draft.environmentNotes])
+}
+
+/** Unique `@handles` from a note group eligible for storyline mentions. */
+export function getMentionOptions(notes: ComposerNote[]): string[] {
   const handles: string[] = []
   const seen = new Set<string>()
 
-  for (const characterNote of characterNotes) {
-    const handle = normalizeCharacterName(characterNote.name)
+  for (const note of notes) {
+    const handle = normalizeHandle(note.name)
 
     if (handle === "" || seen.has(handle)) {
       continue
@@ -81,29 +115,21 @@ export function getCharacterMentionOptions(
   return handles
 }
 
-/** Whether a character row has a name or notes entered. */
-export function isCharacterNoteFilled(characterNote: CharacterNote): boolean {
-  return (
-    normalizeCharacterName(characterNote.name) !== "" ||
-    characterNote.notes.trim() !== ""
-  )
+/** Whether a note row has a handle or notes entered. */
+export function isComposerNoteFilled(note: ComposerNote): boolean {
+  return normalizeHandle(note.name) !== "" || note.notes.trim() !== ""
 }
 
-/** Next free character-note id within a board's draft. */
-export function nextCharacterNoteId(characterNotes: CharacterNote[]): number {
-  return (
-    characterNotes.reduce(
-      (highest, characterNote) => Math.max(highest, characterNote.id),
-      -1
-    ) + 1
-  )
+/** Next free note id within a note group. */
+export function nextComposerNoteId(notes: ComposerNote[]): number {
+  return notes.reduce((highest, note) => Math.max(highest, note.id), -1) + 1
 }
 
 /**
- * Ensures a character name is a single `@handle`, or empty when unset.
+ * Ensures a name is a single `@handle`, or empty when unset.
  * Bare `@` and whitespace-only values collapse to an empty string.
  */
-export function normalizeCharacterName(value: string): string {
+export function normalizeHandle(value: string): string {
   const body = value.trim().replace(/^@+/, "")
 
   if (body === "") {
@@ -113,10 +139,15 @@ export function normalizeCharacterName(value: string): string {
   return `@${body}`
 }
 
-/** Converts a structured character row into the existing API sheet format. */
-export function serializeCharacterNote(characterNote: CharacterNote): string {
-  const name = normalizeCharacterName(characterNote.name)
-  const notes = characterNote.notes.trim()
+/** Converts a structured note row into the API sheet format. */
+export function serializeComposerNote(note: ComposerNote): string {
+  const name = normalizeHandle(note.name)
+  const notes = note.notes.trim()
 
   return [name, notes].filter(Boolean).join("\n")
+}
+
+/** Serializes a note group into the non-empty sheets sent to the API. */
+export function serializeComposerNotes(notes: ComposerNote[]): string[] {
+  return notes.map(serializeComposerNote).filter(Boolean)
 }

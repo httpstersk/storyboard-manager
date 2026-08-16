@@ -36,6 +36,7 @@ Craft rules, applied to every plan:
 - Compose deliberately. At most 2 scenes in the whole board may place the subject dead-center. Spread the rest across rule-of-thirds placements, negative space, foreground occlusion, over-the-shoulder framings, and low or high angles.
 - Pace with intent. Scene durations form a rhythm: longer establishing and emotional beats, shorter action and reaction beats.
 - Bind characters by @handle. When character material exists, actions name subjects with their @handle (e.g. @XYZ) and re-bind them with concrete identifiers (wardrobe, hair, silhouette), never bare pronouns.
+- Bind locations by @handle. When environment material exists, stage the beats inside those locations and name them with their @handle (e.g. @XYZ), re-binding with concrete identifiers (architecture, materials, set dressing) rather than a vague place noun.
 - Respect visual style. When a written style and/or style reference images are declared, plan lighting, mood, and action language that fit that medium. Do not assume photoreal live-action when the style is illustration, animation, painterly, or any other non-photoreal treatment.`
 
 /** Cut grammar rules that only apply to the selected shot mode. */
@@ -110,6 +111,8 @@ export async function POST(request: Request): Promise<Response> {
       characterImageRefs,
       characterSheets,
       depthMapStyle,
+      environmentImageRefs,
+      environmentSheets,
       imageModel,
       prompt,
       resolution,
@@ -119,7 +122,13 @@ export async function POST(request: Request): Promise<Response> {
     } = parsedRequest.data
     const effectiveStyleImageRefs = depthMapStyle ? [] : styleImageRefs
     const effectiveVisualStyle = depthMapStyle ? "" : visualStyle
-    const referenceImages = [...characterImageRefs, ...effectiveStyleImageRefs]
+    // Order must match `buildReferenceDirections`: characters, environments,
+    // then styles. Style refs stay trailing as their instruction asserts.
+    const referenceImages = [
+      ...characterImageRefs,
+      ...environmentImageRefs,
+      ...effectiveStyleImageRefs,
+    ]
     const { output: plan } = await generateText({
       maxRetries: 1,
       model: openai("gpt-5.4-mini"),
@@ -133,6 +142,8 @@ export async function POST(request: Request): Promise<Response> {
         characterImageCount: characterImageRefs.length,
         characterSheets,
         depthMapStyle,
+        environmentImageCount: environmentImageRefs.length,
+        environmentSheets,
         shotMode,
         storyline: prompt,
         styleImageCount: effectiveStyleImageRefs.length,
@@ -147,13 +158,15 @@ export async function POST(request: Request): Promise<Response> {
 
     const layout = layoutForSceneCount(plan.scenes.length)
     const layoutPlaceholder = await readLayoutPlaceholder(layout)
-    // Layout placeholder is always image 1; character + style refs follow.
+    // Layout placeholder is always image 1; user reference images follow.
     const allReferenceImages = [layoutPlaceholder, ...referenceImages]
     const compositePrompt = buildCompositePrompt({
       characterImageCount: characterImageRefs.length,
       characterSheets,
       columns: layout.columns,
       depthMapStyle,
+      environmentImageCount: environmentImageRefs.length,
+      environmentSheets,
       layoutPlaceholderColumns: layout.columns,
       layoutPlaceholderRows: layout.rows,
       rows: layout.rows,
@@ -222,6 +235,10 @@ interface PlanningPromptOptions {
   characterSheets: string[]
   /** When true, plan framing for a depth-map contact sheet. */
   depthMapStyle: boolean
+  /** Number of environment reference images supplied for the renderer. */
+  environmentImageCount: number
+  /** Written environment continuity sheets. */
+  environmentSheets: string[]
   /** Whether the scenes form a cut sequence or one unbroken take. */
   shotMode: ShotMode
   /** Original logline or full story material. */
@@ -244,6 +261,8 @@ function buildPlanningPrompt({
   characterImageCount,
   characterSheets,
   depthMapStyle,
+  environmentImageCount,
+  environmentSheets,
   shotMode,
   storyline,
   styleImageCount,
@@ -259,6 +278,16 @@ function buildPlanningPrompt({
     characterImageCount === 0
       ? "No character reference images were supplied."
       : `${characterImageCount} character reference image${characterImageCount === 1 ? " was" : "s were"} supplied for the renderer. Use @handles and concrete identifiers available in the story or written sheets; do not invent unseen visual details solely to describe those images.`
+  const writtenEnvironmentContext =
+    environmentSheets.length === 0
+      ? "No separate environment sheets were supplied."
+      : `Environment sheets — stage the beats inside these locations and name each one with its matching @handle (e.g. @XYZ) in the action, re-binding it with concrete identifiers (architecture, materials, set dressing) rather than a vague place noun:\n${environmentSheets.join(
+          "\n\n---\n\n"
+        )}`
+  const visualEnvironmentContext =
+    environmentImageCount === 0
+      ? "No environment reference images were supplied."
+      : `${environmentImageCount} environment reference image${environmentImageCount === 1 ? " was" : "s were"} supplied for the renderer. Use @handles and concrete identifiers available in the story or written sheets; do not invent unseen location details solely to describe those images.`
   const trimmedVisualStyle = visualStyle.trim()
   const visualStyleContext = buildPlanningVisualStyleContext(
     depthMapStyle,
@@ -286,6 +315,10 @@ Create a concise board title (60 characters maximum).
 ${writtenCharacterContext}
 
 ${visualCharacterContext}
+
+${writtenEnvironmentContext}
+
+${visualEnvironmentContext}
 
 ${visualStyleContext}
 

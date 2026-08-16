@@ -1,8 +1,8 @@
 import { z } from "zod"
 
 import {
-  MAX_CHARACTER_SHEET_LENGTH,
-  MAX_CHARACTER_SHEETS,
+  MAX_COMPOSER_SHEET_LENGTH,
+  MAX_COMPOSER_SHEETS,
   MAX_VISUAL_STYLE_LENGTH,
 } from "@/lib/board-composer"
 import {
@@ -69,14 +69,19 @@ export const imageResolutionSchema = z.enum(IMAGE_RESOLUTIONS).default("2K")
 /** Runtime schema for the multi-shot / continuous shot mode preference. */
 export const shotModeSchema = z.enum(SHOT_MODES).default("multi-shot")
 
+/** Reusable Zod schema for one group of written composer sheets. */
+const composerSheetsSchema = z
+  .array(z.string().trim().min(1).max(MAX_COMPOSER_SHEET_LENGTH))
+  .max(MAX_COMPOSER_SHEETS)
+
 /** Runtime schema for requests entering the generation API boundary. */
 export const storyboardGenerationRequestSchema = z
   .object({
     characterImageRefs: z.array(dataUrlSchema).max(MAX_IMAGE_REFERENCES),
-    characterSheets: z
-      .array(z.string().trim().min(1).max(MAX_CHARACTER_SHEET_LENGTH))
-      .max(MAX_CHARACTER_SHEETS),
+    characterSheets: composerSheetsSchema,
     depthMapStyle: z.boolean().default(false),
+    environmentImageRefs: z.array(dataUrlSchema).max(MAX_IMAGE_REFERENCES),
+    environmentSheets: composerSheetsSchema,
     imageModel: imageModelSchema,
     prompt: z.string().trim().min(1).max(MAX_PROMPT_LENGTH),
     resolution: imageResolutionSchema,
@@ -85,8 +90,11 @@ export const storyboardGenerationRequestSchema = z
     visualStyle: z.string().trim().max(MAX_VISUAL_STYLE_LENGTH),
   })
   .refine(
-    ({ characterImageRefs, styleImageRefs }) =>
-      characterImageRefs.length + styleImageRefs.length <= MAX_IMAGE_REFERENCES,
+    ({ characterImageRefs, environmentImageRefs, styleImageRefs }) =>
+      characterImageRefs.length +
+        environmentImageRefs.length +
+        styleImageRefs.length <=
+      MAX_IMAGE_REFERENCES,
     {
       message: MAX_IMAGE_REFERENCES_ERROR,
       path: ["styleImageRefs"],
@@ -180,6 +188,8 @@ export interface StoryboardGenerationRequest {
   characterImageRefs: string[]
   characterSheets: string[]
   depthMapStyle: boolean
+  environmentImageRefs: string[]
+  environmentSheets: string[]
   imageModel: ImageModel
   prompt: string
   resolution: ImageResolution

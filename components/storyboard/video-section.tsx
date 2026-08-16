@@ -10,10 +10,11 @@ import { enqueueCapture } from "@/lib/capture-queue"
 import { requestVideoGeneration } from "@/lib/generate-video-client"
 import type { Scene } from "@/lib/storyboard"
 import { cn } from "@/lib/utils"
-import { MAX_SEEDANCE_CHARACTER_IMAGES } from "@/lib/video-generation"
+import { allocateSeedanceReferenceSlots } from "@/lib/video-generation"
 import {
   completeBoardVideoGeneration,
   composerCharacterImageFilesAtom,
+  composerEnvironmentImageFilesAtom,
   failBoardVideoGeneration,
   makeBoardVideoAtom,
   seedanceVideoPromptAtom,
@@ -62,21 +63,31 @@ function VideoSectionRoot({
   ...props
 }: VideoSectionRootProps) {
   const characterImageFiles = useAtomValue(composerCharacterImageFilesAtom)
+  const environmentImageFiles = useAtomValue(composerEnvironmentImageFilesAtom)
   const setSource = useSetAtom(videoPromptSourceAtom)
 
   // Sync visible scenes into the video prompt source atom.
-  // NOTE: The companion sync for character data lives in PromptComposerRoot.
-  // Each component owns its own slice; neither should overwrite the other.
+  // NOTE: The companion sync for character/environment data lives in
+  // PromptComposerRoot. Each component owns its own slice; neither should
+  // overwrite the other.
   React.useEffect(() => {
+    const slots = allocateSeedanceReferenceSlots(
+      characterImageFiles.length,
+      environmentImageFiles.length
+    )
+
     setSource((previous) => ({
       ...previous,
-      characterImageCount: Math.min(
-        characterImageFiles.length,
-        MAX_SEEDANCE_CHARACTER_IMAGES
-      ),
+      characterImageCount: slots.characterCount,
+      environmentImageCount: slots.environmentCount,
       scenes,
     }))
-  }, [characterImageFiles.length, scenes, setSource])
+  }, [
+    characterImageFiles.length,
+    environmentImageFiles.length,
+    scenes,
+    setSource,
+  ])
 
   return (
     <VideoSectionContext.Provider value={{ boardId, captureGridPng }}>
@@ -161,6 +172,7 @@ function VideoSectionPrompt({
 }: React.ComponentProps<"div">) {
   const { boardId, captureGridPng } = useVideoSection()
   const characterImageFiles = useAtomValue(composerCharacterImageFilesAtom)
+  const environmentImageFiles = useAtomValue(composerEnvironmentImageFilesAtom)
   const [copied, setCopied] = React.useState(false)
   const copiedResetRef = React.useRef<ReturnType<typeof setTimeout> | null>(
     null
@@ -171,7 +183,9 @@ function VideoSectionPrompt({
   const setVideoByBoardId = useSetAtom(videoGenerationByBoardIdAtom)
   const prompt = useAtomValue(seedanceVideoPromptAtom)
   /** Caches data-URL conversions so the same File is never re-read twice. */
-  const characterImageCacheRef = React.useRef<WeakMap<File, string>>(new WeakMap())
+  const referenceImageCacheRef = React.useRef<WeakMap<File, string>>(
+    new WeakMap()
+  )
 
   const canGenerate = !isGenerating && prompt.trim() !== ""
 
@@ -223,14 +237,32 @@ function VideoSectionPrompt({
     const generationBoardId = boardId
     const generationCapture = captureGridPng
     const generationPrompt = prompt
+    // Same allocation the prompt's @ImageN bindings were built from, so the
+    // uploaded image order always matches the text.
+    const slots = allocateSeedanceReferenceSlots(
+      characterImageFiles.length,
+      environmentImageFiles.length
+    )
     const generationCharacterFiles = characterImageFiles.slice(
       0,
-      MAX_SEEDANCE_CHARACTER_IMAGES
+      slots.characterCount
+    )
+    const generationEnvironmentFiles = environmentImageFiles.slice(
+      0,
+      slots.environmentCount
     )
 
     setVideoByBoardId((previous) =>
       startBoardVideoGeneration(generationBoardId, previous)
     )
+
+    const toDataUrl = async (file: File): Promise<string> => {
+      const cached = referenceImageCacheRef.current.get(file)
+      if (cached !== undefined) return cached
+      const dataUrl = await readFileAsDataUrl(file)
+      referenceImageCacheRef.current.set(file, dataUrl)
+      return dataUrl
+    }
 
     // Detached so further boards can generate while this one is in flight.
     void (async () => {
@@ -238,17 +270,13 @@ function VideoSectionPrompt({
         // Serialise DOM captures one at a time so concurrent generations do
         // not simultaneously saturate the main thread with html-to-image work.
         const storyboardImage = await enqueueCapture(() => generationCapture())
-        const characterImageRefs = await Promise.all(
-          generationCharacterFiles.map(async (file) => {
-            const cached = characterImageCacheRef.current.get(file)
-            if (cached !== undefined) return cached
-            const dataUrl = await readFileAsDataUrl(file)
-            characterImageCacheRef.current.set(file, dataUrl)
-            return dataUrl
-          })
-        )
+        const [characterImageRefs, environmentImageRefs] = await Promise.all([
+          Promise.all(generationCharacterFiles.map(toDataUrl)),
+          Promise.all(generationEnvironmentFiles.map(toDataUrl)),
+        ])
         const { videoUrl } = await requestVideoGeneration({
           characterImageRefs,
+          environmentImageRefs,
           prompt: generationPrompt,
           storyboardImage,
         })

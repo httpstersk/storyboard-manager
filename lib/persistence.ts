@@ -4,8 +4,9 @@
  * Boards, scene parameters, and composer drafts are stored as structured
  * records. Scene images and composer reference uploads are stored as
  * Blobs; on load, scene Blobs become data URLs and upload Blobs become
- * `File` objects again. Untrusted payloads are re-validated through
- * `lib/validation.ts`.
+ * `File` objects again. Reference uploads are keyed by their attachment
+ * kind (character, environment, style). Untrusted payloads are re-validated
+ * through `lib/validation.ts`.
  */
 
 import {
@@ -31,10 +32,13 @@ import { clampInteger, coerceBoard } from "@/lib/validation"
 /** Draft file arrays addressed by their stored attachment kind. */
 const REFERENCE_KIND_FIELDS = {
   character: "characterImageReferences",
+  environment: "environmentImageReferences",
   style: "styleImageReferences",
 } as const satisfies Record<
   ReferenceImageKind,
-  "characterImageReferences" | "styleImageReferences"
+  | "characterImageReferences"
+  | "environmentImageReferences"
+  | "styleImageReferences"
 >
 
 /** Rebuilds the uploaded `File` objects of one board from its blob rows. */
@@ -161,6 +165,11 @@ export async function loadStoredWorkspace(): Promise<StoredWorkspace | null> {
                 board.id,
                 "character"
               ),
+              environmentImageReferences: referenceFilesForBoard(
+                referenceRecords,
+                board.id,
+                "environment"
+              ),
               styleImageReferences: referenceFilesForBoard(
                 referenceRecords,
                 board.id,
@@ -222,6 +231,7 @@ export async function saveStoredWorkspace(
 
   const boardRecords: StoredBoardRecord[] = workspace.boards.map((board) => ({
     characterNotes: board.composer.characterNotes,
+    environmentNotes: board.composer.environmentNotes,
     id: board.id,
     scenes: board.scenes.map(toStoredScene),
     title: board.title,

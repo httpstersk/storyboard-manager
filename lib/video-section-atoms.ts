@@ -7,7 +7,7 @@ import { atom } from "jotai"
 import { selectAtom } from "jotai/utils"
 
 import { depthMapStyleAtom } from "@/lib/depth-map-style-settings"
-import type { SeedanceCharacterNote } from "@/lib/seedance-video-prompt"
+import type { SeedanceNote } from "@/lib/seedance-video-prompt"
 import { buildSeedanceVideoPrompt } from "@/lib/seedance-video-prompt"
 import { shotModeAtom } from "@/lib/shot-mode-settings"
 import type { Scene } from "@/lib/storyboard"
@@ -27,14 +27,18 @@ export interface BoardVideoState {
 
 /**
  * Writable snapshot that drives {@link seedanceVideoPromptAtom}.
- * Scenes sync from the workspace reducer; character fields sync from the
- * prompt composer (external-store sync via useEffect).
+ * Scenes sync from the workspace reducer; character and environment fields
+ * sync from the prompt composer (external-store sync via useEffect).
  */
 export interface VideoPromptSource {
   /** Character reference images attached after the storyboard PNG. */
   characterImageCount: number
   /** Written character definitions from the composer. */
-  characterNotes: SeedanceCharacterNote[]
+  characterNotes: SeedanceNote[]
+  /** Environment reference images attached after the character references. */
+  environmentImageCount: number
+  /** Written environment definitions from the composer. */
+  environmentNotes: SeedanceNote[]
   /** Ordered scenes of the selected board. */
   scenes: Scene[]
   /** Optional textual visual-style guidance from the composer. */
@@ -52,6 +56,8 @@ export const EMPTY_BOARD_VIDEO_STATE: BoardVideoState = {
 export const EMPTY_VIDEO_PROMPT_SOURCE: VideoPromptSource = {
   characterImageCount: 0,
   characterNotes: [],
+  environmentImageCount: 0,
+  environmentNotes: [],
   scenes: [],
   visualStyle: "",
 }
@@ -61,6 +67,12 @@ export const EMPTY_VIDEO_PROMPT_SOURCE: VideoPromptSource = {
  * Held in memory only — not persisted. Read at Generate Video time.
  */
 export const composerCharacterImageFilesAtom = atom<File[]>([])
+
+/**
+ * Environment reference image files from the floating composer.
+ * Held in memory only — not persisted. Read at Generate Video time.
+ */
+export const composerEnvironmentImageFilesAtom = atom<File[]>([])
 
 /**
  * Textual visual-style description from the floating composer.

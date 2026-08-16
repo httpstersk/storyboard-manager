@@ -282,7 +282,7 @@ function WorkspaceToolbar({
 }: WorkspaceToolbarProps) {
   return (
     <BoardToolbar>
-      <BoardToolbar.Brand name="Boooards" version="v1.3" />
+      <BoardToolbar.Brand name="Boooards" version="v1.6" />
       <BoardToolbar.Controls>
         <GridSteppers
           columns={columns}

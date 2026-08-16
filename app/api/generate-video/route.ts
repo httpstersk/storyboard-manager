@@ -32,7 +32,7 @@ async function uploadDataUrl(dataUrl: string): Promise<string> {
 
 /**
  * Generates a Seedance 2.0 video from the storyboard PNG, optional character
- * reference images, and a shot-list prompt.
+ * and environment reference images, and a shot-list prompt.
  */
 export async function POST(request: Request): Promise<Response> {
   const falKey = resolveFalApiKey()
@@ -63,18 +63,22 @@ export async function POST(request: Request): Promise<Response> {
     return Response.json(
       {
         error:
-          "Provide a video prompt, a storyboard PNG, and optional character images.",
+          "Provide a video prompt, a storyboard PNG, and optional character and environment images.",
       },
       { status: 400 }
     )
   }
 
-  const { characterImageRefs, prompt, storyboardImage } = parsedRequest.data
+  const { characterImageRefs, environmentImageRefs, prompt, storyboardImage } =
+    parsedRequest.data
 
   try {
+    // Order is load-bearing: the prompt's @ImageN bindings assume the
+    // contact sheet, then character refs, then environment refs.
     const imageUrls = await Promise.all([
       uploadDataUrl(storyboardImage),
       ...characterImageRefs.map((dataUrl) => uploadDataUrl(dataUrl)),
+      ...environmentImageRefs.map((dataUrl) => uploadDataUrl(dataUrl)),
     ])
     const result = await fal.subscribe(SEEDANCE_REFERENCE_TO_VIDEO_MODEL_ID, {
       input: {

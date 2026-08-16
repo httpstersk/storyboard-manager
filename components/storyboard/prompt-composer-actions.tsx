@@ -3,12 +3,12 @@
 import { SFArrowUp } from "sf-symbols-lib/monochrome"
 import * as React from "react"
 
-import { CharacterNotesControl } from "@/components/storyboard/prompt-composer-character-notes-control"
 import { usePromptComposer } from "@/components/storyboard/prompt-composer-context"
 import { DisclosureControl } from "@/components/storyboard/prompt-composer-disclosure-control"
 import { PromptComposerImageEditActions } from "@/components/storyboard/prompt-composer-image-edit-actions"
 import { ImageReferenceControl } from "@/components/storyboard/prompt-composer-image-reference-control"
-import { isCharacterNoteFilled } from "@/lib/board-composer"
+import { NotesControl } from "@/components/storyboard/prompt-composer-notes-control"
+import { isComposerNoteFilled } from "@/lib/board-composer"
 import {
   MAX_IMAGE_REFERENCES,
   MAX_IMAGE_REFERENCES_ERROR,
@@ -19,25 +19,26 @@ import { IMAGE_UPLOAD_RULES, validateImageFile } from "@/lib/validation"
 function PromptComposerActions() {
   const {
     analyzeStyleImages,
-    characterImageReferences,
-    characterNotes,
-    isCharacterSheetOpen,
+    characters,
+    environments,
     isDisabled,
     isVisualStyleOpen,
     mode,
     prompt,
-    setCharacterImageReferences,
     setError,
-    setIsCharacterSheetOpen,
     setIsVisualStyleOpen,
     setStyleImageReferences,
     styleImageReferences,
     submit,
   } = usePromptComposer()
   const characterImageInputRef = React.useRef<HTMLInputElement>(null)
+  const environmentImageInputRef = React.useRef<HTMLInputElement>(null)
   const styleImageInputRef = React.useRef<HTMLInputElement>(null)
+  // Characters, environments, and styles share one model input-image budget.
   const referenceCount =
-    characterImageReferences.length + styleImageReferences.length
+    characters.imageReferences.length +
+    environments.imageReferences.length +
+    styleImageReferences.length
   const hasAvailableReferenceSlot = referenceCount < MAX_IMAGE_REFERENCES
   const canAddReference = !isDisabled && hasAvailableReferenceSlot
 
@@ -85,11 +86,21 @@ function PromptComposerActions() {
         className="flex min-w-0 flex-wrap items-center gap-1"
         role="group"
       >
-        <CharacterNotesControl
-          characterCount={characterNotes.filter(isCharacterNoteFilled).length}
+        <NotesControl
+          count={characters.notes.filter(isComposerNoteFilled).length}
           isDisabled={isDisabled}
-          isOpen={isCharacterSheetOpen}
-          onToggle={() => setIsCharacterSheetOpen(!isCharacterSheetOpen)}
+          isOpen={characters.isOpen}
+          label="Character Notes"
+          noun="character"
+          onToggle={() => characters.setIsOpen(!characters.isOpen)}
+        />
+        <NotesControl
+          count={environments.notes.filter(isComposerNoteFilled).length}
+          isDisabled={isDisabled}
+          isOpen={environments.isOpen}
+          label="Environment Notes"
+          noun="environment"
+          onToggle={() => environments.setIsOpen(!environments.isOpen)}
         />
         <DisclosureControl
           isDisabled={isDisabled}
@@ -101,6 +112,11 @@ function PromptComposerActions() {
           canAdd={canAddReference}
           label="Characters"
           onAdd={() => characterImageInputRef.current?.click()}
+        />
+        <ImageReferenceControl
+          canAdd={canAddReference}
+          label="Environments"
+          onAdd={() => environmentImageInputRef.current?.click()}
         />
         <ImageReferenceControl
           canAdd={canAddReference}
@@ -116,12 +132,30 @@ function PromptComposerActions() {
           onChange={(event) => {
             addImageReferences(
               Array.from(event.target.files ?? []),
-              characterImageReferences,
-              setCharacterImageReferences
+              characters.imageReferences,
+              characters.setImageReferences
             )
             event.target.value = ""
           }}
           ref={characterImageInputRef}
+          tabIndex={-1}
+          type="file"
+        />
+        <input
+          accept={IMAGE_UPLOAD_RULES.acceptedTypes.join(",")}
+          aria-label="Environment reference images"
+          className="sr-only"
+          disabled={isDisabled}
+          multiple
+          onChange={(event) => {
+            addImageReferences(
+              Array.from(event.target.files ?? []),
+              environments.imageReferences,
+              environments.setImageReferences
+            )
+            event.target.value = ""
+          }}
+          ref={environmentImageInputRef}
           tabIndex={-1}
           type="file"
         />

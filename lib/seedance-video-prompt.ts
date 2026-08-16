@@ -3,7 +3,8 @@
  *
  * Prompt craft follows fal's Seedance guidance: shot-list structure with
  * concrete motion, camera language, quoted dialogue for lip-sync, explicit
- * `cut to` between beats, and `@ImageN` bindings that match `image_urls` order.
+ * `cut to` between beats, and `@ImageN` bindings that match `image_urls`
+ * order: the contact sheet, then character references, then environments.
  *
  * In `continuous` shot mode the same beats describe one unbroken take, so the
  * cut language is replaced by camera-travel language between panels.
@@ -17,17 +18,25 @@ import type { Scene } from "@/lib/storyboard"
  */
 export interface BuildSeedanceVideoPromptInput {
   /**
-   * Number of character reference images that will follow the storyboard PNG
-   * in `image_urls` (@Image2…). Capped by the caller to leave room under 9.
+   * Number of character reference images that follow the storyboard PNG in
+   * `image_urls` (@Image2…). Characters occupy the first slots.
    */
   characterImageCount: number
   /** Written character definitions from the prompt composer. */
-  characterNotes: SeedanceCharacterNote[]
+  characterNotes: SeedanceNote[]
   /**
    * When true, @Image1 is a depth-map camera/composition reference; visual
    * style still drives finished footage appearance.
    */
   depthMapStyle?: boolean
+  /**
+   * Number of environment reference images, which follow the character
+   * references in `image_urls`. Both counts are capped together by the
+   * caller via `allocateSeedanceReferenceSlots`.
+   */
+  environmentImageCount: number
+  /** Written environment definitions from the prompt composer. */
+  environmentNotes: SeedanceNote[]
   /** Ordered scenes of the current board. */
   scenes: Scene[]
   /** Whether the beats read as cut shots or one unbroken take. */
@@ -37,13 +46,13 @@ export interface BuildSeedanceVideoPromptInput {
 }
 
 /**
- * Character identity material folded into the Seedance prompt.
- * Mirrors the composer’s character note rows without importing UI modules.
+ * One written definition folded into the Seedance prompt — a character or an
+ * environment. Mirrors the composer's note rows without importing UI modules.
  */
-export interface SeedanceCharacterNote {
+export interface SeedanceNote {
   /** Display name, used as an @handle when non-empty. */
   name: string
-  /** Free-text appearance and wardrobe notes. */
+  /** Free-text appearance, wardrobe, or set-design notes. */
   notes: string
 }
 
@@ -68,10 +77,11 @@ export const SHOT_BEAT_LABELS: Record<ShotMode, string> = {
 }
 
 /**
- * The starting index for character reference image bindings in the prompt template.
- * Since @Image1 is reserved for the storyboard contact sheet, references start at 2.
+ * The starting index for attached reference image bindings in the prompt
+ * template. Since @Image1 is reserved for the storyboard contact sheet,
+ * references start at 2.
  */
-export const STARTING_CHARACTER_IMAGE_INDEX = 2
+export const STARTING_REFERENCE_IMAGE_INDEX = 2
 
 /**
  * The starting index for shot numbering. Shots are numbered starting from 1.
@@ -122,15 +132,21 @@ export const TRANSITION_TEXTS: Record<ShotMode, string> = {
 
 /**
  * Assembles a Seedance 2.0 prompt that animates the storyboard contact sheet
- * (@Image1) and optionally locks character identity from @Image2+.
+ * (@Image1) and optionally locks character identity and location design from
+ * @Image2+.
  *
- * @param input - The scenes and character notes inputs needed for prompt assembly.
+ * Character bindings come first, then environments, matching the order the
+ * caller uploads `image_urls`.
+ *
+ * @param input - The scenes, character, and environment inputs for the prompt.
  * @returns The fully formatted Seedance reference-to-video prompt string.
  */
 export function buildSeedanceVideoPrompt({
   characterImageCount,
   characterNotes,
   depthMapStyle = false,
+  environmentImageCount,
+  environmentNotes,
   scenes,
   shotMode,
   visualStyle,
@@ -150,14 +166,17 @@ export function buildSeedanceVideoPrompt({
     lines.push(DEPTH_MAP_DEFAULT_VIDEO_STYLE_LOCK)
   }
 
-  const characterReferences = formatCharacterReferences(characterImageCount)
-  if (characterReferences !== "") {
-    lines.push(characterReferences)
-  }
+  const sections = [
+    formatCharacterReferences(characterImageCount),
+    formatCharacterNotes(characterNotes),
+    formatEnvironmentReferences(characterImageCount, environmentImageCount),
+    formatEnvironmentNotes(environmentNotes),
+  ]
 
-  const formattedNotes = formatCharacterNotes(characterNotes)
-  if (formattedNotes !== "") {
-    lines.push(formattedNotes)
+  for (const section of sections) {
+    if (section !== "") {
+      lines.push(section)
+    }
   }
 
   lines.push("")
@@ -176,51 +195,77 @@ export function buildSeedanceVideoPrompt({
 }
 
 /**
+ * Formats one group of written notes into a single labelled prompt line.
+ *
+ * @param notes - Names and descriptions from one composer note group.
+ * @param label - Line prefix, e.g. `"Character notes"`.
+ * @returns The formatted line, or an empty string when the group is empty.
+ */
+function formatNotes(notes: SeedanceNote[], label: string): string {
+  const namedNotes = notes
+    .map((note) => {
+      const name = note.name.trim()
+      const noteText = note.notes.trim()
+
+      if (name === "" && noteText === "") {
+        return null
+      }
+
+      if (name === "") {
+        return noteText
+      }
+
+      return noteText === "" ? `@${name}` : `@${name}: ${noteText}`
+    })
+    .filter((value): value is string => value !== null)
+
+  return namedNotes.length > 0 ? `${label}: ${namedNotes.join("; ")}.` : ""
+}
+
+/**
+ * Builds the `@ImageN` binding list for one contiguous group of references.
+ *
+ * @param count - How many reference images the group contributes.
+ * @param startIndex - 1-based `@Image` index of the group's first image.
+ * @returns Comma-separated bindings, or an empty string when count is zero.
+ */
+function formatImageBindings(count: number, startIndex: number): string {
+  if (count <= 0) {
+    return ""
+  }
+
+  return Array.from(
+    { length: count },
+    (_, index) => `@Image${index + startIndex}`
+  ).join(", ")
+}
+
+/**
  * Parses and formats a list of character notes into a single line for the prompt.
  *
  * @param characterNotes - An array of character names and descriptions.
  * @returns A formatted string listing all character notes, or an empty string.
  */
-export function formatCharacterNotes(
-  characterNotes: SeedanceCharacterNote[]
-): string {
-  const namedNotes = characterNotes
-    .map((note) => {
-      const name = note.name.trim()
-      const notes = note.notes.trim()
-
-      if (name === "" && notes === "") {
-        return null
-      }
-
-      if (name === "") {
-        return notes
-      }
-
-      return notes === "" ? `@${name}` : `@${name}: ${notes}`
-    })
-    .filter((value): value is string => value !== null)
-
-  return namedNotes.length > 0
-    ? `Character notes: ${namedNotes.join("; ")}.`
-    : ""
+export function formatCharacterNotes(characterNotes: SeedanceNote[]): string {
+  return formatNotes(characterNotes, "Character notes")
 }
 
 /**
  * Generates character image references and identity preservation instructions.
+ * Characters fill the reference slots immediately after the contact sheet.
  *
  * @param characterImageCount - The number of character reference images.
  * @returns A formatted string detailing the character image reference bindings.
  */
 export function formatCharacterReferences(characterImageCount: number): string {
-  if (characterImageCount <= 0) {
+  const imageRefs = formatImageBindings(
+    characterImageCount,
+    STARTING_REFERENCE_IMAGE_INDEX
+  )
+
+  if (imageRefs === "") {
     return ""
   }
-
-  const imageRefs = Array.from(
-    { length: characterImageCount },
-    (_, index) => `@Image${index + STARTING_CHARACTER_IMAGE_INDEX}`
-  ).join(", ")
 
   const referenceTerm =
     characterImageCount === 1
@@ -230,6 +275,51 @@ export function formatCharacterReferences(characterImageCount: number): string {
   const imageTerm = characterImageCount === 1 ? "this image" : "these images"
 
   return `${imageRefs} ${referenceTerm}. Preserve face, wardrobe, hair, and silhouette from ${imageTerm} across every shot.`
+}
+
+/**
+ * Parses and formats a list of environment notes into a single prompt line.
+ *
+ * @param environmentNotes - An array of location names and descriptions.
+ * @returns A formatted string listing all environment notes, or empty string.
+ */
+export function formatEnvironmentNotes(
+  environmentNotes: SeedanceNote[]
+): string {
+  return formatNotes(environmentNotes, "Environment notes")
+}
+
+/**
+ * Generates environment image references and location preservation
+ * instructions. Environments follow the character references, so their
+ * bindings start after the character block.
+ *
+ * @param characterImageCount - Character references preceding this group.
+ * @param environmentImageCount - The number of environment reference images.
+ * @returns A formatted string detailing the environment reference bindings.
+ */
+export function formatEnvironmentReferences(
+  characterImageCount: number,
+  environmentImageCount: number
+): string {
+  const imageRefs = formatImageBindings(
+    environmentImageCount,
+    STARTING_REFERENCE_IMAGE_INDEX + Math.max(characterImageCount, 0)
+  )
+
+  if (imageRefs === "") {
+    return ""
+  }
+
+  const referenceTerm =
+    environmentImageCount === 1
+      ? "is an environment reference"
+      : "are environment references"
+
+  const imageTerm =
+    environmentImageCount === 1 ? "this image" : "these images"
+
+  return `${imageRefs} ${referenceTerm}. Preserve the location's architecture, materials, set dressing, and spatial geography from ${imageTerm} across every shot — change only the camera's vantage point on it.`
 }
 
 /**

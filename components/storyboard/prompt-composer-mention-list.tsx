@@ -4,31 +4,33 @@ import * as React from "react"
 
 import { cn } from "@/lib/utils"
 
-interface CharacterMentionListRootProps extends React.ComponentProps<"div"> {
+interface MentionListRootProps extends React.ComponentProps<"div"> {
   /** Stable id referenced by the textarea `aria-controls` attribute. */
   id: string
 }
 
 /**
- * Floating listbox of character `@handles` for storyline mention autocomplete.
+ * Floating listbox of `@handles` for storyline mention autocomplete. Options
+ * cover every composer note group, so a handle may name a character or an
+ * environment.
  *
  * ```tsx
- * <CharacterMentionList id="character-mentions">
- *   <CharacterMentionList.Option id="mention-0" isActive onSelect={…}>
+ * <MentionList id="composer-mentions">
+ *   <MentionList.Option id="mention-0" isActive onSelect={…}>
  *     @Maya
- *   </CharacterMentionList.Option>
- * </CharacterMentionList>
+ *   </MentionList.Option>
+ * </MentionList>
  * ```
  */
-function CharacterMentionListRoot({
+function MentionListRoot({
   children,
   className,
   id,
   ...props
-}: CharacterMentionListRootProps) {
+}: MentionListRootProps) {
   return (
     <div
-      aria-label="Character mentions"
+      aria-label="Character and environment mentions"
       className={cn(
         "absolute top-full left-4 z-50 mt-1 min-w-44 max-w-64 overflow-hidden rounded-xl border border-edge bg-surface-raised p-1 shadow-popover",
         className
@@ -42,14 +44,14 @@ function CharacterMentionListRoot({
   )
 }
 
-interface CharacterMentionListEmptyProps extends React.ComponentProps<"div"> {}
+type MentionListEmptyProps = React.ComponentProps<"div">
 
 /** Empty-state copy when no mention options are available. */
-function CharacterMentionListEmpty({
+function MentionListEmpty({
   children,
   className,
   ...props
-}: CharacterMentionListEmptyProps) {
+}: MentionListEmptyProps) {
   return (
     <div
       className={cn("px-2 py-1.5 text-caption text-ink-muted", className)}
@@ -61,19 +63,19 @@ function CharacterMentionListEmpty({
   )
 }
 
-interface CharacterMentionListOptionProps extends React.ComponentProps<"button"> {
+interface MentionListOptionProps extends React.ComponentProps<"button"> {
   isActive: boolean
   onSelect: () => void
 }
 
-/** One selectable character handle in a {@link CharacterMentionList}. */
-function CharacterMentionListOption({
+/** One selectable handle in a {@link MentionList}. */
+function MentionListOption({
   children,
   className,
   isActive,
   onSelect,
   ...props
-}: CharacterMentionListOptionProps) {
+}: MentionListOptionProps) {
   return (
     <button
       {...props}
@@ -95,14 +97,14 @@ function CharacterMentionListOption({
   )
 }
 
-const CharacterMentionList = Object.assign(CharacterMentionListRoot, {
-  Empty: CharacterMentionListEmpty,
-  Option: CharacterMentionListOption,
+const MentionList = Object.assign(MentionListRoot, {
+  Empty: MentionListEmpty,
+  Option: MentionListOption,
 })
 
 export {
-  CharacterMentionList,
-  type CharacterMentionListEmptyProps,
-  type CharacterMentionListOptionProps,
-  type CharacterMentionListRootProps,
+  MentionList,
+  type MentionListEmptyProps,
+  type MentionListOptionProps,
+  type MentionListRootProps,
 }

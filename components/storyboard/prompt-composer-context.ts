@@ -1,42 +1,57 @@
 import * as React from "react"
 
-import type {
-  BoardComposerDraft,
-  CharacterNote,
-} from "@/lib/board-composer"
+import type { BoardComposerDraft, ComposerNote } from "@/lib/board-composer"
 import type { StoryboardGenerationRequest } from "@/lib/generation"
 
 /** Supported request modes for the reusable prompt composer. */
 export type PromptComposerMode = "image-edit" | "storyboard"
 
+/**
+ * One note group of the composer — characters or environments. Both kinds
+ * share the same shape, so the composer exposes them as parallel slices
+ * instead of duplicating every member on the context value.
+ */
+export interface ComposerNoteGroup {
+  /** Appends an empty note row, up to `MAX_COMPOSER_SHEETS`. */
+  addNote: () => void
+  /** Uploaded reference images for this group. */
+  imageReferences: File[]
+  /** Whether the group's written notes editor is expanded. */
+  isOpen: boolean
+  /** Written definitions, always at least one (possibly empty) row. */
+  notes: ComposerNote[]
+  removeImageReference: (index: number) => void
+  removeNote: (id: number) => void
+  setImageReferences: (files: File[]) => void
+  setIsOpen: (isOpen: boolean) => void
+  setNote: (note: ComposerNote) => void
+}
+
 export interface PromptComposerContextValue {
-  addCharacterNote: () => void
   /**
    * Analyses uploaded style reference images and fills the visual-style
    * field with the result, but only while that field is empty.
    */
   analyzeStyleImages: (files: File[]) => void
-  characterImageReferences: File[]
-  characterNotes: CharacterNote[]
+  /** Written characters and their reference uploads. */
+  characters: ComposerNoteGroup
+  /** Written environments (locations, buildings) and their uploads. */
+  environments: ComposerNoteGroup
   error: string | null
   inputId: string
   /** True while style images are being analysed into the visual-style field. */
   isAnalyzingVisualStyle: boolean
-  isCharacterSheetOpen: boolean
   /** True when the storyboard composer is inactive and rendered as a dense pill. */
   isCompact: boolean
   isDisabled: boolean
   isSubmitting: boolean
   isVisualStyleOpen: boolean
+  /** Merged `@handles` from every note group, for storyline autocomplete. */
+  mentionOptions: string[]
   mode: PromptComposerMode
   prompt: string
-  removeCharacterImageReference: (index: number) => void
-  removeCharacterNote: (id: number) => void
   removeStyleImageReference: (index: number) => void
-  setCharacterImageReferences: (files: File[]) => void
-  setCharacterNote: (characterNote: CharacterNote) => void
   setError: (error: string | null) => void
-  setIsCharacterSheetOpen: (isOpen: boolean) => void
   setIsVisualStyleOpen: (isOpen: boolean) => void
   setPrompt: (value: string) => void
   setStyleImageReferences: (files: File[]) => void
@@ -48,13 +63,14 @@ export interface PromptComposerContextValue {
 
 /**
  * Ephemeral, session-only composer state driven by {@link composerReducer}.
- * Characters, uploads, and visual style live in the per-board
+ * Characters, environments, uploads, and visual style live in the per-board
  * {@link BoardComposerDraft} owned by the workspace instead.
  */
 export interface ComposerState {
   error: string | null
   isAnalyzingVisualStyle: boolean
   isCharacterSheetOpen: boolean
+  isEnvironmentSheetOpen: boolean
   isVisualStyleOpen: boolean
   prompt: string
 }
@@ -63,6 +79,7 @@ export type ComposerAction =
   | { isAnalyzingVisualStyle: boolean; type: "setAnalyzingVisualStyle" }
   | { error: string | null; type: "setError" }
   | { isCharacterSheetOpen: boolean; type: "setCharacterSheetOpen" }
+  | { isEnvironmentSheetOpen: boolean; type: "setEnvironmentSheetOpen" }
   | { isVisualStyleOpen: boolean; type: "setVisualStyleOpen" }
   | { prompt: string; type: "setPrompt" }
   | { type: "resetPrompt" }
@@ -71,6 +88,7 @@ export const INITIAL_COMPOSER_STATE: ComposerState = {
   error: null,
   isAnalyzingVisualStyle: false,
   isCharacterSheetOpen: false,
+  isEnvironmentSheetOpen: false,
   isVisualStyleOpen: false,
   prompt: "",
 }
@@ -90,6 +108,11 @@ export function composerReducer(
       }
     case "setCharacterSheetOpen":
       return { ...state, isCharacterSheetOpen: action.isCharacterSheetOpen }
+    case "setEnvironmentSheetOpen":
+      return {
+        ...state,
+        isEnvironmentSheetOpen: action.isEnvironmentSheetOpen,
+      }
     case "setError":
       return { ...state, error: action.error }
     case "setPrompt":
@@ -106,8 +129,9 @@ export interface PromptComposerRootProps extends Omit<
   /** Disables generation and all attachment controls. */
   disabled?: boolean
   /**
-   * Per-board characters, uploads, and visual style rendered by the
-   * composer. Omitted in image-edit mode, which never shows attachments.
+   * Per-board characters, environments, uploads, and visual style rendered
+   * by the composer. Omitted in image-edit mode, which never shows
+   * attachments.
    */
   draft?: BoardComposerDraft
   /** Unique HTML id used to connect the primary input with its label. */

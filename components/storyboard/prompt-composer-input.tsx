@@ -1,110 +1,45 @@
 "use client"
 
 import * as React from "react"
-import { SFMinus, SFPlus } from "sf-symbols-lib/monochrome"
 
-import { CharacterMentionList } from "@/components/storyboard/prompt-composer-character-mention-list"
-import {
-  filterCharacterMentionOptions,
-  getCharacterMentionToken,
-  insertCharacterMention,
-  type CharacterMentionToken,
-} from "@/components/storyboard/prompt-composer-character-mention"
 import { usePromptComposer } from "@/components/storyboard/prompt-composer-context"
-import { Field } from "@/components/ui/field"
-import { IconButton } from "@/components/ui/icon-button"
-import { InlineInput } from "@/components/ui/inline-input"
+import { MentionList } from "@/components/storyboard/prompt-composer-mention-list"
 import {
-  type CharacterNote,
-  getCharacterMentionOptions,
-  MAX_CHARACTER_NAME_LENGTH,
-  MAX_CHARACTER_NOTES_LENGTH,
-  MAX_CHARACTER_SHEETS,
-  MAX_VISUAL_STYLE_LENGTH,
-  normalizeCharacterName,
-} from "@/lib/board-composer"
+  filterMentionOptions,
+  getMentionToken,
+  insertMention,
+  type MentionToken,
+} from "@/components/storyboard/prompt-composer-mention"
+import {
+  NotesEditor,
+  type NotesEditorLabels,
+} from "@/components/storyboard/prompt-composer-notes-editor"
+import { Field } from "@/components/ui/field"
+import { InlineInput } from "@/components/ui/inline-input"
+import { MAX_VISUAL_STYLE_LENGTH } from "@/lib/board-composer"
 import { cn } from "@/lib/utils"
 
 /** In-progress `@mention` session driven by caret position in the storyline. */
-interface CharacterMentionSession extends CharacterMentionToken {
+interface MentionSession extends MentionToken {
   highlightedIndex: number
 }
 
-interface CharacterNoteRowProps {
-  canRemove: boolean
-  characterNote: CharacterNote
-  isDisabled: boolean
-  onChange: (characterNote: CharacterNote) => void
-  onRemove: () => void
-  rowNumber: number
+/** Copy for the written character sheet. */
+const CHARACTER_NOTES_LABELS: NotesEditorLabels = {
+  entity: "Character",
+  handlePlaceholder: "@Name",
+  notesPlaceholder: "Appearance, wardrobe, personality, continuity…",
 }
 
-/** One editable character and continuity-notes row. */
-function CharacterNoteRow({
-  canRemove,
-  characterNote,
-  isDisabled,
-  onChange,
-  onRemove,
-  rowNumber,
-}: CharacterNoteRowProps) {
-  return (
-    <div className="relative grid gap-1 px-3 py-1.5 sm:grid-cols-[minmax(8rem,0.65fr)_minmax(0,1.75fr)_1.75rem] sm:items-center sm:gap-2.5">
-      <Field
-        className={cn("min-h-8 justify-start sm:pr-0", canRemove && "pr-8")}
-      >
-        <Field.Label className="w-16 sm:sr-only">
-          Character {rowNumber}
-        </Field.Label>
-        <Field.Control>
-          <InlineInput
-            className="w-full text-left disabled:cursor-not-allowed disabled:opacity-60"
-            disabled={isDisabled}
-            maxLength={MAX_CHARACTER_NAME_LENGTH}
-            onChange={(event) =>
-              onChange({
-                ...characterNote,
-                name: normalizeCharacterName(event.target.value),
-              })
-            }
-            placeholder="@Name"
-            value={characterNote.name}
-          />
-        </Field.Control>
-      </Field>
-      <Field
-        className={cn("min-h-8 justify-start sm:pr-0", canRemove && "pr-8")}
-      >
-        <Field.Label className="w-16 sm:sr-only">Notes</Field.Label>
-        <Field.Control>
-          <InlineInput
-            className="w-full text-left disabled:cursor-not-allowed disabled:opacity-60"
-            disabled={isDisabled}
-            maxLength={MAX_CHARACTER_NOTES_LENGTH}
-            onChange={(event) =>
-              onChange({ ...characterNote, notes: event.target.value })
-            }
-            placeholder="Appearance, wardrobe, personality, continuity…"
-            value={characterNote.notes}
-          />
-        </Field.Control>
-      </Field>
-      <div className="absolute top-2 right-2 flex justify-end sm:static sm:pt-0.5">
-        {canRemove ? (
-          <IconButton
-            disabled={isDisabled}
-            label={`Remove character ${rowNumber}`}
-            onClick={onRemove}
-            size="sm"
-            variant="subtle"
-          >
-            <SFMinus aria-hidden />
-          </IconButton>
-        ) : null}
-      </div>
-    </div>
-  )
+/** Copy for the written environment sheet. */
+const ENVIRONMENT_NOTES_LABELS: NotesEditorLabels = {
+  entity: "Environment",
+  handlePlaceholder: "@Place",
+  notesPlaceholder: "Architecture, set dressing, geography, time of day…",
 }
+
+/** Maximum length of the storyline or logline textarea. */
+const MAX_STORYLINE_LENGTH = 12_000
 
 /** Optional textual visual-style description shown as a collapsible section. */
 function VisualStyleField() {
@@ -134,62 +69,15 @@ function VisualStyleField() {
   )
 }
 
-/** Table-like editor for written character definitions. */
-function CharacterNotesEditor() {
-  const {
-    addCharacterNote,
-    characterNotes,
-    isDisabled,
-    removeCharacterNote,
-    setCharacterNote,
-  } = usePromptComposer()
-  const canAdd = characterNotes.length < MAX_CHARACTER_SHEETS
-
-  return (
-    <div className="mx-4 mb-3">
-      <div className="hidden grid-cols-[minmax(4rem,0.65fr)_minmax(0,1.75fr)_1.75rem] gap-3 px-3 py-1.5 text-caption text-ink-muted sm:grid">
-        <span>Character</span>
-        <span>Notes</span>
-        <span className="sr-only">Actions</span>
-      </div>
-      <div>
-        {characterNotes.map((characterNote, index) => (
-          <CharacterNoteRow
-            canRemove={characterNotes.length > 1}
-            characterNote={characterNote}
-            isDisabled={isDisabled}
-            key={characterNote.id}
-            onChange={setCharacterNote}
-            onRemove={() => removeCharacterNote(characterNote.id)}
-            rowNumber={index + 1}
-          />
-        ))}
-      </div>
-      <div className="px-2 py-1.5">
-        <button
-          className="flex h-7 items-center gap-1.5 rounded-full bg-surface-inset px-2 text-caption text-ink-muted transition-colors outline-none hover:text-ink-strong focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-40"
-          disabled={isDisabled || !canAdd}
-          onClick={addCharacterNote}
-          type="button"
-        >
-          <SFPlus aria-hidden className="size-3" />
-          {canAdd
-            ? "Add character"
-            : `${MAX_CHARACTER_SHEETS} characters maximum`}
-        </button>
-      </div>
-    </div>
-  )
-}
-
-/** Primary storyline input and optional structured character-notes editor. */
+/** Primary storyline input and the collapsible written-notes editors. */
 function PromptComposerInput() {
   const {
-    characterNotes,
+    characters,
+    environments,
     inputId,
-    isCharacterSheetOpen,
     isDisabled,
     isVisualStyleOpen,
+    mentionOptions,
     mode,
     prompt,
     setPrompt,
@@ -197,13 +85,12 @@ function PromptComposerInput() {
   } = usePromptComposer()
   const textareaRef = React.useRef<HTMLTextAreaElement>(null)
   const [mentionSession, setMentionSession] =
-    React.useState<CharacterMentionSession | null>(null)
+    React.useState<MentionSession | null>(null)
 
   const isImageEdit = mode === "image-edit"
-  const mentionListId = `${inputId}-character-mentions`
-  const mentionOptions = getCharacterMentionOptions(characterNotes)
+  const mentionListId = `${inputId}-mentions`
   const filteredMentionOptions = mentionSession
-    ? filterCharacterMentionOptions(mentionOptions, mentionSession.query)
+    ? filterMentionOptions(mentionOptions, mentionSession.query)
     : []
   const highlightedIndex = mentionSession
     ? Math.min(
@@ -222,10 +109,7 @@ function PromptComposerInput() {
       return
     }
 
-    const token = getCharacterMentionToken(
-      textarea.value,
-      textarea.selectionStart
-    )
+    const token = getMentionToken(textarea.value, textarea.selectionStart)
 
     if (token === null) {
       setMentionSession(null)
@@ -243,11 +127,7 @@ function PromptComposerInput() {
       return
     }
 
-    const { caretIndex, value } = insertCharacterMention(
-      handle,
-      mentionSession,
-      prompt
-    )
+    const { caretIndex, value } = insertMention(handle, mentionSession, prompt)
 
     setPrompt(value)
     setMentionSession(null)
@@ -287,7 +167,7 @@ function PromptComposerInput() {
         )}
         disabled={isDisabled}
         id={inputId}
-        maxLength={12_000}
+        maxLength={MAX_STORYLINE_LENGTH}
         onChange={(event) => {
           setPrompt(event.target.value)
           syncMentionSession(event.target)
@@ -356,30 +236,47 @@ function PromptComposerInput() {
         value={prompt}
       />
       {mentionSession !== null ? (
-        <CharacterMentionList id={mentionListId}>
+        <MentionList id={mentionListId}>
           {mentionOptions.length === 0 ? (
-            <CharacterMentionList.Empty>
-              Add a character in Character notes
-            </CharacterMentionList.Empty>
+            <MentionList.Empty>
+              Add a character or environment in their notes
+            </MentionList.Empty>
           ) : filteredMentionOptions.length === 0 ? (
-            <CharacterMentionList.Empty>
-              No matching characters
-            </CharacterMentionList.Empty>
+            <MentionList.Empty>No matching handles</MentionList.Empty>
           ) : (
             filteredMentionOptions.map((handle, index) => (
-              <CharacterMentionList.Option
+              <MentionList.Option
                 id={`${mentionListId}-option-${index}`}
                 isActive={index === highlightedIndex}
                 key={handle}
                 onSelect={() => applyMention(handle)}
               >
                 {handle}
-              </CharacterMentionList.Option>
+              </MentionList.Option>
             ))
           )}
-        </CharacterMentionList>
+        </MentionList>
       ) : null}
-      {isCharacterSheetOpen ? <CharacterNotesEditor /> : null}
+      {characters.isOpen ? (
+        <NotesEditor
+          addNote={characters.addNote}
+          isDisabled={isDisabled}
+          labels={CHARACTER_NOTES_LABELS}
+          notes={characters.notes}
+          removeNote={characters.removeNote}
+          setNote={characters.setNote}
+        />
+      ) : null}
+      {environments.isOpen ? (
+        <NotesEditor
+          addNote={environments.addNote}
+          isDisabled={isDisabled}
+          labels={ENVIRONMENT_NOTES_LABELS}
+          notes={environments.notes}
+          removeNote={environments.removeNote}
+          setNote={environments.setNote}
+        />
+      ) : null}
       {!isImageEdit && isVisualStyleOpen ? <VisualStyleField /> : null}
     </div>
   )

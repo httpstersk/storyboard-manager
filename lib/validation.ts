@@ -7,11 +7,11 @@
 
 import {
   type BoardComposerDraft,
-  type CharacterNote,
+  type ComposerNote,
   createEmptyComposerDraft,
-  MAX_CHARACTER_NAME_LENGTH,
-  MAX_CHARACTER_NOTES_LENGTH,
-  MAX_CHARACTER_SHEETS,
+  MAX_COMPOSER_NOTES_LENGTH,
+  MAX_COMPOSER_SHEETS,
+  MAX_HANDLE_LENGTH,
   MAX_VISUAL_STYLE_LENGTH,
 } from "@/lib/board-composer"
 import {
@@ -135,31 +135,52 @@ function sanitizeText(value: unknown, maxLength: number): string {
 }
 
 /**
+ * Validates and normalises one group of composer note rows from untrusted
+ * JSON. Ids are reassigned by position so duplicates in the payload cannot
+ * collide. Returns `fallback` when the payload holds no usable rows, since
+ * every group must render at least one row.
+ */
+function coerceComposerNotes(
+  value: unknown,
+  fallback: ComposerNote[]
+): ComposerNote[] {
+  const notes = (Array.isArray(value) ? value : [])
+    .filter(isRecord)
+    .slice(0, MAX_COMPOSER_SHEETS)
+    .map(
+      (note, index): ComposerNote => ({
+        id: index,
+        name: sanitizeText(note.name, MAX_HANDLE_LENGTH),
+        notes: sanitizeText(note.notes, MAX_COMPOSER_NOTES_LENGTH),
+      })
+    )
+
+  return notes.length > 0 ? notes : fallback
+}
+
+/**
  * Validates and normalises the composer draft fields of one board from
  * untrusted JSON (imports and IndexedDB). Uploads are attached later from
  * their own blob rows, so the returned draft always starts without files.
+ *
+ * Records written before environments existed simply lack
+ * `environmentNotes` and fall back to a single empty row.
  */
 export function coerceComposerDraft(
   value: Record<string, unknown>
 ): BoardComposerDraft {
   const draft = createEmptyComposerDraft()
-  const characterNotes = (
-    Array.isArray(value.characterNotes) ? value.characterNotes : []
-  )
-    .filter(isRecord)
-    .slice(0, MAX_CHARACTER_SHEETS)
-    .map(
-      (note, index): CharacterNote => ({
-        id: index,
-        name: sanitizeText(note.name, MAX_CHARACTER_NAME_LENGTH),
-        notes: sanitizeText(note.notes, MAX_CHARACTER_NOTES_LENGTH),
-      })
-    )
 
   return {
     ...draft,
-    characterNotes:
-      characterNotes.length > 0 ? characterNotes : draft.characterNotes,
+    characterNotes: coerceComposerNotes(
+      value.characterNotes,
+      draft.characterNotes
+    ),
+    environmentNotes: coerceComposerNotes(
+      value.environmentNotes,
+      draft.environmentNotes
+    ),
     visualStyle: sanitizeText(value.visualStyle, MAX_VISUAL_STYLE_LENGTH),
   }
 }
