@@ -20,6 +20,11 @@ import {
   type ImageResolution,
 } from "@/lib/image-models"
 import {
+  PROMPT_LENGTH_LABELS,
+  PROMPT_LENGTHS,
+  type PromptLength,
+} from "@/lib/prompt-length-settings"
+import {
   SHOT_MODE_LABELS,
   SHOT_MODES,
   type ShotMode,
@@ -226,6 +231,38 @@ function ShotModeField({ onShotModeChange, shotMode }: ShotModeFieldProps) {
   )
 }
 
+interface PromptLengthFieldProps {
+  /** Updates the video prompt length preference. */
+  onPromptLengthChange: (value: string) => void
+  /** Currently selected prompt length. */
+  promptLength: PromptLength
+}
+
+/** Prompt length switcher capping the assembled Seedance video prompt. */
+function PromptLengthField({
+  onPromptLengthChange,
+  promptLength,
+}: PromptLengthFieldProps) {
+  return (
+    <Field>
+      <Field.Label>Length</Field.Label>
+      <Field.Control>
+        <SegmentedControl
+          label="Prompt length"
+          onValueChange={onPromptLengthChange}
+          value={promptLength}
+        >
+          {PROMPT_LENGTHS.map((length) => (
+            <SegmentedControl.Option key={length} value={length}>
+              {PROMPT_LENGTH_LABELS[length]}
+            </SegmentedControl.Option>
+          ))}
+        </SegmentedControl>
+      </Field.Control>
+    </Field>
+  )
+}
+
 interface WorkspaceToolbarProps {
   /** Selected number of scene columns. */
   columns: number
@@ -247,12 +284,16 @@ interface WorkspaceToolbarProps {
   onImageResolutionChange: (value: string) => void
   /** Opens the storyboard import file picker. */
   onImport: () => void
+  /** Updates the video prompt length preference. */
+  onPromptLengthChange: (value: string) => void
   /** Updates the selected number of scene rows. */
   onRowsChange: (rows: number) => void
   /** Updates the multi-shot / continuous preference. */
   onShotModeChange: (value: string) => void
   /** Updates whether scene parameters are visible. */
   onShowParametersChange: (showParameters: boolean) => void
+  /** Character cap applied to the assembled Seedance video prompt. */
+  promptLength: PromptLength
   /** Selected number of scene rows. */
   rows: number
   /** Shot mode applied to planning and the Seedance video prompt. */
@@ -273,9 +314,11 @@ function WorkspaceToolbar({
   onImageModelChange,
   onImageResolutionChange,
   onImport,
+  onPromptLengthChange,
   onRowsChange,
   onShotModeChange,
   onShowParametersChange,
+  promptLength,
   rows,
   shotMode,
   showParameters,
@@ -302,6 +345,10 @@ function WorkspaceToolbar({
         <ShotModeField
           onShotModeChange={onShotModeChange}
           shotMode={shotMode}
+        />
+        <PromptLengthField
+          onPromptLengthChange={onPromptLengthChange}
+          promptLength={promptLength}
         />
         <Field>
           <Field.Label>Parameters</Field.Label>

@@ -86,6 +86,35 @@ export function createEmptyComposerNote(id = 0): ComposerNote {
 }
 
 /**
+ * Unique `@handles` from serialized composer sheets, in first-seen order.
+ * Only a first line that is already an `@handle` counts; notes-only sheets
+ * are ignored so prose is never treated as a name.
+ */
+export function extractHandlesFromSheets(sheets: string[]): string[] {
+  const handles: string[] = []
+  const seen = new Set<string>()
+
+  for (const sheet of sheets) {
+    const firstLine = sheet.split("\n")[0]?.trim() ?? ""
+
+    if (!firstLine.startsWith("@")) {
+      continue
+    }
+
+    const handle = normalizeHandle(firstLine)
+
+    if (handle === "" || seen.has(handle.toLowerCase())) {
+      continue
+    }
+
+    seen.add(handle.toLowerCase())
+    handles.push(handle)
+  }
+
+  return handles
+}
+
+/**
  * Unique `@handles` across every composer note group, in the order the
  * groups are supplied. Drives the storyline `@mention` autocomplete, so
  * characters and environments share one merged list.

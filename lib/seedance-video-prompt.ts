@@ -38,6 +38,12 @@ export interface BuildSeedanceVideoPromptInput {
   environmentImageCount: number
   /** Written environment definitions from the prompt composer. */
   environmentNotes: SeedanceNote[]
+  /**
+   * Hard character cap for the finished prompt. When set and exceeded, the
+   * builder sheds optional content via {@link PROMPT_REDUCTION_LADDER} before
+   * falling back to a clean line-boundary trim. Omit to disable capping.
+   */
+  maxLength?: number
   /** Ordered scenes of the current board. */
   scenes: Scene[]
   /** Whether the beats read as cut shots or one unbroken take. */
@@ -188,50 +194,138 @@ const SHOT_MODE_BASE_PROMPTS: Record<
 }
 
 /**
+ * Optional content toggles the assembler sheds, in isolation, to fit a
+ * character budget. Every flag defaults to `true` in a full-length prompt.
+ */
+interface PromptReduction {
+  /** Keep the boilerplate audio clause on silent beats. */
+  includeDefaultAudio: boolean
+  /** Keep the written character and environment note lines. */
+  includeNotes: boolean
+  /** Keep the explanatory prose on the reference-binding lines. */
+  includeReferenceProse: boolean
+  /** Keep the free-text visual style lock line. */
+  includeStyleLock: boolean
+  /** Keep the "preserve this medium…" reinforcement on the style lock. */
+  includeStyleReinforcement: boolean
+}
+
+/** The full, unreduced prompt: every optional section present. */
+const FULL_PROMPT_REDUCTION: PromptReduction = {
+  includeDefaultAudio: true,
+  includeNotes: true,
+  includeReferenceProse: true,
+  includeStyleLock: true,
+  includeStyleReinforcement: true,
+}
+
+/**
+ * Graceful-degradation steps applied in order, least destructive first, until
+ * the prompt fits its cap. Each entry drops one optional section; the base
+ * instruction and the shot beats themselves are never removed here.
+ */
+const PROMPT_REDUCTION_LADDER: Array<Partial<PromptReduction>> = [
+  { includeDefaultAudio: false },
+  { includeStyleReinforcement: false },
+  { includeNotes: false },
+  { includeReferenceProse: false },
+  { includeStyleLock: false },
+]
+
+/**
  * Assembles a Seedance 2.0 prompt that animates the storyboard contact sheet
  * (@Image1) and optionally locks character identity and location design from
  * @Image2+.
  *
  * Character bindings come first, then environments, matching the order the
- * caller uploads `image_urls`.
+ * caller uploads `image_urls`. When `input.maxLength` is set, the prompt is
+ * shortened via graceful degradation (see {@link PROMPT_REDUCTION_LADDER}) and,
+ * as a final guarantee, a clean line-boundary trim.
  *
  * @param input - The scenes, character, and environment inputs for the prompt.
  * @returns The fully formatted Seedance reference-to-video prompt string.
  */
-export function buildSeedanceVideoPrompt({
-  characterImageCount,
-  characterNotes,
-  depthMapStyle = false,
-  environmentImageCount,
-  environmentNotes,
-  scenes,
-  shotMode,
-  visualStyle,
-}: BuildSeedanceVideoPromptInput): string {
-  if (scenes.length === 0) {
+export function buildSeedanceVideoPrompt(
+  input: BuildSeedanceVideoPromptInput
+): string {
+  if (input.scenes.length === 0) {
     return ""
   }
+
+  let reduction: PromptReduction = { ...FULL_PROMPT_REDUCTION }
+  let prompt = assemblePrompt(input, reduction)
+
+  const { maxLength } = input
+
+  if (maxLength === undefined) {
+    return prompt
+  }
+
+  for (const step of PROMPT_REDUCTION_LADDER) {
+    if (prompt.length <= maxLength) {
+      break
+    }
+
+    reduction = { ...reduction, ...step }
+    prompt = assemblePrompt(input, reduction)
+  }
+
+  return prompt.length > maxLength
+    ? trimToPromptBudget(prompt, maxLength)
+    : prompt
+}
+
+/**
+ * Builds the prompt string for one reduction level. Extracted from
+ * {@link buildSeedanceVideoPrompt} so the character-budget ladder can rebuild
+ * the prompt with progressively fewer optional sections.
+ *
+ * @param input - The scenes, character, and environment inputs for the prompt.
+ * @param reduction - Which optional sections to include at this level.
+ * @returns The assembled prompt for the given reduction level.
+ */
+function assemblePrompt(
+  input: BuildSeedanceVideoPromptInput,
+  reduction: PromptReduction
+): string {
+  const {
+    characterImageCount,
+    characterNotes,
+    depthMapStyle = false,
+    environmentImageCount,
+    environmentNotes,
+    scenes,
+    shotMode,
+    visualStyle,
+  } = input
 
   const lines: string[] = [selectBasePrompt({ depthMapStyle, shotMode })]
   const trimmedVisualStyle = visualStyle.trim()
 
-  if (trimmedVisualStyle !== "") {
+  if (reduction.includeStyleLock && trimmedVisualStyle !== "") {
     lines.push(
-      `Visual style lock: ${formatPromptProse(trimmedVisualStyle)} Preserve this medium, palette, lighting language, and image-making treatment across every shot — do not drift toward a different look.`
+      formatVisualStyleLock(
+        trimmedVisualStyle,
+        reduction.includeStyleReinforcement
+      )
     )
   } else if (depthMapStyle) {
     lines.push(DEPTH_MAP_DEFAULT_VIDEO_STYLE_LOCK)
   }
 
   const sections = [
-    formatCharacterReferences(characterImageCount),
-    formatCharacterNotes(characterNotes),
+    formatCharacterReferences(
+      characterImageCount,
+      reduction.includeReferenceProse
+    ),
+    reduction.includeNotes ? formatCharacterNotes(characterNotes) : "",
     formatEnvironmentReferences({
       characterImageCount,
       environmentImageCount,
+      includeProse: reduction.includeReferenceProse,
       shotMode,
     }),
-    formatEnvironmentNotes(environmentNotes),
+    reduction.includeNotes ? formatEnvironmentNotes(environmentNotes) : "",
   ]
 
   for (const section of sections) {
@@ -243,7 +337,9 @@ export function buildSeedanceVideoPrompt({
   lines.push("")
 
   scenes.forEach((scene, index) => {
-    const beat = formatShotBeat(scene, index + STARTING_SHOT_NUMBER, shotMode)
+    const beat = formatShotBeat(scene, index + STARTING_SHOT_NUMBER, shotMode, {
+      includeDefaultAudio: reduction.includeDefaultAudio,
+    })
 
     if (index === 0) {
       lines.push(beat)
@@ -253,6 +349,53 @@ export function buildSeedanceVideoPrompt({
   })
 
   return lines.join("\n")
+}
+
+/**
+ * Formats the free-text visual style lock line.
+ *
+ * @param visualStyle - The trimmed composer visual-style text.
+ * @param includeReinforcement - Whether to append the drift-guard sentence.
+ * @returns The formatted visual style lock line.
+ */
+function formatVisualStyleLock(
+  visualStyle: string,
+  includeReinforcement: boolean
+): string {
+  const styleLock = `Visual style lock: ${formatPromptProse(visualStyle)}`
+
+  return includeReinforcement
+    ? `${styleLock} Preserve this medium, palette, lighting language, and image-making treatment across every shot — do not drift toward a different look.`
+    : styleLock
+}
+
+/**
+ * Trims a prompt to fit a character budget without cutting mid-line, so the
+ * final beat is always a complete instruction. The base instruction (line 1)
+ * always survives; if it alone exceeds the budget it is hard-sliced.
+ *
+ * @param prompt - The assembled prompt to trim.
+ * @param maxLength - The maximum allowed character count.
+ * @returns The prompt trimmed to at most `maxLength` characters.
+ */
+function trimToPromptBudget(prompt: string, maxLength: number): string {
+  const lines = prompt.split("\n")
+  const kept: string[] = []
+  let length = 0
+
+  for (const line of lines) {
+    // The +1 accounts for the newline rejoining this line to the prior ones.
+    const addition = kept.length === 0 ? line.length : line.length + 1
+
+    if (length + addition > maxLength) {
+      break
+    }
+
+    kept.push(line)
+    length += addition
+  }
+
+  return kept.length === 0 ? prompt.slice(0, maxLength) : kept.join("\n")
 }
 
 /**
@@ -340,9 +483,14 @@ export function formatCharacterNotes(characterNotes: SeedanceNote[]): string {
  * Characters fill the reference slots immediately after the contact sheet.
  *
  * @param characterImageCount - The number of character reference images.
+ * @param includeProse - Whether to keep the full preservation instruction;
+ *   when false, only a short identity clause follows the bindings.
  * @returns A formatted string detailing the character image reference bindings.
  */
-export function formatCharacterReferences(characterImageCount: number): string {
+export function formatCharacterReferences(
+  characterImageCount: number,
+  includeProse = true
+): string {
   const imageRefs = formatImageBindings(
     characterImageCount,
     STARTING_REFERENCE_IMAGE_INDEX
@@ -356,6 +504,10 @@ export function formatCharacterReferences(characterImageCount: number): string {
     characterImageCount === 1
       ? "is a character identity reference"
       : "are character identity references"
+
+  if (!includeProse) {
+    return `${imageRefs} ${referenceTerm}. Preserve identity across every shot.`
+  }
 
   const imageTerm = characterImageCount === 1 ? "this image" : "these images"
 
@@ -379,6 +531,11 @@ interface EnvironmentReferencesOptions {
   characterImageCount: number
   /** The number of environment reference images. */
   environmentImageCount: number
+  /**
+   * Whether to keep the full location-staging instruction; when false, only a
+   * short recognizability clause follows the bindings.
+   */
+  includeProse?: boolean
   /** Whether the beats read as cut shots or one unbroken take. */
   shotMode: ShotMode
 }
@@ -398,6 +555,7 @@ interface EnvironmentReferencesOptions {
 export function formatEnvironmentReferences({
   characterImageCount,
   environmentImageCount,
+  includeProse = true,
   shotMode,
 }: EnvironmentReferencesOptions): string {
   const imageRefs = formatImageBindings(
@@ -414,6 +572,10 @@ export function formatEnvironmentReferences({
       ? "is an environment reference"
       : "are environment references"
 
+  if (!includeProse) {
+    return `${imageRefs} ${referenceTerm}. Keep the location recognizable while staging new views of it.`
+  }
+
   const imageTerm =
     environmentImageCount === 1 ? "this image" : "these images"
 
@@ -423,18 +585,26 @@ export function formatEnvironmentReferences({
   return `${imageRefs} ${referenceTerm}. ${establishTerm} what the location is — architecture, materials, set dressing, period, and scale. Do not reproduce the framing, cropping, or the arrangement of buildings and set pieces shown in ${imageTerm}; keep the place recognizable while staging new views of it. ${ENVIRONMENT_STAGING_DIRECTIONS[shotMode]}`
 }
 
+/** Optional formatting toggles for {@link formatShotBeat}. */
+interface ShotBeatOptions {
+  /** Keep the boilerplate audio clause when the scene has no music. */
+  includeDefaultAudio: boolean
+}
+
 /**
  * Formats one storyboard scene as a Seedance shot beat.
  *
  * @param scene - The storyboard scene structure to format.
  * @param shotNumber - The ordered number of the shot in the scene list.
  * @param shotMode - Whether the beat belongs to a cut sequence or one take.
+ * @param options - Optional formatting toggles for character-budget trimming.
  * @returns The formatted shot beat description.
  */
 export function formatShotBeat(
   scene: Scene,
   shotNumber: number,
-  shotMode: ShotMode
+  shotMode: ShotMode,
+  options: ShotBeatOptions = { includeDefaultAudio: true }
 ): string {
   const craft = `[${scene.shot} | ${scene.camera} | ${scene.lens} | ${scene.movement} | ${scene.lighting}]`
   const trimmedAction = scene.action.trim()
@@ -449,7 +619,9 @@ export function formatShotBeat(
   const musicTrimmed = scene.music.trim()
   const audio =
     musicTrimmed === ""
-      ? DEFAULT_AUDIO_TEXT
+      ? options.includeDefaultAudio
+        ? DEFAULT_AUDIO_TEXT
+        : ""
       : ` Audio: ${formatPromptProse(musicTrimmed)}`
 
   return `${SHOT_BEAT_LABELS[shotMode]} ${shotNumber} — ${craft}: ${action}${dialogue}${audio} Hold ~${scene.timeSeconds}s.`

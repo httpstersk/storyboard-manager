@@ -7,11 +7,15 @@ import path from "path"
 import {
   resolveFalApiKey,
 } from "@/lib/api-route-config"
+import { extractHandlesFromSheets } from "@/lib/board-composer"
 import { DEPTH_MAP_STYLE_PROMPT } from "@/lib/depth-map-style-settings"
 import {
+  foldMissingHandlesIntoScenes,
   layoutForSceneCount,
+  missingCharacterHandles,
   storyboardGenerationRequestSchema,
   storyboardGenerationResponseSchema,
+  type StoryboardPlan,
   storyboardPlanSchema,
 } from "@/lib/generation"
 import { resolveImageModelId } from "@/lib/image-models"
@@ -32,10 +36,11 @@ export const runtime = "nodejs"
 const DIRECTOR_SYSTEM_PROMPT = `You are a veteran storyboard director. Your boards are judged on followability, not completeness: a reader must grasp the story from the frames alone, in order, at a glance.
 
 Craft rules, applied to every plan:
-- One beat per scene. Each action is a single concise clause with exactly one subject performing one action. No compound actions, no montage descriptions.
+- One beat per scene. Each action is a single concise clause with exactly one primary subject performing one action. Other named characters may be present in the frame (over-the-shoulder, opposite, background) when the story requires them, named by @handle. No compound actions, no montage descriptions.
 - Compose deliberately. At most 2 scenes in the whole board may place the subject dead-center. Spread the rest across rule-of-thirds placements, negative space, foreground occlusion, over-the-shoulder framings, and low or high angles.
 - Pace with intent. Scene durations form a rhythm: longer establishing and emotional beats, shorter action and reaction beats.
-- Bind characters by @handle. When character material exists, actions name subjects with their @handle (e.g. @XYZ) and re-bind them with concrete identifiers (wardrobe, hair, silhouette), never bare pronouns.
+- Cover the full cast. When character material exists, every named @handle appears in at least one scene; they all play a part in the story. Do not drop a character because they have fewer beats.
+- Bind characters by @handle. When character material exists, actions name the primary subject with their @handle (e.g. @XYZ) and re-bind them with concrete identifiers (wardrobe, hair, silhouette), never bare pronouns. Name any other characters in the frame by @handle too.
 - Bind locations by @handle. When environment material exists, stage the beats inside those locations and name them with their @handle (e.g. @XYZ), re-binding with concrete identifiers (architecture, materials, set dressing) rather than a vague place noun. Say which part of the location each beat occupies — a specific corner, threshold, elevation, or approach — so consecutive beats set in one @handle never all describe the same view of it.
 - Respect visual style. When a written style and/or style reference images are declared, plan lighting, mood, and action language that fit that medium. Do not assume photoreal live-action when the style is illustration, animation, painterly, or any other non-photoreal treatment.`
 
@@ -147,12 +152,13 @@ export async function POST(request: Request): Promise<Response> {
       ...environmentImageRefs,
       ...effectiveStyleImageRefs,
     ]
-    const { output: plan } = await generateText({
+    const characterHandles = extractHandlesFromSheets(characterSheets)
+    const { output: planned } = await generateText({
       maxRetries: 1,
       model: openai("gpt-5.4-mini"),
       output: Output.object({
         description:
-          "A concise cinematic storyboard plan with a dynamic number of ordered scenes.",
+          "A concise cinematic storyboard plan with 4, 6, 9, or 12 ordered scenes that fill a grid.",
         name: "storyboard_plan",
         schema: storyboardPlanSchema,
       }),
@@ -170,9 +176,11 @@ export async function POST(request: Request): Promise<Response> {
       system: buildDirectorSystemPrompt(shotMode),
     })
 
-    if (plan === undefined) {
+    if (planned === undefined) {
       throw new Error("The planner returned no structured storyboard plan.")
     }
+
+    const plan = await ensurePlanCoversCharacters(characterHandles, planned)
 
     const layout = layoutForSceneCount(plan.scenes.length)
     const layoutPlaceholder = await readLayoutPlaceholder(layout)
@@ -267,6 +275,22 @@ interface PlanningPromptOptions {
   visualStyle: string
 }
 
+/**
+ * Prompt that asks the planner to revise actions so omitted `@handles`
+ * appear, without changing scene count or craft fields.
+ */
+function buildCastRepairPrompt(
+  missingHandles: string[],
+  plan: StoryboardPlan
+): string {
+  return `The following storyboard plan omitted named characters that must appear in at least one scene action: ${missingHandles.join(", ")}.
+
+Revise only scene actions (and dialogue if needed) so each omitted @handle appears in at least one action. Keep the same title, the same number of scenes, and every craft field (shot, camera, lens, movement, lighting, timeSeconds). Each action stays at most 140 characters. Other named characters may share a frame with the primary subject.
+
+Current plan:
+${JSON.stringify(plan)}`
+}
+
 /** Combines the shared director persona with the selected shot mode's rules. */
 function buildDirectorSystemPrompt(shotMode: ShotMode): string {
   return `${DIRECTOR_SYSTEM_PROMPT}
@@ -286,16 +310,15 @@ function buildPlanningPrompt({
   styleImageCount,
   visualStyle,
 }: PlanningPromptOptions): string {
-  const writtenCharacterContext =
-    characterSheets.length === 0
-      ? "No separate character sheets were supplied."
-      : `Character sheets — every scene's action must name its subject with the matching @handle (e.g. @XYZ) and re-bind them with concrete identifiers (wardrobe, hair, silhouette), never pronouns:\n${characterSheets.join(
-          "\n\n---\n\n"
-        )}`
+  const characterHandles = extractHandlesFromSheets(characterSheets)
+  const writtenCharacterContext = buildWrittenCharacterContext(
+    characterHandles,
+    characterSheets
+  )
   const visualCharacterContext =
     characterImageCount === 0
       ? "No character reference images were supplied."
-      : `${characterImageCount} character reference image${characterImageCount === 1 ? " was" : "s were"} supplied for the renderer. Use @handles and concrete identifiers available in the story or written sheets; do not invent unseen visual details solely to describe those images.`
+      : `${characterImageCount} character reference image${characterImageCount === 1 ? " was" : "s were"} supplied for the renderer. Depict every supplied character in at least one beat. Use @handles and concrete identifiers available in the story or written sheets; do not invent unseen visual details solely to describe those images.`
   const writtenEnvironmentContext =
     environmentSheets.length === 0
       ? "No separate environment sheets were supplied."
@@ -316,10 +339,10 @@ function buildPlanningPrompt({
 
   return `${PLANNING_SHOT_MODE_BRIEFS[shotMode]}
 
-Choose a dynamic scene count from 3 to 12 based on narrative complexity. A short logline should use fewer beats; a full storyline should use more.
+Choose a scene count that fills an entire grid: 4 (2×2), 6 (3×2), 9 (3×3), or 12 (4×3). A short logline should use 4 or 6 beats; a full storyline should use 9 or 12. Prefer a count at least as large as the named cast so each character can play a part, capped at 12. Every cell is a story beat — do not leave unused cells.
 
 For every scene:
-- action: one concise, drawable visual beat with exactly one subject action (140 characters maximum)
+- action: one concise, drawable visual beat with exactly one primary subject action (140 characters maximum). Other named characters may share the frame when the story requires them.
 - dialogue: only essential spoken context, otherwise an empty string
 - ${fieldGuidance.shot}
 - camera: the camera body whose character suits the beat
@@ -396,4 +419,70 @@ function buildPlanningVisualStyleContext(
   }
 
   return parts.join("\n")
+}
+
+/**
+ * Written character-sheet brief for the planner, including full-cast coverage
+ * when named `@handles` are present.
+ */
+function buildWrittenCharacterContext(
+  characterHandles: string[],
+  characterSheets: string[]
+): string {
+  if (characterSheets.length === 0) {
+    return "No separate character sheets were supplied."
+  }
+
+  const coverage =
+    characterHandles.length === 0
+      ? "every described character plays a part in the story and must appear in at least one scene"
+      : `every named character plays a part in the story and must appear in at least one scene (${characterHandles.join(", ")})`
+
+  return `Character sheets — ${coverage}. Name the primary subject of each beat with their matching @handle (e.g. @XYZ) and re-bind them with concrete identifiers (wardrobe, hair, silhouette), never pronouns. Name any other characters in the same frame by @handle too:\n${characterSheets.join(
+    "\n\n---\n\n"
+  )}`
+}
+
+/**
+ * Repairs a plan that dropped named characters, then folds any remaining
+ * `@handles` into scene actions so generation cannot fail on cast coverage.
+ */
+async function ensurePlanCoversCharacters(
+  characterHandles: string[],
+  plan: StoryboardPlan
+): Promise<StoryboardPlan> {
+  const missingHandles = missingCharacterHandles(plan.scenes, characterHandles)
+
+  if (missingHandles.length === 0) {
+    return plan
+  }
+
+  let nextPlan = plan
+
+  try {
+    const { output: repaired } = await generateText({
+      maxRetries: 1,
+      model: openai("gpt-5.4-mini"),
+      output: Output.object({
+        description:
+          "The same storyboard plan with revised actions that name every omitted character.",
+        name: "storyboard_plan",
+        schema: storyboardPlanSchema,
+      }),
+      prompt: buildCastRepairPrompt(missingHandles, plan),
+      system:
+        "You are a storyboard director repairing a plan so every named character appears.",
+    })
+
+    if (repaired !== undefined) {
+      nextPlan = repaired
+    }
+  } catch (error) {
+    console.error("Cast-coverage repair failed:", error)
+  }
+
+  return {
+    ...nextPlan,
+    scenes: foldMissingHandlesIntoScenes(nextPlan.scenes, characterHandles),
+  }
 }

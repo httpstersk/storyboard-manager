@@ -65,6 +65,7 @@ function StoryboardWorkspace() {
     handleImportClick,
     handleImportFile,
     handleNewBoard,
+    handlePromptLengthChange,
     handleRowsChange,
     handleSelectBoard,
     handleShotModeChange,
@@ -77,6 +78,7 @@ function StoryboardWorkspace() {
     isSelectedBoardGenerating,
     nextEditingSceneId,
     previousEditingSceneId,
+    promptLength,
     runtime,
     selectedBoard,
     shotMode,
@@ -112,9 +114,11 @@ function StoryboardWorkspace() {
             onImageModelChange={handleImageModelChange}
             onImageResolutionChange={handleImageResolutionChange}
             onImport={handleImportClick}
+            onPromptLengthChange={handlePromptLengthChange}
             onRowsChange={handleRowsChange}
             onShotModeChange={handleShotModeChange}
             onShowParametersChange={handleShowParametersChange}
+            promptLength={promptLength}
             rows={state.rows}
             shotMode={shotMode}
             showParameters={state.showParameters}

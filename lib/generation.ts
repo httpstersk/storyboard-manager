@@ -36,14 +36,26 @@ export const MAX_IMAGE_REFERENCES = 9
 /** User-facing message shared by client and server image-count validation. */
 export const MAX_IMAGE_REFERENCES_ERROR = `Attach up to ${MAX_IMAGE_REFERENCES} reference images in total.`
 
+/**
+ * Scene counts that fill a generation layout with no leftover cells:
+ * 2×2, 3×2, 3×3, and 4×3.
+ */
+export const GENERATED_SCENE_COUNTS = [
+  GRID_PRESETS[0].columns * GRID_PRESETS[0].rows,
+  GRID_PRESETS[1].columns * GRID_PRESETS[1].rows,
+  GRID_PRESETS[2].columns * GRID_PRESETS[2].rows,
+  GRID_PRESETS[4].columns * GRID_PRESETS[4].rows,
+] as const
+
 /** Maximum number of planned scenes, balancing story coverage and frame detail. */
-export const MAX_GENERATED_SCENES = 12
+export const MAX_GENERATED_SCENES =
+  GENERATED_SCENE_COUNTS[GENERATED_SCENE_COUNTS.length - 1]
 
 /** Maximum length of a single-scene image editing instruction. */
 export const MAX_SCENE_IMAGE_EDIT_PROMPT_LENGTH = 2_000
 
 /** Minimum number of beats produced for even a short logline. */
-export const MIN_GENERATED_SCENES = 3
+export const MIN_GENERATED_SCENES = GENERATED_SCENE_COUNTS[0]
 
 /** Maximum text length of the submitted logline or storyline. */
 const MAX_PROMPT_LENGTH = 12_000
@@ -134,9 +146,19 @@ export const storyboardPlanSchema = z.object({
       })
     )
     .min(MIN_GENERATED_SCENES)
-    .max(MAX_GENERATED_SCENES),
+    .max(MAX_GENERATED_SCENES)
+    .refine(
+      (scenes) =>
+        (GENERATED_SCENE_COUNTS as readonly number[]).includes(scenes.length),
+      {
+        message: `Scene count must fill a grid: ${GENERATED_SCENE_COUNTS.join(", ")}.`,
+      }
+    ),
   title: z.string().trim().min(1).max(60),
 })
+
+/** Structured scene plan produced by the storyboard planner. */
+export type StoryboardPlan = z.infer<typeof storyboardPlanSchema>
 
 /** Runtime schema for a successful server generation response. */
 export const storyboardGenerationResponseSchema = z.object({
@@ -228,11 +250,67 @@ export interface StoryboardLayout {
 }
 
 /**
- * Maps a scene count to the tightest valid {@link StoryboardLayout} preset:
- * - 3–4 scenes  → 2×2  (up to 1 empty cell)
- * - 5–6 scenes  → 3×2  (up to 1 empty cell)
- * - 7–9 scenes  → 3×3  (up to 2 empty cells)
- * - 10–12 scenes → 4×3  (up to 2 empty cells)
+ * Whether `action` names `handle` as a distinct token.
+ * `@Ann` must not match `@Anna`. Bare names count only when capitalized
+ * (`Five` satisfies `@Five`; lowercase `will` does not satisfy `@Will`).
+ */
+export function actionNamesHandle(action: string, handle: string): boolean {
+  const normalizedHandle = handle.trim()
+
+  if (normalizedHandle === "") {
+    return false
+  }
+
+  const body = normalizedHandle.replace(/^@+/, "")
+
+  if (body === "") {
+    return false
+  }
+
+  const escapedHandle = escapeRegExp(normalizedHandle)
+
+  if (new RegExp(`${escapedHandle}(?![\\w-])`, "i").test(action)) {
+    return true
+  }
+
+  const escapedBody = escapeRegExp(body)
+  const unadorned = action.match(
+    new RegExp(`(?:^|[^\\w@])(${escapedBody})(?![\\w-])`, "i")
+  )
+
+  return unadorned !== null && /[A-Z]/.test(unadorned[1] ?? "")
+}
+
+/**
+ * Appends each missing `@handle` to the shortest scene action so a finished
+ * plan always names the full cast. Last resort after planning and repair.
+ */
+export function foldMissingHandlesIntoScenes<T extends { action: string }>(
+  scenes: T[],
+  characterHandles: string[]
+): T[] {
+  const nextScenes = scenes.map((scene) => ({ ...scene }))
+
+  for (const handle of missingCharacterHandles(
+    nextScenes,
+    characterHandles
+  )) {
+    const target = nextScenes.reduce((shortest, scene) =>
+      scene.action.length <= shortest.action.length ? scene : shortest
+    )
+    target.action = appendHandleToAction(target.action, handle)
+  }
+
+  return nextScenes
+}
+
+/**
+ * Maps a scene count to the tightest valid {@link StoryboardLayout} preset.
+ * Planned counts are 4, 6, 9, or 12, which fill these layouts with no leftover cells:
+ * - 4 scenes  → 2×2
+ * - 6 scenes  → 3×2
+ * - 9 scenes  → 3×3
+ * - 12 scenes → 4×3
  */
 export function layoutForSceneCount(sceneCount: number): StoryboardLayout {
   const bounded = Math.min(
@@ -244,4 +322,44 @@ export function layoutForSceneCount(sceneCount: number): StoryboardLayout {
   if (bounded <= 6) return GRID_PRESETS[1] // 3×2
   if (bounded <= 9) return GRID_PRESETS[2] // 3×3
   return GRID_PRESETS[4]                   // 4×3
+}
+
+/**
+ * Named character `@handles` that do not appear in any scene action.
+ */
+export function missingCharacterHandles(
+  scenes: Array<{ action: string }>,
+  characterHandles: string[]
+): string[] {
+  return characterHandles.filter(
+    (handle) =>
+      !scenes.some((scene) => actionNamesHandle(scene.action, handle))
+  )
+}
+
+/**
+ * Appends `handle` to `action`, trimming the existing clause when needed so
+ * the result stays within {@link MAX_NOTE_LENGTH}.
+ */
+function appendHandleToAction(action: string, handle: string): string {
+  const suffix = ` with ${handle}`
+
+  if (action.length + suffix.length <= MAX_NOTE_LENGTH) {
+    return `${trimTrailingTerminators(action)}${suffix}`
+  }
+
+  const budget = Math.max(0, MAX_NOTE_LENGTH - suffix.length)
+  const trimmed = trimTrailingTerminators(action.slice(0, budget))
+
+  return `${trimmed}${suffix}`
+}
+
+/** Escapes `value` so it can be used as a literal in a `RegExp`. */
+function escapeRegExp(value: string): string {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")
+}
+
+/** Strips trailing whitespace and clause punctuation. */
+function trimTrailingTerminators(value: string): string {
+  return value.replace(/[\s,;:.]+$/u, "")
 }

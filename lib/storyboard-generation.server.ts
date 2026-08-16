@@ -184,7 +184,6 @@ export function buildCompositePrompt({
         }`
     )
     .join("\n")
-  const emptyCellCount = rows * columns - scenes.length
   const hasStyleGuidance = hasVisualStyleGuidance({
     depthMapStyle,
     styleImageCount: effectiveStyleImageCount,
@@ -238,7 +237,7 @@ ${styleSection === "" ? "" : `${styleSection}\n\n`}GRID SPECIFICATION:
 - Every cell has the same dimensions and a cinematic 16:9 composition.
 - Cells are rendered edge-to-edge with ZERO gap: no separator lines, no borders, no gutters, no margins, no frames anywhere on the sheet.
 - Keep each shot fully contained in its own cell with a clean hard boundary between adjacent shots. Never blend imagery across cell boundaries.
-${emptyCellCount > 0 ? `- Leave the final ${emptyCellCount} unused cell${emptyCellCount === 1 ? "" : "s"} solid black.` : ""}
+- Fill every cell with a story beat. There are no unused cells.
 ${layoutReferenceInstruction}
 
 RENDERING (hard requirement):
@@ -375,8 +374,16 @@ function buildCharacterContinuity(
       : `\n\nCharacter identities use @handle form (e.g. @XYZ) in the storyline and sheets; keep each @handle visually consistent across every cell. Never draw @handles as readable text on any cell.\n\nWritten character sheets:\n${characterSheets.join(
           "\n\n---\n\n"
         )}`
+  const castCoverage =
+    characterSheets.length === 0
+      ? ""
+      : " Every named character plays a part in the story and must be depicted in at least one cell."
+  const imageCoverage =
+    characterImageCount === 0
+      ? ""
+      : " Depict every supplied character reference in at least one cell."
 
-  return `Maintain the supplied character designs exactly across every frame. Re-assert each character's identity inside every cell they appear in — same face, hair, wardrobe, and silhouette.${sheets}`
+  return `Maintain the supplied character designs exactly across every frame. Re-assert each character's identity inside every cell they appear in — same face, hair, wardrobe, and silhouette.${castCoverage}${imageCoverage}${sheets}`
 }
 
 interface EnvironmentContinuityOptions {
