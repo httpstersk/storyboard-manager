@@ -68,6 +68,18 @@ export const DEFAULT_ACTION_TEXT = "Hold on the framed subject."
 export const DEFAULT_AUDIO_TEXT = " Audio: natural diegetic sound, no music."
 
 /**
+ * How much freedom each shot mode has to restage a supplied location.
+ * One unbroken take needs a stable traversable space; cuts may pick fresh
+ * setups within the same place.
+ */
+const ENVIRONMENT_STAGING_DIRECTIONS: Record<ShotMode, string> = {
+  continuous:
+    "Keep the location's layout self-consistent so the unbroken camera move reads as one traversable space.",
+  "multi-shot":
+    "Each shot may reveal a different part of the location; no two shots repeat the same setup.",
+}
+
+/**
  * Noun used to introduce each beat. Cut sequences read as numbered shots;
  * an unbroken take has only one shot, so its panels are numbered beats.
  */
@@ -169,7 +181,11 @@ export function buildSeedanceVideoPrompt({
   const sections = [
     formatCharacterReferences(characterImageCount),
     formatCharacterNotes(characterNotes),
-    formatEnvironmentReferences(characterImageCount, environmentImageCount),
+    formatEnvironmentReferences({
+      characterImageCount,
+      environmentImageCount,
+      shotMode,
+    }),
     formatEnvironmentNotes(environmentNotes),
   ]
 
@@ -289,19 +305,32 @@ export function formatEnvironmentNotes(
   return formatNotes(environmentNotes, "Environment notes")
 }
 
+interface EnvironmentReferencesOptions {
+  /** Character references preceding this group. */
+  characterImageCount: number
+  /** The number of environment reference images. */
+  environmentImageCount: number
+  /** Whether the beats read as cut shots or one unbroken take. */
+  shotMode: ShotMode
+}
+
 /**
- * Generates environment image references and location preservation
- * instructions. Environments follow the character references, so their
- * bindings start after the character block.
+ * Generates environment image references and location staging instructions.
+ * Environments follow the character references, so their bindings start after
+ * the character block.
  *
- * @param characterImageCount - Character references preceding this group.
- * @param environmentImageCount - The number of environment reference images.
+ * The references establish what the location is; their framing and element
+ * arrangement must not be reproduced, so how freely each shot may restage
+ * comes from {@link ENVIRONMENT_STAGING_DIRECTIONS}.
+ *
+ * @param options - Preceding character count, environment count, shot mode.
  * @returns A formatted string detailing the environment reference bindings.
  */
-export function formatEnvironmentReferences(
-  characterImageCount: number,
-  environmentImageCount: number
-): string {
+export function formatEnvironmentReferences({
+  characterImageCount,
+  environmentImageCount,
+  shotMode,
+}: EnvironmentReferencesOptions): string {
   const imageRefs = formatImageBindings(
     environmentImageCount,
     STARTING_REFERENCE_IMAGE_INDEX + Math.max(characterImageCount, 0)
@@ -319,7 +348,10 @@ export function formatEnvironmentReferences(
   const imageTerm =
     environmentImageCount === 1 ? "this image" : "these images"
 
-  return `${imageRefs} ${referenceTerm}. Preserve the location's architecture, materials, set dressing, and spatial geography from ${imageTerm} across every shot — change only the camera's vantage point on it.`
+  const establishTerm =
+    environmentImageCount === 1 ? "It establishes" : "They establish"
+
+  return `${imageRefs} ${referenceTerm}. ${establishTerm} what the location is — architecture, materials, set dressing, period, and scale. Do not reproduce the framing, cropping, or the arrangement of buildings and set pieces shown in ${imageTerm}; keep the place recognizable while staging new views of it. ${ENVIRONMENT_STAGING_DIRECTIONS[shotMode]}`
 }
 
 /**

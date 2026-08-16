@@ -126,6 +126,17 @@ OUTPUT REQUIREMENTS (hard requirements):
 - Absolutely no text, typography, or burned-in graphics anywhere in the frame — no shot numbers, craft slates, labels, captions, titles, subtitles, watermarks, borders, or UI chrome.
 - Never render craft metadata as readable text: shot codes (WS, MS, MCU, CU), camera or lens names, movement words (e.g. Static), lighting names (e.g. Blue hour), dialogue, or @handles. Pure imagery only.`
 
+/**
+ * How much freedom each shot mode has to restage a supplied location.
+ * Continuous takes need one traversable space; cuts may pick fresh setups.
+ */
+const ENVIRONMENT_STAGING_DIRECTIONS: Record<ShotMode, string> = {
+  continuous:
+    "The take moves through one coherent, traversable version of the location: once you establish where its elements sit relative to one another, keep that arrangement self-consistent from cell to cell so the camera's travel reads as physically continuous. Open the take from a vantage point of your own rather than the reference's.",
+  "multi-shot":
+    "Each cut restages freely — a different part of the location, a different depth relationship, and a different angle in every cell. Two cells set in the same location must never read as the same setup.",
+}
+
 /** How adjacent cells relate to one another in each shot mode. */
 const SHOT_MODE_SEQUENCE_DIRECTIONS: Record<ShotMode, string> = {
   continuous:
@@ -176,7 +187,11 @@ export function buildCompositePrompt({
   })
   const continuity = [
     buildCharacterContinuity(characterImageCount, characterSheets),
-    buildEnvironmentContinuity(environmentImageCount, environmentSheets),
+    buildEnvironmentContinuity({
+      environmentImageCount,
+      environmentSheets,
+      shotMode,
+    }),
   ].join("\n\n")
   const referenceDirections = buildReferenceDirections({
     characterImageCount,
@@ -359,14 +374,27 @@ function buildCharacterContinuity(
   return `Maintain the supplied character designs exactly across every frame. Re-assert each character's identity inside every cell they appear in — same face, hair, wardrobe, and silhouette.${sheets}`
 }
 
+interface EnvironmentContinuityOptions {
+  /** Number of input images that define location and set design. */
+  environmentImageCount: number
+  /** Environment continuity instructions supplied by the user. */
+  environmentSheets: string[]
+  /** Whether the cells are cut shots or moments of one unbroken take. */
+  shotMode: ShotMode
+}
+
 /**
  * Location and set-design guidance for the CONTINUITY block. Falls back to
  * inferring settings when the board supplies no environment material.
+ *
+ * Reference images document what a place is, never a framing to reproduce, so
+ * the staging freedom comes from {@link ENVIRONMENT_STAGING_DIRECTIONS}.
  */
-function buildEnvironmentContinuity(
-  environmentImageCount: number,
-  environmentSheets: string[]
-): string {
+function buildEnvironmentContinuity({
+  environmentImageCount,
+  environmentSheets,
+  shotMode,
+}: EnvironmentContinuityOptions): string {
   if (environmentImageCount === 0 && environmentSheets.length === 0) {
     return "Infer the settings from the storyline and keep each recurring location's architecture, set dressing, and geography identical every time it appears."
   }
@@ -374,11 +402,11 @@ function buildEnvironmentContinuity(
   const sheets =
     environmentSheets.length === 0
       ? ""
-      : `\n\nLocations use @handle form (e.g. @XYZ) in the storyline and sheets; every cell set in a given @handle shares that location's architecture, materials, set dressing, and spatial layout. Never draw @handles as readable text on any cell.\n\nWritten environment sheets:\n${environmentSheets.join(
+      : `\n\nLocations use @handle form (e.g. @XYZ) in the storyline and sheets; every cell set in a given @handle shares that location's architecture, materials, and set dressing. Never draw @handles as readable text on any cell.\n\nWritten environment sheets:\n${environmentSheets.join(
           "\n\n---\n\n"
         )}`
 
-  return `Maintain the supplied environment designs exactly across every frame. Re-assert each location's architecture, materials, set dressing, and spatial geography inside every cell set there, changing only the camera's vantage point on it.${sheets}`
+  return `Each location is recognizably the same place in every cell set there — same architecture, materials, set dressing, period, and scale. Never reproduce a reference image's own composition: no cell may repeat the reference's vantage point, cropping, or the placement and arrangement of buildings and set pieces as they appear in it. Treat the references as documentation of the place, then stage fresh views of it. ${ENVIRONMENT_STAGING_DIRECTIONS[shotMode]}${sheets}`
 }
 
 /** One group of model input images sharing a single role. */
@@ -425,7 +453,7 @@ function buildReferenceDirections({
     {
       count: environmentImageCount,
       describe: (range) =>
-        `${range}: ENVIRONMENT REFERENCES. Use only for location architecture, set dressing, geography, and production design continuity. Do not inherit their people, wardrobe, camera framing, or visual style.`,
+        `${range}: ENVIRONMENT REFERENCES. They identify what the location is — architecture, materials, set dressing, period, and scale. They are design references, not framings to reproduce: do not copy their composition, camera framing, cropping, vantage point, or the exact placement and arrangement of buildings and set pieces. Do not inherit their people, wardrobe, weather, time of day, or visual style. Stage every cell as its own view of that place.`,
     },
     {
       count: styleImageCount,

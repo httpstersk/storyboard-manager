@@ -36,7 +36,7 @@ Craft rules, applied to every plan:
 - Compose deliberately. At most 2 scenes in the whole board may place the subject dead-center. Spread the rest across rule-of-thirds placements, negative space, foreground occlusion, over-the-shoulder framings, and low or high angles.
 - Pace with intent. Scene durations form a rhythm: longer establishing and emotional beats, shorter action and reaction beats.
 - Bind characters by @handle. When character material exists, actions name subjects with their @handle (e.g. @XYZ) and re-bind them with concrete identifiers (wardrobe, hair, silhouette), never bare pronouns.
-- Bind locations by @handle. When environment material exists, stage the beats inside those locations and name them with their @handle (e.g. @XYZ), re-binding with concrete identifiers (architecture, materials, set dressing) rather than a vague place noun.
+- Bind locations by @handle. When environment material exists, stage the beats inside those locations and name them with their @handle (e.g. @XYZ), re-binding with concrete identifiers (architecture, materials, set dressing) rather than a vague place noun. Say which part of the location each beat occupies — a specific corner, threshold, elevation, or approach — so consecutive beats set in one @handle never all describe the same view of it.
 - Respect visual style. When a written style and/or style reference images are declared, plan lighting, mood, and action language that fit that medium. Do not assume photoreal live-action when the style is illustration, animation, painterly, or any other non-photoreal treatment.`
 
 /** Cut grammar rules that only apply to the selected shot mode. */
