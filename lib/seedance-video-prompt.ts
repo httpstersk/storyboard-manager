@@ -50,7 +50,10 @@ export interface BuildSeedanceVideoPromptInput {
  * environment. Mirrors the composer's note rows without importing UI modules.
  */
 export interface SeedanceNote {
-  /** Display name, used as an @handle when non-empty. */
+  /**
+   * Display name from the composer. May arrive as an `@handle`; the prompt
+   * strips the `@` so Seedance does not treat it as an `@ImageN` binding.
+   */
   name: string
   /** Free-text appearance, wardrobe, or set-design notes. */
   notes: string
@@ -172,7 +175,7 @@ export function buildSeedanceVideoPrompt({
 
   if (trimmedVisualStyle !== "") {
     lines.push(
-      `Visual style lock: ${trimmedVisualStyle}. Preserve this medium, palette, lighting language, and image-making treatment across every shot — do not drift toward a different look.`
+      `Visual style lock: ${formatPromptProse(trimmedVisualStyle)} Preserve this medium, palette, lighting language, and image-making treatment across every shot — do not drift toward a different look.`
     )
   } else if (depthMapStyle) {
     lines.push(DEPTH_MAP_DEFAULT_VIDEO_STYLE_LOCK)
@@ -220,8 +223,8 @@ export function buildSeedanceVideoPrompt({
 function formatNotes(notes: SeedanceNote[], label: string): string {
   const namedNotes = notes
     .map((note) => {
-      const name = note.name.trim()
-      const noteText = note.notes.trim()
+      const name = formatReferenceLabel(note.name)
+      const noteText = stripComposerHandles(note.notes.trim())
 
       if (name === "" && noteText === "") {
         return null
@@ -231,11 +234,35 @@ function formatNotes(notes: SeedanceNote[], label: string): string {
         return noteText
       }
 
-      return noteText === "" ? `@${name}` : `@${name}: ${noteText}`
+      return noteText === "" ? name : `${name}: ${noteText}`
     })
     .filter((value): value is string => value !== null)
 
-  return namedNotes.length > 0 ? `${label}: ${namedNotes.join("; ")}.` : ""
+  return namedNotes.length > 0
+    ? formatPromptProse(`${label}: ${namedNotes.join("; ")}`)
+    : ""
+}
+
+/**
+ * Normalizes user/LLM prose for the Seedance prompt: drop composer `@handles`
+ * and guarantee a single trailing sentence terminator.
+ *
+ * @param text - Action, notes, or style copy that may already be punctuated.
+ * @returns The cleaned sentence, or an empty string when `text` is blank.
+ */
+function formatPromptProse(text: string): string {
+  return withSentencePeriod(stripComposerHandles(text))
+}
+
+/**
+ * Strips leading `@` from a composer handle so the video prompt uses a plain
+ * label (`Character`, not `@Character` / `@@Character`).
+ *
+ * @param name - Raw note name, with or without a leading `@`.
+ * @returns The label with leading `@` signs removed.
+ */
+function formatReferenceLabel(name: string): string {
+  return name.trim().replace(/^@+/, "")
 }
 
 /**
@@ -369,17 +396,54 @@ export function formatShotBeat(
 ): string {
   const craft = `[${scene.shot} | ${scene.camera} | ${scene.lens} | ${scene.movement} | ${scene.lighting}]`
   const trimmedAction = scene.action.trim()
-  const action = trimmedAction === "" ? DEFAULT_ACTION_TEXT : trimmedAction
+  const action = formatPromptProse(
+    trimmedAction === "" ? DEFAULT_ACTION_TEXT : trimmedAction
+  )
 
-  const dialogueTrimmed = scene.dialogue.trim()
+  const dialogueTrimmed = stripComposerHandles(scene.dialogue.trim())
   const dialogue =
     dialogueTrimmed === "" ? "" : ` Says: "${dialogueTrimmed}".`
 
   const musicTrimmed = scene.music.trim()
   const audio =
-    musicTrimmed === "" ? DEFAULT_AUDIO_TEXT : ` Audio: ${musicTrimmed}.`
+    musicTrimmed === ""
+      ? DEFAULT_AUDIO_TEXT
+      : ` Audio: ${formatPromptProse(musicTrimmed)}`
 
-  return `${SHOT_BEAT_LABELS[shotMode]} ${shotNumber} — ${craft}: ${action}.${dialogue}${audio} Hold ~${scene.timeSeconds}s.`
+  return `${SHOT_BEAT_LABELS[shotMode]} ${shotNumber} — ${craft}: ${action}${dialogue}${audio} Hold ~${scene.timeSeconds}s.`
+}
+
+/**
+ * Removes composer `@handles` from prose while leaving Seedance `@ImageN`
+ * image bindings intact.
+ *
+ * @param text - Prompt copy that may mix handles and `@ImageN` tokens.
+ * @returns The same copy with `@Character`-style handles reduced to names.
+ */
+function stripComposerHandles(text: string): string {
+  return text.replace(/@(?!Image\d+)(\S+)/g, "$1")
+}
+
+/**
+ * Ensures a clause ends with a single sentence terminator so assembled
+ * prompt lines never trail with `..` or `...`.
+ *
+ * @param text - A prompt clause that may already end in punctuation.
+ * @returns The clause with one trailing `.`, or unchanged when it already
+ *   ends with `!`, `?`, or `…`.
+ */
+function withSentencePeriod(text: string): string {
+  const trimmed = text.trim().replace(/\.+$/, ".")
+
+  if (trimmed === "" || trimmed === ".") {
+    return ""
+  }
+
+  if (/[.!?…]$/.test(trimmed)) {
+    return trimmed
+  }
+
+  return `${trimmed}.`
 }
 
 interface SelectBasePromptOptions {
