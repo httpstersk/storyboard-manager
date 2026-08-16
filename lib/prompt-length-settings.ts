@@ -25,9 +25,9 @@ export const PROMPT_LENGTH_LABELS: Record<PromptLength, string> = {
 
 /** Maximum character count of the finished prompt for each {@link PromptLength}. */
 export const PROMPT_LENGTH_MAX_CHARS: Record<PromptLength, number> = {
-  large: 5000,
-  medium: 3500,
-  small: 2500,
+  large: 8000,
+  medium: 5000,
+  small: 3500,
 }
 
 /** Default preference: a balanced mid-length prompt. */

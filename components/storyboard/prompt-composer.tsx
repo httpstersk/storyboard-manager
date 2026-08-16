@@ -28,6 +28,7 @@ import {
   serializeComposerNotes,
 } from "@/lib/board-composer"
 import { depthMapStyleAtom } from "@/lib/depth-map-style-settings"
+import { allocateStoryboardReferenceSlots } from "@/lib/generation"
 import { imageModelAtom } from "@/lib/image-model-settings"
 import { imageResolutionAtom } from "@/lib/image-resolution-settings"
 import { TRANSITION_FADE_FAST } from "@/lib/motion"
@@ -322,19 +323,28 @@ function PromptComposerRoot({
                 ),
           ])
 
+        const slots = allocateStoryboardReferenceSlots(
+          characterImageRefs.length,
+          environmentImageRefs.length,
+          styleImageRefs.length
+        )
+
         // Fire-and-forget: the workspace tracks the generation per board,
         // so the composer frees up for the next prompt immediately.
         onSubmit({
-          characterImageRefs,
+          characterImageRefs: characterImageRefs.slice(0, slots.characterCount),
           characterSheets: serializeComposerNotes(draft.characterNotes),
           depthMapStyle,
-          environmentImageRefs,
+          environmentImageRefs: environmentImageRefs.slice(
+            0,
+            slots.environmentCount
+          ),
           environmentSheets: serializeComposerNotes(draft.environmentNotes),
           imageModel,
           prompt: trimmedPrompt,
           resolution: imageResolution,
           shotMode,
-          styleImageRefs,
+          styleImageRefs: styleImageRefs.slice(0, slots.styleCount),
           visualStyle: depthMapStyle ? "" : draft.visualStyle.trim(),
         })
 

@@ -8,9 +8,12 @@ import { readFileAsDataUrl } from "@/components/storyboard/prompt-composer-conte
 import { IconButton } from "@/components/ui/icon-button"
 import { enqueueCapture } from "@/lib/capture-queue"
 import { requestVideoGeneration } from "@/lib/generate-video-client"
-import type { Scene } from "@/lib/storyboard"
+import { type Scene, totalRuntimeSeconds } from "@/lib/storyboard"
 import { cn } from "@/lib/utils"
-import { allocateSeedanceReferenceSlots } from "@/lib/video-generation"
+import {
+  allocateSeedanceReferenceSlots,
+  resolveSeedanceDuration,
+} from "@/lib/video-generation"
 import {
   completeBoardVideoGeneration,
   composerCharacterImageFilesAtom,
@@ -154,7 +157,7 @@ function VideoSectionPlayer({
         <div className="flex size-full items-center justify-center px-4">
           <p className="text-center text-caption text-ink-faint">
             {isGenerating
-              ? "Generating video with Seedance 2.0…"
+              ? "Generating video with Seedance 2.5…"
               : "Generated video will appear here"}
           </p>
         </div>
@@ -182,6 +185,7 @@ function VideoSectionPrompt({
   const { error, isGenerating } = useAtomValue(boardVideoAtom)
   const setVideoByBoardId = useSetAtom(videoGenerationByBoardIdAtom)
   const prompt = useAtomValue(seedanceVideoPromptAtom)
+  const source = useAtomValue(videoPromptSourceAtom)
   /** Caches data-URL conversions so the same File is never re-read twice. */
   const referenceImageCacheRef = React.useRef<WeakMap<File, string>>(
     new WeakMap()
@@ -236,6 +240,9 @@ function VideoSectionPrompt({
     // the request or block Generate Video on other boards.
     const generationBoardId = boardId
     const generationCapture = captureGridPng
+    const generationDuration = resolveSeedanceDuration(
+      totalRuntimeSeconds(source.scenes)
+    )
     const generationPrompt = prompt
     // Same allocation the prompt's @ImageN bindings were built from, so the
     // uploaded image order always matches the text.
@@ -276,6 +283,7 @@ function VideoSectionPrompt({
         ])
         const { videoUrl } = await requestVideoGeneration({
           characterImageRefs,
+          duration: generationDuration,
           environmentImageRefs,
           prompt: generationPrompt,
           storyboardImage,

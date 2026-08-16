@@ -14,9 +14,10 @@ export const MAX_HANDLE_LENGTH = 120
 
 /**
  * Maximum number of note rows of one kind (characters or environments)
- * accepted by a single generation request.
+ * accepted by a single generation request. Seedance 2.5 stays stable around
+ * 8 named subjects and remains usable up to about 12.
  */
-export const MAX_COMPOSER_SHEETS = 9
+export const MAX_COMPOSER_SHEETS = 12
 
 /** Maximum text length of one serialized composer sheet. */
 export const MAX_COMPOSER_SHEET_LENGTH = 20_000

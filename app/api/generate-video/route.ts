@@ -11,7 +11,7 @@ import {
 } from "@/lib/video-generation"
 
 /** Long-running media generation allowance for supported Next.js hosts. */
-export const maxDuration = 300
+export const maxDuration = 600
 
 /** Ensures the Fal client runs in a full Node.js environment. */
 export const runtime = "nodejs"
@@ -31,8 +31,8 @@ async function uploadDataUrl(dataUrl: string): Promise<string> {
 }
 
 /**
- * Generates a Seedance 2.0 video from the storyboard PNG, optional character
- * and environment reference images, and a shot-list prompt.
+ * Generates a Seedance 2.5 video from the storyboard PNG, optional character
+ * and environment reference images, and a structured 2.5 prompt.
  */
 export async function POST(request: Request): Promise<Response> {
   const falKey = resolveFalApiKey()
@@ -69,8 +69,13 @@ export async function POST(request: Request): Promise<Response> {
     )
   }
 
-  const { characterImageRefs, environmentImageRefs, prompt, storyboardImage } =
-    parsedRequest.data
+  const {
+    characterImageRefs,
+    duration,
+    environmentImageRefs,
+    prompt,
+    storyboardImage,
+  } = parsedRequest.data
 
   try {
     // Order is load-bearing: the prompt's @ImageN bindings assume the
@@ -83,7 +88,7 @@ export async function POST(request: Request): Promise<Response> {
     const result = await fal.subscribe(SEEDANCE_REFERENCE_TO_VIDEO_MODEL_ID, {
       input: {
         aspect_ratio: "16:9",
-        duration: "auto",
+        duration,
         generate_audio: true,
         image_urls: imageUrls,
         prompt,

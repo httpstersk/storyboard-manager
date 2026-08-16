@@ -27,14 +27,18 @@ import {
 import { IMAGE_UPLOAD_RULES, MAX_NOTE_LENGTH } from "@/lib/validation"
 
 /**
- * Maximum number of image references accepted per generation request.
- * Both models' edit endpoints accept at least 10 input images; keep
- * headroom below that.
+ * Maximum number of image references accepted per storyboard image-generation
+ * request. Seedance video stills use a separate, higher cap in
+ * `lib/video-generation.ts`. Both image models' edit endpoints accept at
+ * least 10 input images; keep headroom below that.
  */
-export const MAX_IMAGE_REFERENCES = 9
+export const MAX_IMAGE_REFERENCES = 15
 
-/** User-facing message shared by client and server image-count validation. */
+/** User-facing message when storyboard-gen stills exceed the image-model budget. */
 export const MAX_IMAGE_REFERENCES_ERROR = `Attach up to ${MAX_IMAGE_REFERENCES} reference images in total.`
+
+/** User-facing message when style stills exceed the storyboard-gen budget. */
+export const MAX_STYLE_IMAGE_REFERENCES_ERROR = `Attach up to ${MAX_IMAGE_REFERENCES} style reference images.`
 
 /**
  * Scene counts that fill a generation layout with no leftover cells:
@@ -250,6 +254,50 @@ export interface StoryboardLayout {
 }
 
 /**
+ * How many character, environment, and style stills fit in the storyboard
+ * image-model input budget. Style is kept first, then characters, then
+ * environments, so Seedream/Nano Banana never receive more than
+ * {@link MAX_IMAGE_REFERENCES} images.
+ */
+export interface StoryboardReferenceSlots {
+  characterCount: number
+  environmentCount: number
+  styleCount: number
+}
+
+/**
+ * Allocates {@link MAX_IMAGE_REFERENCES} across style, character, and
+ * environment stills for storyboard image generation. Style stills are
+ * kept first because they lock the look; leftover slots go to characters,
+ * then environments.
+ *
+ * @param characterCount - Character reference images the board holds.
+ * @param environmentCount - Environment reference images the board holds.
+ * @param styleCount - Visual-style reference images the board holds.
+ * @returns The counts that fit the image-model budget.
+ */
+export function allocateStoryboardReferenceSlots(
+  characterCount: number,
+  environmentCount: number,
+  styleCount: number
+): StoryboardReferenceSlots {
+  const style = Math.min(Math.max(styleCount, 0), MAX_IMAGE_REFERENCES)
+  const remainingAfterStyle = MAX_IMAGE_REFERENCES - style
+  const characters = Math.min(Math.max(characterCount, 0), remainingAfterStyle)
+  const remainingAfterCharacters = remainingAfterStyle - characters
+  const environments = Math.min(
+    Math.max(environmentCount, 0),
+    remainingAfterCharacters
+  )
+
+  return {
+    characterCount: characters,
+    environmentCount: environments,
+    styleCount: style,
+  }
+}
+
+/**
  * Whether `action` names `handle` as a distinct token.
  * `@Ann` must not match `@Anna`. Bare names count only when capitalized
  * (`Five` satisfies `@Five`; lowercase `will` does not satisfy `@Will`).
@@ -291,10 +339,7 @@ export function foldMissingHandlesIntoScenes<T extends { action: string }>(
 ): T[] {
   const nextScenes = scenes.map((scene) => ({ ...scene }))
 
-  for (const handle of missingCharacterHandles(
-    nextScenes,
-    characterHandles
-  )) {
+  for (const handle of missingCharacterHandles(nextScenes, characterHandles)) {
     const target = nextScenes.reduce((shortest, scene) =>
       scene.action.length <= shortest.action.length ? scene : shortest
     )
@@ -321,7 +366,7 @@ export function layoutForSceneCount(sceneCount: number): StoryboardLayout {
   if (bounded <= 4) return GRID_PRESETS[0] // 2×2
   if (bounded <= 6) return GRID_PRESETS[1] // 3×2
   if (bounded <= 9) return GRID_PRESETS[2] // 3×3
-  return GRID_PRESETS[4]                   // 4×3
+  return GRID_PRESETS[4] // 4×3
 }
 
 /**
@@ -332,8 +377,7 @@ export function missingCharacterHandles(
   characterHandles: string[]
 ): string[] {
   return characterHandles.filter(
-    (handle) =>
-      !scenes.some((scene) => actionNamesHandle(scene.action, handle))
+    (handle) => !scenes.some((scene) => actionNamesHandle(scene.action, handle))
   )
 }
 

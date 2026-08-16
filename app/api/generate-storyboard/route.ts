@@ -36,9 +36,9 @@ export const runtime = "nodejs"
 const DIRECTOR_SYSTEM_PROMPT = `You are a veteran storyboard director. Your boards are judged on followability, not completeness: a reader must grasp the story from the frames alone, in order, at a glance.
 
 Craft rules, applied to every plan:
-- One beat per scene. Each action is a single concise clause with exactly one primary subject performing one action. Other named characters may be present in the frame (over-the-shoulder, opposite, background) when the story requires them, named by @handle. No compound actions, no montage descriptions.
+- One beat per scene. Each action is a single concise clause with exactly one primary subject performing one action that ends on a visible state (where people, props, and the camera sit when the beat completes). Other named characters may be present in the frame (over-the-shoulder, opposite, background) when the story requires them, named by @handle. No compound actions, no montage descriptions.
 - Compose deliberately. At most 2 scenes in the whole board may place the subject dead-center. Spread the rest across rule-of-thirds placements, negative space, foreground occlusion, over-the-shoulder framings, and low or high angles.
-- Pace with intent. Scene durations form a rhythm: longer establishing and emotional beats, shorter action and reaction beats.
+- Pace with intent. The whole board totals 4 to 30 seconds so it can play as one Seedance 2.5 clip. Scene durations form a rhythm: longer establishing and emotional beats, shorter action and reaction beats.
 - Cover the full cast. When character material exists, every named @handle appears in at least one scene; they all play a part in the story. Do not drop a character because they have fewer beats.
 - Bind characters by @handle. When character material exists, actions name the primary subject with their @handle (e.g. @XYZ) and re-bind them with concrete identifiers (wardrobe, hair, silhouette), never bare pronouns. Name any other characters in the frame by @handle too.
 - Bind locations by @handle. When environment material exists, stage the beats inside those locations and name them with their @handle (e.g. @XYZ), re-binding with concrete identifiers (architecture, materials, set dressing) rather than a vague place noun. Say which part of the location each beat occupies — a specific corner, threshold, elevation, or approach — so consecutive beats set in one @handle never all describe the same view of it.
@@ -75,21 +75,21 @@ const PLANNING_FIELD_GUIDANCE: Record<ShotMode, PlanningFieldGuidance> = {
       "movement: the camera movement that carries the take out of the previous framing and into this one, Static only for a deliberate held moment",
     shot: "shot: one of WS, MS, MCU, or CU, reachable from the previous scene's framing through camera travel or subject blocking",
     timeSeconds:
-      "timeSeconds: the planned duration in whole seconds (1 to 60), paced so the scenes read as one unbroken take",
+      "timeSeconds: the planned duration in whole seconds (1 to 60), paced so the scenes read as one unbroken take and the board totals 4 to 30 seconds",
   },
   "multi-shot": {
     movement:
       "movement: the camera movement that serves the beat, Static when stillness is stronger",
     shot: "shot: one of WS, MS, MCU, or CU, chosen for narrative function",
     timeSeconds:
-      "timeSeconds: the planned duration in whole seconds (1 to 60), paced for rhythm",
+      "timeSeconds: the planned duration in whole seconds (1 to 60), paced for rhythm so the board totals 4 to 30 seconds",
   },
   voyeuristic: {
     movement:
       "movement: Zoom in when the lens tightens onto the subject from the watching frame, Zoom out when it returns to the wide watching frame before the camera leaves the location, otherwise the drift that carries the unseen camera on — Handheld or Steadicam to creep to the next vantage, Static for a held moment of watching",
     shot: "shot: one of WS, MS, MCU, or CU, where WS is the concealed watching frame and the tighter sizes are what the zoom reaches, always reachable from the previous framing without a cut",
     timeSeconds:
-      "timeSeconds: the planned duration in whole seconds (1 to 60), paced as one unbroken observation with lingering watching beats",
+      "timeSeconds: the planned duration in whole seconds (1 to 60), paced as one unbroken observation with lingering watching beats so the board totals 4 to 30 seconds",
   },
 }
 
@@ -339,10 +339,10 @@ function buildPlanningPrompt({
 
   return `${PLANNING_SHOT_MODE_BRIEFS[shotMode]}
 
-Choose a scene count that fills an entire grid: 4 (2×2), 6 (3×2), 9 (3×3), or 12 (4×3). A short logline should use 4 or 6 beats; a full storyline should use 9 or 12. Prefer a count at least as large as the named cast so each character can play a part, capped at 12. Every cell is a story beat — do not leave unused cells.
+Choose a scene count that fills an entire grid: 4 (2×2), 6 (3×2), 9 (3×3), or 12 (4×3). A short logline should use 4 or 6 beats; a full storyline should use 9 or 12. Prefer a count at least as large as the named cast so each character can play a part, capped at 12. Every cell is a story beat — do not leave unused cells. Pace the whole board so the sum of timeSeconds is between 4 and 30.
 
 For every scene:
-- action: one concise, drawable visual beat with exactly one primary subject action (140 characters maximum). Other named characters may share the frame when the story requires them.
+- action: one concise, drawable visual beat with exactly one primary subject action that ends on a visible state (140 characters maximum). Other named characters may share the frame when the story requires them.
 - dialogue: only essential spoken context, otherwise an empty string
 - ${fieldGuidance.shot}
 - camera: the camera body whose character suits the beat

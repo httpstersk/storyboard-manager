@@ -11,9 +11,13 @@ import { NotesControl } from "@/components/storyboard/prompt-composer-notes-cont
 import { isComposerNoteFilled } from "@/lib/board-composer"
 import {
   MAX_IMAGE_REFERENCES,
-  MAX_IMAGE_REFERENCES_ERROR,
+  MAX_STYLE_IMAGE_REFERENCES_ERROR,
 } from "@/lib/generation"
 import { IMAGE_UPLOAD_RULES, validateImageFile } from "@/lib/validation"
+import {
+  MAX_SEEDANCE_ATTACHED_IMAGES,
+  MAX_SEEDANCE_ATTACHED_IMAGES_ERROR,
+} from "@/lib/video-generation"
 
 /** Attachment affordances and generation submit control. */
 function PromptComposerActions() {
@@ -34,24 +38,24 @@ function PromptComposerActions() {
   const characterImageInputRef = React.useRef<HTMLInputElement>(null)
   const environmentImageInputRef = React.useRef<HTMLInputElement>(null)
   const styleImageInputRef = React.useRef<HTMLInputElement>(null)
-  // Characters, environments, and styles share one model input-image budget.
-  const referenceCount =
-    characters.imageReferences.length +
-    environments.imageReferences.length +
-    styleImageReferences.length
-  const hasAvailableReferenceSlot = referenceCount < MAX_IMAGE_REFERENCES
-  const canAddReference = !isDisabled && hasAvailableReferenceSlot
+  const identityReferenceCount =
+    characters.imageReferences.length + environments.imageReferences.length
+  const canAddIdentityReference =
+    !isDisabled && identityReferenceCount < MAX_SEEDANCE_ATTACHED_IMAGES
+  const canAddStyleReference =
+    !isDisabled && styleImageReferences.length < MAX_IMAGE_REFERENCES
 
   if (mode === "image-edit") {
     return <PromptComposerImageEditActions />
   }
 
   const addImageReferences = (
-    files: File[],
+    availableSlots: number,
     current: File[],
+    files: File[],
+    overflowError: string,
     setReferences: (files: File[]) => void
   ): File[] => {
-    const availableSlots = MAX_IMAGE_REFERENCES - referenceCount
     const acceptedFiles: File[] = []
     let firstError: string | undefined
 
@@ -72,8 +76,7 @@ function PromptComposerActions() {
 
     setReferences([...current, ...acceptedFiles])
     setError(
-      firstError ??
-        (files.length > availableSlots ? MAX_IMAGE_REFERENCES_ERROR : null)
+      firstError ?? (files.length > availableSlots ? overflowError : null)
     )
 
     return acceptedFiles
@@ -109,17 +112,17 @@ function PromptComposerActions() {
           onToggle={() => setIsVisualStyleOpen(!isVisualStyleOpen)}
         />
         <ImageReferenceControl
-          canAdd={canAddReference}
+          canAdd={canAddIdentityReference}
           label="Characters"
           onAdd={() => characterImageInputRef.current?.click()}
         />
         <ImageReferenceControl
-          canAdd={canAddReference}
+          canAdd={canAddIdentityReference}
           label="Environments"
           onAdd={() => environmentImageInputRef.current?.click()}
         />
         <ImageReferenceControl
-          canAdd={canAddReference}
+          canAdd={canAddStyleReference}
           label="Styles"
           onAdd={() => styleImageInputRef.current?.click()}
         />
@@ -131,8 +134,10 @@ function PromptComposerActions() {
           multiple
           onChange={(event) => {
             addImageReferences(
-              Array.from(event.target.files ?? []),
+              MAX_SEEDANCE_ATTACHED_IMAGES - identityReferenceCount,
               characters.imageReferences,
+              Array.from(event.target.files ?? []),
+              MAX_SEEDANCE_ATTACHED_IMAGES_ERROR,
               characters.setImageReferences
             )
             event.target.value = ""
@@ -149,8 +154,10 @@ function PromptComposerActions() {
           multiple
           onChange={(event) => {
             addImageReferences(
-              Array.from(event.target.files ?? []),
+              MAX_SEEDANCE_ATTACHED_IMAGES - identityReferenceCount,
               environments.imageReferences,
+              Array.from(event.target.files ?? []),
+              MAX_SEEDANCE_ATTACHED_IMAGES_ERROR,
               environments.setImageReferences
             )
             event.target.value = ""
@@ -167,8 +174,10 @@ function PromptComposerActions() {
           multiple
           onChange={(event) => {
             const accepted = addImageReferences(
-              Array.from(event.target.files ?? []),
+              MAX_IMAGE_REFERENCES - styleImageReferences.length,
               styleImageReferences,
+              Array.from(event.target.files ?? []),
+              MAX_STYLE_IMAGE_REFERENCES_ERROR,
               setStyleImageReferences
             )
             event.target.value = ""

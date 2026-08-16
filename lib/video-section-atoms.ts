@@ -11,10 +11,13 @@ import {
   PROMPT_LENGTH_MAX_CHARS,
   promptLengthAtom,
 } from "@/lib/prompt-length-settings"
-import type { SeedanceNote } from "@/lib/seedance-video-prompt"
-import { buildSeedanceVideoPrompt } from "@/lib/seedance-video-prompt"
+import {
+  type SeedanceNote,
+  buildSeedanceVideoPrompt,
+} from "@/lib/seedance-video-prompt"
 import { shotModeAtom } from "@/lib/shot-mode-settings"
-import type { Scene } from "@/lib/storyboard"
+import { type Scene, totalRuntimeSeconds } from "@/lib/storyboard"
+import { resolveSeedanceDurationSeconds } from "@/lib/video-generation"
 
 /**
  * Session-only Seedance generation state for a single storyboard.
@@ -98,7 +101,7 @@ export const videoPromptSourceAtom = atom<VideoPromptSource>(
   EMPTY_VIDEO_PROMPT_SOURCE
 )
 
-/** Derived Seedance 2.0 prompt that updates whenever the source changes. */
+/** Derived Seedance 2.5 prompt that updates whenever the source changes. */
 export const seedanceVideoPromptAtom = atom((get) => {
   const depthMapStyle = get(depthMapStyleAtom)
   const promptLength = get(promptLengthAtom)
@@ -108,6 +111,9 @@ export const seedanceVideoPromptAtom = atom((get) => {
   return buildSeedanceVideoPrompt({
     ...source,
     depthMapStyle,
+    durationSeconds: resolveSeedanceDurationSeconds(
+      totalRuntimeSeconds(source.scenes)
+    ),
     maxLength: PROMPT_LENGTH_MAX_CHARS[promptLength],
     shotMode,
   })

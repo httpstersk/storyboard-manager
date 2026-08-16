@@ -11,7 +11,7 @@ export type VideoGenerationResult = z.infer<
 >
 
 /**
- * Requests a Seedance 2.0 video from the server API and validates the
+ * Requests a Seedance 2.5 video from the server API and validates the
  * response against the shared video generation schema.
  */
 export async function requestVideoGeneration(
