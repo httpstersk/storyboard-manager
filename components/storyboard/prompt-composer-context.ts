@@ -11,10 +11,17 @@ export type PromptComposerMode = "image-edit" | "storyboard"
 
 export interface PromptComposerContextValue {
   addCharacterNote: () => void
+  /**
+   * Analyses uploaded style reference images and fills the visual-style
+   * field with the result, but only while that field is empty.
+   */
+  analyzeStyleImages: (files: File[]) => void
   characterImageReferences: File[]
   characterNotes: CharacterNote[]
   error: string | null
   inputId: string
+  /** True while style images are being analysed into the visual-style field. */
+  isAnalyzingVisualStyle: boolean
   isCharacterSheetOpen: boolean
   /** True when the storyboard composer is inactive and rendered as a dense pill. */
   isCompact: boolean
@@ -46,12 +53,14 @@ export interface PromptComposerContextValue {
  */
 export interface ComposerState {
   error: string | null
+  isAnalyzingVisualStyle: boolean
   isCharacterSheetOpen: boolean
   isVisualStyleOpen: boolean
   prompt: string
 }
 
 export type ComposerAction =
+  | { isAnalyzingVisualStyle: boolean; type: "setAnalyzingVisualStyle" }
   | { error: string | null; type: "setError" }
   | { isCharacterSheetOpen: boolean; type: "setCharacterSheetOpen" }
   | { isVisualStyleOpen: boolean; type: "setVisualStyleOpen" }
@@ -60,6 +69,7 @@ export type ComposerAction =
 
 export const INITIAL_COMPOSER_STATE: ComposerState = {
   error: null,
+  isAnalyzingVisualStyle: false,
   isCharacterSheetOpen: false,
   isVisualStyleOpen: false,
   prompt: "",
@@ -73,6 +83,11 @@ export function composerReducer(
   switch (action.type) {
     case "resetPrompt":
       return { ...state, prompt: "" }
+    case "setAnalyzingVisualStyle":
+      return {
+        ...state,
+        isAnalyzingVisualStyle: action.isAnalyzingVisualStyle,
+      }
     case "setCharacterSheetOpen":
       return { ...state, isCharacterSheetOpen: action.isCharacterSheetOpen }
     case "setError":

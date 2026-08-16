@@ -11,6 +11,7 @@ import {
   type ImageModel,
   type ImageResolution,
 } from "@/lib/image-models"
+import { SHOT_MODES, type ShotMode } from "@/lib/shot-mode-settings"
 import {
   CAMERA_OPTIONS,
   COLUMN_LIMITS,
@@ -65,6 +66,9 @@ export const imageModelSchema = z.enum(IMAGE_MODELS).default("nano-banana-pro")
 /** Runtime schema for the 1K / 2K / 4K output resolution preference. */
 export const imageResolutionSchema = z.enum(IMAGE_RESOLUTIONS).default("2K")
 
+/** Runtime schema for the multi-shot / continuous shot mode preference. */
+export const shotModeSchema = z.enum(SHOT_MODES).default("multi-shot")
+
 /** Runtime schema for requests entering the generation API boundary. */
 export const storyboardGenerationRequestSchema = z
   .object({
@@ -76,6 +80,7 @@ export const storyboardGenerationRequestSchema = z
     imageModel: imageModelSchema,
     prompt: z.string().trim().min(1).max(MAX_PROMPT_LENGTH),
     resolution: imageResolutionSchema,
+    shotMode: shotModeSchema,
     styleImageRefs: z.array(dataUrlSchema).max(MAX_IMAGE_REFERENCES),
     visualStyle: z.string().trim().max(MAX_VISUAL_STYLE_LENGTH),
   })
@@ -145,6 +150,16 @@ export const storyboardGenerationResponseSchema = z.object({
   title: z.string().trim().min(1).max(60),
 })
 
+/** Runtime schema for requests that analyse uploaded visual-style images. */
+export const visualStyleAnalysisRequestSchema = z.object({
+  styleImageRefs: z.array(dataUrlSchema).min(1).max(MAX_IMAGE_REFERENCES),
+})
+
+/** Runtime schema for a successful visual-style analysis response. */
+export const visualStyleAnalysisResponseSchema = z.object({
+  visualStyle: z.string().trim().min(1).max(MAX_VISUAL_STYLE_LENGTH),
+})
+
 /** Runtime schema for requests that modify one existing scene image. */
 export const sceneImageEditRequestSchema = z.object({
   depthMapStyle: z.boolean().default(false),
@@ -168,8 +183,14 @@ export interface StoryboardGenerationRequest {
   imageModel: ImageModel
   prompt: string
   resolution: ImageResolution
+  shotMode: ShotMode
   styleImageRefs: string[]
   visualStyle: string
+}
+
+/** Client request submitted to analyse uploaded visual-style images. */
+export interface VisualStyleAnalysisRequest {
+  styleImageRefs: string[]
 }
 
 /** Client request submitted to modify one generated scene image. */

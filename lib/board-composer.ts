@@ -11,7 +11,7 @@
 export const MAX_CHARACTER_NAME_LENGTH = 120
 
 /** Maximum number of character sheets accepted by one generation request. */
-export const MAX_CHARACTER_SHEETS = 4
+export const MAX_CHARACTER_SHEETS = 9
 
 /** Maximum text length of one character sheet. */
 export const MAX_CHARACTER_SHEET_LENGTH = 20_000

@@ -40,7 +40,7 @@ function PromptComposerAttachments() {
             />
             <PromptComposerAttachmentGroup
               files={styleImageReferences}
-              label="Visual style"
+              label="Styles"
               onRemove={removeStyleImageReference}
             />
           </div>

@@ -67,6 +67,7 @@ function StoryboardWorkspace() {
     handleNewBoard,
     handleRowsChange,
     handleSelectBoard,
+    handleShotModeChange,
     handleShowParametersChange,
     handleUpdateBoardComposer,
     handleUpdateScene,
@@ -78,6 +79,7 @@ function StoryboardWorkspace() {
     previousEditingSceneId,
     runtime,
     selectedBoard,
+    shotMode,
     state,
     visibleBoards,
     visibleScenes,
@@ -111,8 +113,10 @@ function StoryboardWorkspace() {
             onImageResolutionChange={handleImageResolutionChange}
             onImport={handleImportClick}
             onRowsChange={handleRowsChange}
+            onShotModeChange={handleShotModeChange}
             onShowParametersChange={handleShowParametersChange}
             rows={state.rows}
+            shotMode={shotMode}
             showParameters={state.showParameters}
           />
         </SelectedBoardContext.Provider>

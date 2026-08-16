@@ -18,6 +18,7 @@ import { IMAGE_UPLOAD_RULES, validateImageFile } from "@/lib/validation"
 /** Attachment affordances and generation submit control. */
 function PromptComposerActions() {
   const {
+    analyzeStyleImages,
     characterImageReferences,
     characterNotes,
     isCharacterSheetOpen,
@@ -48,7 +49,7 @@ function PromptComposerActions() {
     files: File[],
     current: File[],
     setReferences: (files: File[]) => void
-  ) => {
+  ): File[] => {
     const availableSlots = MAX_IMAGE_REFERENCES - referenceCount
     const acceptedFiles: File[] = []
     let firstError: string | undefined
@@ -73,6 +74,8 @@ function PromptComposerActions() {
       firstError ??
         (files.length > availableSlots ? MAX_IMAGE_REFERENCES_ERROR : null)
     )
+
+    return acceptedFiles
   }
 
   return (
@@ -83,9 +86,7 @@ function PromptComposerActions() {
         role="group"
       >
         <CharacterNotesControl
-          characterCount={
-            characterNotes.filter(isCharacterNoteFilled).length
-          }
+          characterCount={characterNotes.filter(isCharacterNoteFilled).length}
           isDisabled={isDisabled}
           isOpen={isCharacterSheetOpen}
           onToggle={() => setIsCharacterSheetOpen(!isCharacterSheetOpen)}
@@ -93,17 +94,17 @@ function PromptComposerActions() {
         <DisclosureControl
           isDisabled={isDisabled}
           isOpen={isVisualStyleOpen}
-          label="Visual style"
+          label="Visual Note"
           onToggle={() => setIsVisualStyleOpen(!isVisualStyleOpen)}
         />
         <ImageReferenceControl
           canAdd={canAddReference}
-          label="Character images"
+          label="Characters"
           onAdd={() => characterImageInputRef.current?.click()}
         />
         <ImageReferenceControl
           canAdd={canAddReference}
-          label="Style images"
+          label="Styles"
           onAdd={() => styleImageInputRef.current?.click()}
         />
         <input
@@ -131,12 +132,16 @@ function PromptComposerActions() {
           disabled={isDisabled}
           multiple
           onChange={(event) => {
-            addImageReferences(
+            const accepted = addImageReferences(
               Array.from(event.target.files ?? []),
               styleImageReferences,
               setStyleImageReferences
             )
             event.target.value = ""
+
+            if (accepted.length > 0) {
+              analyzeStyleImages([...styleImageReferences, ...accepted])
+            }
           }}
           ref={styleImageInputRef}
           tabIndex={-1}

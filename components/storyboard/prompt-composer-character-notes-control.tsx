@@ -29,7 +29,7 @@ function CharacterNotesControl({
       count={characterCount}
       isDisabled={isDisabled}
       isOpen={isOpen}
-      label="Character notes"
+      label="Character Notes"
       onToggle={onToggle}
     />
   )

@@ -15,6 +15,7 @@ import {
   readFileAsDataUrl,
 } from "@/components/storyboard/prompt-composer-context"
 import { PromptComposerInput } from "@/components/storyboard/prompt-composer-input"
+import { requestVisualStyleAnalysis } from "@/lib/analyze-visual-style-client"
 import {
   createEmptyComposerDraft,
   MAX_CHARACTER_SHEETS,
@@ -25,6 +26,7 @@ import { depthMapStyleAtom } from "@/lib/depth-map-style-settings"
 import { imageModelAtom } from "@/lib/image-model-settings"
 import { imageResolutionAtom } from "@/lib/image-resolution-settings"
 import { TRANSITION_FADE_FAST } from "@/lib/motion"
+import { shotModeAtom } from "@/lib/shot-mode-settings"
 import { cn } from "@/lib/utils"
 import { MAX_SEEDANCE_CHARACTER_IMAGES } from "@/lib/video-generation"
 import {
@@ -71,6 +73,7 @@ function PromptComposerRoot({
   const depthMapStyle = useAtomValue(depthMapStyleAtom)
   const imageModel = useAtomValue(imageModelAtom)
   const imageResolution = useAtomValue(imageResolutionAtom)
+  const shotMode = useAtomValue(shotModeAtom)
   const setCharacterImageFiles = useSetAtom(composerCharacterImageFilesAtom)
   const setComposerVisualStyle = useSetAtom(composerVisualStyleAtom)
   const setVideoPromptSource = useSetAtom(videoPromptSourceAtom)
@@ -79,12 +82,17 @@ function PromptComposerRoot({
     INITIAL_COMPOSER_STATE
   )
   const [isSubmitting, startSubmitTransition] = React.useTransition()
+  // Latest visual-style value, read inside the async analysis callback so a
+  // late response never clobbers text the user typed while it was in flight.
+  const visualStyleRef = React.useRef(draft.visualStyle)
 
   // Sync character/style data into video + edit atoms. Keyed off the
   // per-board draft, so switching boards re-syncs to the new selection.
   // NOTE: The companion sync for `scenes` lives in VideoSectionRoot.
   // Each component owns its own slice; neither should overwrite the other.
   React.useEffect(() => {
+    visualStyleRef.current = draft.visualStyle
+
     if (mode === "image-edit") {
       return
     }
@@ -140,6 +148,49 @@ function PromptComposerRoot({
         (unusedFile, fileIndex) => fileIndex !== index
       ),
     })
+  }
+
+  const analyzeStyleImages = (files: File[]) => {
+    if (
+      mode === "image-edit" ||
+      files.length === 0 ||
+      state.isAnalyzingVisualStyle ||
+      visualStyleRef.current.trim() !== ""
+    ) {
+      return
+    }
+
+    dispatch({ isVisualStyleOpen: true, type: "setVisualStyleOpen" })
+    dispatch({ isAnalyzingVisualStyle: true, type: "setAnalyzingVisualStyle" })
+
+    void (async () => {
+      try {
+        const styleImageRefs = await Promise.all(
+          files.map((file) => readFileAsDataUrl(file))
+        )
+        const { visualStyle } = await requestVisualStyleAnalysis({
+          styleImageRefs,
+        })
+
+        // Re-check: the user may have typed while the request was in flight.
+        if (visualStyleRef.current.trim() === "") {
+          onDraftChange?.({ visualStyle })
+        }
+      } catch (analysisError) {
+        dispatch({
+          error:
+            analysisError instanceof Error
+              ? analysisError.message
+              : "The style images could not be analysed.",
+          type: "setError",
+        })
+      } finally {
+        dispatch({
+          isAnalyzingVisualStyle: false,
+          type: "setAnalyzingVisualStyle",
+        })
+      }
+    })()
   }
 
   const submit = () => {
@@ -213,6 +264,7 @@ function PromptComposerRoot({
           imageModel,
           prompt: trimmedPrompt,
           resolution: imageResolution,
+          shotMode,
           styleImageRefs,
           visualStyle: depthMapStyle ? "" : draft.visualStyle.trim(),
         })
@@ -235,10 +287,12 @@ function PromptComposerRoot({
 
   const contextValue: PromptComposerContextValue = {
     addCharacterNote,
+    analyzeStyleImages,
     characterImageReferences: draft.characterImageReferences,
     characterNotes: draft.characterNotes,
     error: state.error,
     inputId,
+    isAnalyzingVisualStyle: state.isAnalyzingVisualStyle,
     isCharacterSheetOpen: state.isCharacterSheetOpen,
     isCompact,
     isDisabled: disabled || isSubmitting,

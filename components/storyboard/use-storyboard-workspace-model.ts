@@ -23,6 +23,11 @@ import {
 } from "@/lib/image-models"
 import { imageResolutionAtom } from "@/lib/image-resolution-settings"
 import {
+  isShotMode,
+  type ShotMode,
+  shotModeAtom,
+} from "@/lib/shot-mode-settings"
+import {
   loadStoredWorkspace,
   saveStoredWorkspace,
   WORKSPACE_SAVE_DEBOUNCE_MS,
@@ -85,6 +90,7 @@ interface StoryboardWorkspaceModel {
   handleNewBoard: () => void
   handleRowsChange: (rows: number) => void
   handleSelectBoard: (boardId: string) => void
+  handleShotModeChange: (value: string) => void
   handleShowParametersChange: (showParameters: boolean) => void
   handleUpdateBoardComposer: (patch: Partial<BoardComposerDraft>) => void
   handleUpdateScene: (sceneId: string, patch: Partial<Scene>) => void
@@ -97,6 +103,7 @@ interface StoryboardWorkspaceModel {
   previousEditingSceneId: string | null
   runtime: string
   selectedBoard: Board
+  shotMode: ShotMode
   state: WorkspaceState
   visibleBoards: Board[]
   visibleScenes: Scene[]
@@ -107,6 +114,7 @@ function useStoryboardWorkspaceModel(): StoryboardWorkspaceModel {
   const [depthMapStyle, setDepthMapStyle] = useAtom(depthMapStyleAtom)
   const [imageModel, setImageModel] = useAtom(imageModelAtom)
   const [imageResolution, setImageResolution] = useAtom(imageResolutionAtom)
+  const [shotMode, setShotMode] = useAtom(shotModeAtom)
   const [state, dispatch] = React.useReducer(
     workspaceReducer,
     undefined,
@@ -293,6 +301,12 @@ function useStoryboardWorkspaceModel(): StoryboardWorkspaceModel {
     dispatch({ columns: preset.columns, rows: preset.rows, type: "setGrid" })
   }
 
+  const handleShotModeChange = (value: string) => {
+    if (isShotMode(value)) {
+      setShotMode(value)
+    }
+  }
+
   const handleShowParametersChange = (showParameters: boolean) => {
     dispatch({ showParameters, type: "setShowParameters" })
   }
@@ -433,6 +447,7 @@ function useStoryboardWorkspaceModel(): StoryboardWorkspaceModel {
     handleNewBoard,
     handleRowsChange,
     handleSelectBoard,
+    handleShotModeChange,
     handleShowParametersChange,
     handleUpdateBoardComposer,
     handleUpdateScene,
@@ -444,6 +459,7 @@ function useStoryboardWorkspaceModel(): StoryboardWorkspaceModel {
     previousEditingSceneId,
     runtime,
     selectedBoard,
+    shotMode,
     state,
     visibleBoards,
     visibleScenes,

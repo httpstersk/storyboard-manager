@@ -19,6 +19,11 @@ import {
   type ImageModel,
   type ImageResolution,
 } from "@/lib/image-models"
+import {
+  SHOT_MODE_LABELS,
+  SHOT_MODES,
+  type ShotMode,
+} from "@/lib/shot-mode-settings"
 import { COLUMN_LIMITS, ROW_LIMITS, type Board } from "@/lib/storyboard"
 import { seedanceVideoPromptAtom } from "@/lib/video-section-atoms"
 
@@ -192,6 +197,35 @@ function ImageResolutionField({
   )
 }
 
+interface ShotModeFieldProps {
+  /** Updates the multi-shot / continuous preference. */
+  onShotModeChange: (value: string) => void
+  /** Currently selected shot mode. */
+  shotMode: ShotMode
+}
+
+/** Shot mode switcher deciding whether the board cuts or runs as one take. */
+function ShotModeField({ onShotModeChange, shotMode }: ShotModeFieldProps) {
+  return (
+    <Field>
+      <Field.Label>Shots</Field.Label>
+      <Field.Control>
+        <SegmentedControl
+          label="Shot mode"
+          onValueChange={onShotModeChange}
+          value={shotMode}
+        >
+          {SHOT_MODES.map((mode) => (
+            <SegmentedControl.Option key={mode} value={mode}>
+              {SHOT_MODE_LABELS[mode]}
+            </SegmentedControl.Option>
+          ))}
+        </SegmentedControl>
+      </Field.Control>
+    </Field>
+  )
+}
+
 interface WorkspaceToolbarProps {
   /** Selected number of scene columns. */
   columns: number
@@ -215,10 +249,14 @@ interface WorkspaceToolbarProps {
   onImport: () => void
   /** Updates the selected number of scene rows. */
   onRowsChange: (rows: number) => void
+  /** Updates the multi-shot / continuous preference. */
+  onShotModeChange: (value: string) => void
   /** Updates whether scene parameters are visible. */
   onShowParametersChange: (showParameters: boolean) => void
   /** Selected number of scene rows. */
   rows: number
+  /** Shot mode applied to planning and the Seedance video prompt. */
+  shotMode: ShotMode
   /** Whether scene parameters are visible. */
   showParameters: boolean
 }
@@ -236,8 +274,10 @@ function WorkspaceToolbar({
   onImageResolutionChange,
   onImport,
   onRowsChange,
+  onShotModeChange,
   onShowParametersChange,
   rows,
+  shotMode,
   showParameters,
 }: WorkspaceToolbarProps) {
   return (
@@ -258,6 +298,10 @@ function WorkspaceToolbar({
           imageModel={imageModel}
           imageResolution={imageResolution}
           onImageResolutionChange={onImageResolutionChange}
+        />
+        <ShotModeField
+          onShotModeChange={onShotModeChange}
+          shotMode={shotMode}
         />
         <Field>
           <Field.Label>Parameters</Field.Label>

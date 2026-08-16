@@ -7,6 +7,7 @@ import {
   type ImageModel,
   type ImageResolution,
 } from "@/lib/image-models"
+import { type ShotMode } from "@/lib/shot-mode-settings"
 
 /** Width of every normalized storyboard frame in pixels. */
 const FRAME_WIDTH = 640
@@ -76,6 +77,8 @@ interface CompositePromptOptions {
     movement: string
     shot: string
   }>
+  /** Whether the cells are cut shots or moments of one unbroken take. */
+  shotMode: ShotMode
   /** Original logline or full story material. */
   storyline: string
   /** Number of trailing input images that define visual treatment. */
@@ -119,6 +122,14 @@ OUTPUT REQUIREMENTS (hard requirements):
 - Absolutely no text, typography, or burned-in graphics anywhere in the frame — no shot numbers, craft slates, labels, captions, titles, subtitles, watermarks, borders, or UI chrome.
 - Never render craft metadata as readable text: shot codes (WS, MS, MCU, CU), camera or lens names, movement words (e.g. Static), lighting names (e.g. Blue hour), dialogue, or @handles. Pure imagery only.`
 
+/** How adjacent cells relate to one another in each shot mode. */
+const SHOT_MODE_SEQUENCE_DIRECTIONS: Record<ShotMode, string> = {
+  continuous:
+    "The cells are successive moments of ONE unbroken camera take, not separate cut shots. Keep every cell inside the same continuous space and time — consistent geography, light direction, staging, and time of day — and make each framing reachable from the previous one through camera travel or subject blocking. Neighbouring cells still differ, but the difference comes from how far the camera has travelled, never from a new location or a new setup.",
+  "multi-shot":
+    "The cells are separate cut shots of an edited sequence. Each cell is its own setup and reads as a distinct shot, while the whole sheet keeps coherent geography and production design.",
+}
+
 /**
  * Builds one production prompt that maps ordered beats to exact grid cells.
  */
@@ -131,6 +142,7 @@ export function buildCompositePrompt({
   layoutPlaceholderRows,
   rows,
   scenes,
+  shotMode,
   storyline,
   styleImageCount,
   visualStyle,
@@ -219,6 +231,9 @@ Never paint craft metadata as text — including shot codes (WS, MS, MCU, CU), c
 
 VISUAL DIRECTION:
 ${visualDirection}
+
+SEQUENCE CONTINUITY:
+${SHOT_MODE_SEQUENCE_DIRECTIONS[shotMode]}
 
 REFERENCE IMAGE MAP:
 ${referenceDirections}
