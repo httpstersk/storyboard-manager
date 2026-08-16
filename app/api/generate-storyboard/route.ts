@@ -52,6 +52,15 @@ const DIRECTOR_SHOT_MODE_RULES: Record<ShotMode, string> = {
 - Every scene must be visually distinct from its neighbours and must advance the story. Cut anything that repeats information.
 - Choose shot sizes for narrative function: WS to establish geography, MS for interaction, MCU for reaction, CU for decision or detail. Alternate sizes so no three consecutive scenes share one.
 - Keep a coherent lighting grammar. Light follows the story's time and mood arc; adjacent scenes in the same location and moment share the same lighting condition, and lighting changes mark story turns.`,
+  voyeuristic: `Shot mode — ONE CONTINUOUS VOYEURISTIC SHOT. The whole board is a single unbroken take filmed by an unseen observer watching people who do not know they are being watched.
+- Never plan a cut, dissolve, or transition. Consecutive scenes stay in one continuous space and time — no location jumps, no time skips, and no reveal that only an edit could deliver.
+- Every framing is the watcher's own vantage, taken from concealment: through a window, a part-open doorway, gaps in blinds or curtains, foliage, a stairwell, a parked car, or from across the street. Say in the action which concealment the frame is watching from, and keep foreground obstruction cropping part of the view.
+- The subjects are unaware. They never look into the lens, never address it, and the camera never joins the action — it stays outside, at a distance the watcher could physically hold.
+- Zoom cycle, mandatory for every location the take visits: one scene sets the wide watching frame, a later scene uses movement "Zoom in" to tighten onto the subject or a telling detail, and the location's final scene before the camera leaves uses movement "Zoom out" to return to the wide watching frame. Never leave a location on a tight framing.
+- Because each location needs at least the zoom-in and zoom-out beats, visit few locations and give each of them room rather than sampling many.
+- Between locations the camera drifts on unseen — Handheld or Steadicam creeping to the next vantage, Static for a held moment of watching. The travel itself is never a cut.
+- Prefer long glass for the watching frames (Cooke S7 75mm, Signature 75mm, or Zeiss Supreme 50mm), and keep the same camera body for the whole take.
+- Lighting evolves continuously. Adjacent scenes share the same lighting condition unless the camera physically travels into a differently lit area, and mood shifts come from that travel rather than from an edit.`,
 }
 
 /** Per-scene field briefs whose wording depends on the shot mode. */
@@ -70,6 +79,13 @@ const PLANNING_FIELD_GUIDANCE: Record<ShotMode, PlanningFieldGuidance> = {
     timeSeconds:
       "timeSeconds: the planned duration in whole seconds (1 to 60), paced for rhythm",
   },
+  voyeuristic: {
+    movement:
+      "movement: Zoom in when the lens tightens onto the subject from the watching frame, Zoom out when it returns to the wide watching frame before the camera leaves the location, otherwise the drift that carries the unseen camera on — Handheld or Steadicam to creep to the next vantage, Static for a held moment of watching",
+    shot: "shot: one of WS, MS, MCU, or CU, where WS is the concealed watching frame and the tighter sizes are what the zoom reaches, always reachable from the previous framing without a cut",
+    timeSeconds:
+      "timeSeconds: the planned duration in whole seconds (1 to 60), paced as one unbroken observation with lingering watching beats",
+  },
 }
 
 /** Deliverable framing that opens the planning brief for each shot mode. */
@@ -78,6 +94,8 @@ const PLANNING_SHOT_MODE_BRIEFS: Record<ShotMode, string> = {
     "Plan a cinematic storyboard from this story material as ONE continuous shot — the scenes are successive framings of a single unbroken take, not shots joined by cuts.",
   "multi-shot":
     "Plan a cinematic storyboard from this story material as a multi-shot sequence — each scene is its own cut shot.",
+  voyeuristic:
+    "Plan a cinematic storyboard from this story material as ONE continuous voyeuristic shot — a single unbroken take filmed by an unseen observer who watches each location from concealment, zooms in on the telling detail, and zooms back out to the wide watching frame before drifting on to the next vantage.",
 }
 
 /**

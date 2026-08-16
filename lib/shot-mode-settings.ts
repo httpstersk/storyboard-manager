@@ -9,7 +9,7 @@
 import { atomWithStorage } from "jotai/utils"
 
 /** Available shot modes, ordered as they appear in the toolbar. */
-export const SHOT_MODES = ["continuous", "multi-shot"] as const
+export const SHOT_MODES = ["continuous", "multi-shot", "voyeuristic"] as const
 
 /** How the board's beats relate to one another in the finished video. */
 export type ShotMode = (typeof SHOT_MODES)[number]
@@ -18,6 +18,7 @@ export type ShotMode = (typeof SHOT_MODES)[number]
 export const SHOT_MODE_LABELS: Record<ShotMode, string> = {
   continuous: "Continuous",
   "multi-shot": "Multi-shot",
+  voyeuristic: "Voyeuristic",
 }
 
 /** Default preference: cut-based multi-shot sequences. */

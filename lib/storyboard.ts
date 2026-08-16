@@ -164,6 +164,8 @@ export const MOVEMENT_OPTIONS: SelectOption[] = [
   { label: "Handheld", value: "Handheld" },
   { label: "Static", value: "Static" },
   { label: "Steadicam", value: "Steadicam" },
+  { label: "Zoom in", value: "Zoom in" },
+  { label: "Zoom out", value: "Zoom out" },
 ]
 
 /** Allowed range for the grid row stepper. */

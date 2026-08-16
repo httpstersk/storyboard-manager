@@ -6,8 +6,9 @@
  * `cut to` between beats, and `@ImageN` bindings that match `image_urls`
  * order: the contact sheet, then character references, then environments.
  *
- * In `continuous` shot mode the same beats describe one unbroken take, so the
- * cut language is replaced by camera-travel language between panels.
+ * In the `continuous` and `voyeuristic` shot modes the same beats describe one
+ * unbroken take, so the cut language is replaced by camera-travel language
+ * between panels.
  */
 
 import type { ShotMode } from "@/lib/shot-mode-settings"
@@ -80,6 +81,8 @@ const ENVIRONMENT_STAGING_DIRECTIONS: Record<ShotMode, string> = {
     "Keep the location's layout self-consistent so the unbroken camera move reads as one traversable space.",
   "multi-shot":
     "Each shot may reveal a different part of the location; no two shots repeat the same setup.",
+  voyeuristic:
+    "Keep the location's layout self-consistent so the unbroken camera move reads as one traversable space, and watch it only from concealed vantages outside the action with foreground elements cropping the frame.",
 }
 
 /**
@@ -89,6 +92,7 @@ const ENVIRONMENT_STAGING_DIRECTIONS: Record<ShotMode, string> = {
 export const SHOT_BEAT_LABELS: Record<ShotMode, string> = {
   continuous: "Beat",
   "multi-shot": "Shot",
+  voyeuristic: "Beat",
 }
 
 /**
@@ -131,6 +135,20 @@ export const STORYBOARD_DEPTH_MAP_CONTINUOUS_BASE_PROMPT =
   "@Image1 is a depth-map storyboard contact sheet (grayscale linear depth: white nearest, black farthest) showing successive moments of ONE unbroken take in reading order (left to right, top to bottom). Use it only for camera, composition, framing, blocking, and relative depth. Animate this story as a single continuous finished shot: no cuts, no dissolves, no transitions of any kind — travel the camera from each panel's framing to the next through camera movement and subject blocking inside one continuous space and time, and do not output grayscale depth-map video. Take medium, palette, lighting, texture, and production design from the visual style lock below, not from the depth panels."
 
 /**
+ * Base instruction for one unbroken take watched from concealment, with the
+ * zoom cycle every location must complete before the camera moves on.
+ */
+export const STORYBOARD_VOYEURISTIC_BASE_PROMPT =
+  "@Image1 is the storyboard contact sheet showing successive moments of ONE unbroken voyeuristic take in reading order (left to right, top to bottom). Animate this story as a single continuous live-action shot filmed by an unseen observer: no cuts, no dissolves, no wipes, no transitions of any kind. The camera watches from concealment — through windows, part-open doorways, gaps in blinds or curtains, foliage, stairwells, or from across the street — with foreground obstruction cropping the frame, long-lens compression, and subjects who are unaware and never look into the lens. At every location the lens zooms in from the wide watching frame to a tight detail, holds, then zooms back out to that wide frame before the camera drifts on unseen to the next vantage. Travel the camera from each panel's framing to the next through camera movement, lens zoom, and subject blocking inside one continuous space and time. Preserve composition, wardrobe, lighting, and production design from each panel."
+
+/**
+ * Depth-map base instruction for the voyeuristic take. Combines the depth-map
+ * reading rules with the hidden-vantage and zoom-cycle language.
+ */
+export const STORYBOARD_DEPTH_MAP_VOYEURISTIC_BASE_PROMPT =
+  "@Image1 is a depth-map storyboard contact sheet (grayscale linear depth: white nearest, black farthest) showing successive moments of ONE unbroken voyeuristic take in reading order (left to right, top to bottom). Use it only for camera, composition, framing, blocking, and relative depth. Animate this story as a single continuous finished shot filmed by an unseen observer: no cuts, no dissolves, no transitions of any kind — the camera watches from concealment with foreground obstruction cropping the frame, long-lens compression, and subjects who are unaware and never look into the lens. At every location the lens zooms in from the wide watching frame to a tight detail, holds, then zooms back out to that wide frame before the camera drifts on to the next vantage, travelling from each panel's framing to the next inside one continuous space and time. Do not output grayscale depth-map video. Take medium, palette, lighting, texture, and production design from the visual style lock below, not from the depth panels."
+
+/**
  * Default appearance when depth-map boards have no written visual style.
  */
 export const DEPTH_MAP_DEFAULT_VIDEO_STYLE_LOCK =
@@ -143,6 +161,30 @@ export const DEPTH_MAP_DEFAULT_VIDEO_STYLE_LOCK =
 export const TRANSITION_TEXTS: Record<ShotMode, string> = {
   continuous: "Without cutting, the camera continues into ",
   "multi-shot": "Cut to ",
+  voyeuristic: "Still unseen and without cutting, the camera drifts on to ",
+}
+
+/**
+ * Base instruction for each shot mode, keyed by whether @Image1 is a depth
+ * map. A lookup keeps every mode's pairing explicit, so a new shot mode
+ * cannot silently inherit another mode's opening instruction.
+ */
+const SHOT_MODE_BASE_PROMPTS: Record<
+  ShotMode,
+  Record<"depthMap" | "standard", string>
+> = {
+  continuous: {
+    depthMap: STORYBOARD_DEPTH_MAP_CONTINUOUS_BASE_PROMPT,
+    standard: STORYBOARD_CONTINUOUS_BASE_PROMPT,
+  },
+  "multi-shot": {
+    depthMap: STORYBOARD_DEPTH_MAP_BASE_PROMPT,
+    standard: STORYBOARD_BASE_PROMPT,
+  },
+  voyeuristic: {
+    depthMap: STORYBOARD_DEPTH_MAP_VOYEURISTIC_BASE_PROMPT,
+    standard: STORYBOARD_VOYEURISTIC_BASE_PROMPT,
+  },
 }
 
 /**
@@ -463,13 +505,7 @@ export function selectBasePrompt({
   depthMapStyle,
   shotMode,
 }: SelectBasePromptOptions): string {
-  if (shotMode === "continuous") {
-    return depthMapStyle
-      ? STORYBOARD_DEPTH_MAP_CONTINUOUS_BASE_PROMPT
-      : STORYBOARD_CONTINUOUS_BASE_PROMPT
-  }
-
-  return depthMapStyle
-    ? STORYBOARD_DEPTH_MAP_BASE_PROMPT
-    : STORYBOARD_BASE_PROMPT
+  return SHOT_MODE_BASE_PROMPTS[shotMode][
+    depthMapStyle ? "depthMap" : "standard"
+  ]
 }

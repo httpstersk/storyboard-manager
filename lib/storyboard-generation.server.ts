@@ -128,13 +128,16 @@ OUTPUT REQUIREMENTS (hard requirements):
 
 /**
  * How much freedom each shot mode has to restage a supplied location.
- * Continuous takes need one traversable space; cuts may pick fresh setups.
+ * Continuous and voyeuristic takes need one traversable space, and the
+ * voyeuristic vantage also stays hidden; cuts may pick fresh setups.
  */
 const ENVIRONMENT_STAGING_DIRECTIONS: Record<ShotMode, string> = {
   continuous:
     "The take moves through one coherent, traversable version of the location: once you establish where its elements sit relative to one another, keep that arrangement self-consistent from cell to cell so the camera's travel reads as physically continuous. Open the take from a vantage point of your own rather than the reference's.",
   "multi-shot":
     "Each cut restages freely — a different part of the location, a different depth relationship, and a different angle in every cell. Two cells set in the same location must never read as the same setup.",
+  voyeuristic:
+    "The take moves through one coherent, traversable version of the location: once you establish where its elements sit relative to one another, keep that arrangement self-consistent from cell to cell so the camera's travel reads as physically continuous. Every view is watched from concealment outside the action — through a window, a part-open doorway, gaps in blinds or curtains, foliage, a stairwell, or across the street — with foreground elements cropping part of the frame. Choose the hidden vantage yourself rather than adopting the reference's own viewpoint.",
 }
 
 /** How adjacent cells relate to one another in each shot mode. */
@@ -143,6 +146,8 @@ const SHOT_MODE_SEQUENCE_DIRECTIONS: Record<ShotMode, string> = {
     "The cells are successive moments of ONE unbroken camera take, not separate cut shots. Keep every cell inside the same continuous space and time — consistent geography, light direction, staging, and time of day — and make each framing reachable from the previous one through camera travel or subject blocking. Neighbouring cells still differ, but the difference comes from how far the camera has travelled, never from a new location or a new setup.",
   "multi-shot":
     "The cells are separate cut shots of an edited sequence. Each cell is its own setup and reads as a distinct shot, while the whole sheet keeps coherent geography and production design.",
+  voyeuristic:
+    "The cells are successive moments of ONE unbroken take filmed by an unseen watcher, not separate cut shots. Keep every cell inside the same continuous space and time — consistent geography, light direction, staging, and time of day — and make each framing reachable from the previous one through camera travel. Every cell is a concealed vantage: the subjects are unaware and never look toward the camera, foreground obstruction crops part of the frame, and long-lens compression flattens the depth. At each location the framing tightens from the wide watching frame to a zoomed-in detail and then widens back out to that wide frame before the camera drifts on to the next vantage, so a location's last cell is always the widened view.",
 }
 
 /**

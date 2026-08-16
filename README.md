@@ -27,7 +27,7 @@ Each scene card supports granular industry-standard parameters:
 - **Shot Size**: Segmented control for quick selection of **Wide Shot (WS)**, **Medium Shot (MS)**, **Medium Close-up (MCU)**, and **Close-up (CU)**.
 - **Camera Configurations**: Alexa 35, Sony Venice 2, and RED Komodo-X.
 - **Lens Selection**: Wide range of focal lengths (Signature 18mm, 21mm, 40mm, 75mm; Cooke S7 50mm, 75mm; Zeiss Supreme 29mm, 50mm).
-- **Camera Movement**: Static, Handheld, Steadicam, Crane up, Dolly in, and Drone pull-back.
+- **Camera Movement**: Static, Handheld, Steadicam, Crane up, Dolly in, Drone pull-back, Zoom in, and Zoom out.
 - **Lighting Atmosphere**: Night/moonlit, Golden hour, Blue hour, Hard noon sun, Practical neon, Overcast soft, and Sodium vapor.
 - **Time/Duration**: Fine-tune individual scene runtimes between 1 and 60 seconds.
 - **Notes Suite**: Dedicated, inline-editable text fields for **Action**, **Dialogue**, and **Music** with character validation (up to 140 characters).
