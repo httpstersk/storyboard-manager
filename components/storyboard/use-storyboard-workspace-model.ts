@@ -23,11 +23,6 @@ import {
 } from "@/lib/image-models"
 import { imageResolutionAtom } from "@/lib/image-resolution-settings"
 import {
-  isPromptLength,
-  type PromptLength,
-  promptLengthAtom,
-} from "@/lib/prompt-length-settings"
-import {
   isShotMode,
   type ShotMode,
   shotModeAtom,
@@ -93,7 +88,6 @@ interface StoryboardWorkspaceModel {
   handleImportClick: () => void
   handleImportFile: (file: File) => Promise<void>
   handleNewBoard: () => void
-  handlePromptLengthChange: (value: string) => void
   handleRowsChange: (rows: number) => void
   handleSelectBoard: (boardId: string) => void
   handleShotModeChange: (value: string) => void
@@ -107,7 +101,6 @@ interface StoryboardWorkspaceModel {
   isSelectedBoardGenerating: boolean
   nextEditingSceneId: string | null
   previousEditingSceneId: string | null
-  promptLength: PromptLength
   runtime: string
   selectedBoard: Board
   shotMode: ShotMode
@@ -121,7 +114,6 @@ function useStoryboardWorkspaceModel(): StoryboardWorkspaceModel {
   const [depthMapStyle, setDepthMapStyle] = useAtom(depthMapStyleAtom)
   const [imageModel, setImageModel] = useAtom(imageModelAtom)
   const [imageResolution, setImageResolution] = useAtom(imageResolutionAtom)
-  const [promptLength, setPromptLength] = useAtom(promptLengthAtom)
   const [shotMode, setShotMode] = useAtom(shotModeAtom)
   const [state, dispatch] = React.useReducer(
     workspaceReducer,
@@ -309,12 +301,6 @@ function useStoryboardWorkspaceModel(): StoryboardWorkspaceModel {
     dispatch({ columns: preset.columns, rows: preset.rows, type: "setGrid" })
   }
 
-  const handlePromptLengthChange = (value: string) => {
-    if (isPromptLength(value)) {
-      setPromptLength(value)
-    }
-  }
-
   const handleShotModeChange = (value: string) => {
     if (isShotMode(value)) {
       setShotMode(value)
@@ -459,7 +445,6 @@ function useStoryboardWorkspaceModel(): StoryboardWorkspaceModel {
     handleImportClick,
     handleImportFile,
     handleNewBoard,
-    handlePromptLengthChange,
     handleRowsChange,
     handleSelectBoard,
     handleShotModeChange,
@@ -472,7 +457,6 @@ function useStoryboardWorkspaceModel(): StoryboardWorkspaceModel {
     isSelectedBoardGenerating,
     nextEditingSceneId,
     previousEditingSceneId,
-    promptLength,
     runtime,
     selectedBoard,
     shotMode,

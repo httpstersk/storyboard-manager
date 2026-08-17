@@ -1,7 +1,16 @@
 "use client"
 
 import { useAtomValue } from "jotai"
-import { SFArrowDownToLine, SFArrowUpToLine } from "sf-symbols-lib/monochrome"
+import {
+  SFArrowDownToLine,
+  SFArrowUpToLine,
+  SFCpu,
+  SFFilm,
+  SFRectangleSplit1x2,
+  SFRectangleSplit2x1,
+  SFSliderHorizontal3,
+  SFSquare3Layers3d,
+} from "sf-symbols-lib/monochrome"
 import * as React from "react"
 
 import { BoardToolbar } from "@/components/storyboard/board-toolbar"
@@ -11,6 +20,7 @@ import { Field } from "@/components/ui/field"
 import { SegmentedControl } from "@/components/ui/segmented-control"
 import { Stepper } from "@/components/ui/stepper"
 import { Switch } from "@/components/ui/switch"
+import { Tooltip } from "@/components/ui/tooltip"
 import { exportBoardJson } from "@/lib/board-io"
 import {
   IMAGE_MODEL_CONFIGS,
@@ -19,11 +29,6 @@ import {
   type ImageModel,
   type ImageResolution,
 } from "@/lib/image-models"
-import {
-  PROMPT_LENGTH_LABELS,
-  PROMPT_LENGTHS,
-  type PromptLength,
-} from "@/lib/prompt-length-settings"
 import {
   SHOT_MODE_LABELS,
   SHOT_MODES,
@@ -84,7 +89,15 @@ function GridSteppers({
   return (
     <>
       <Field>
-        <Field.Label>Rows</Field.Label>
+        <Tooltip>
+          <Tooltip.Trigger asChild>
+            <Field.Label className="inline-flex items-center">
+              <SFRectangleSplit1x2 aria-hidden className="size-3" />
+              <span className="sr-only">Rows</span>
+            </Field.Label>
+          </Tooltip.Trigger>
+          <Tooltip.Content>Rows</Tooltip.Content>
+        </Tooltip>
         <Field.Control>
           <Stepper
             label="Rows"
@@ -100,7 +113,15 @@ function GridSteppers({
         </Field.Control>
       </Field>
       <Field>
-        <Field.Label>Columns</Field.Label>
+        <Tooltip>
+          <Tooltip.Trigger asChild>
+            <Field.Label className="inline-flex items-center">
+              <SFRectangleSplit2x1 aria-hidden className="size-3" />
+              <span className="sr-only">Columns</span>
+            </Field.Label>
+          </Tooltip.Trigger>
+          <Tooltip.Content>Columns</Tooltip.Content>
+        </Tooltip>
         <Field.Control>
           <Stepper
             label="Columns"
@@ -133,7 +154,15 @@ function ImageModelField({
 }: ImageModelFieldProps) {
   return (
     <Field>
-      <Field.Label>Model</Field.Label>
+      <Tooltip>
+        <Tooltip.Trigger asChild>
+          <Field.Label className="inline-flex items-center">
+            <SFCpu aria-hidden className="size-3" />
+            <span className="sr-only">Model</span>
+          </Field.Label>
+        </Tooltip.Trigger>
+        <Tooltip.Content>Model</Tooltip.Content>
+      </Tooltip>
       <Field.Control>
         <SegmentedControl
           label="Image model"
@@ -213,7 +242,15 @@ interface ShotModeFieldProps {
 function ShotModeField({ onShotModeChange, shotMode }: ShotModeFieldProps) {
   return (
     <Field>
-      <Field.Label>Shots</Field.Label>
+      <Tooltip>
+        <Tooltip.Trigger asChild>
+          <Field.Label className="inline-flex items-center">
+            <SFFilm aria-hidden className="size-3" />
+            <span className="sr-only">Shots</span>
+          </Field.Label>
+        </Tooltip.Trigger>
+        <Tooltip.Content>Shots</Tooltip.Content>
+      </Tooltip>
       <Field.Control>
         <SegmentedControl
           label="Shot mode"
@@ -223,38 +260,6 @@ function ShotModeField({ onShotModeChange, shotMode }: ShotModeFieldProps) {
           {SHOT_MODES.map((mode) => (
             <SegmentedControl.Option key={mode} value={mode}>
               {SHOT_MODE_LABELS[mode]}
-            </SegmentedControl.Option>
-          ))}
-        </SegmentedControl>
-      </Field.Control>
-    </Field>
-  )
-}
-
-interface PromptLengthFieldProps {
-  /** Updates the video prompt length preference. */
-  onPromptLengthChange: (value: string) => void
-  /** Currently selected prompt length. */
-  promptLength: PromptLength
-}
-
-/** Prompt length switcher capping the assembled Seedance video prompt. */
-function PromptLengthField({
-  onPromptLengthChange,
-  promptLength,
-}: PromptLengthFieldProps) {
-  return (
-    <Field>
-      <Field.Label>Length</Field.Label>
-      <Field.Control>
-        <SegmentedControl
-          label="Prompt length"
-          onValueChange={onPromptLengthChange}
-          value={promptLength}
-        >
-          {PROMPT_LENGTHS.map((length) => (
-            <SegmentedControl.Option key={length} value={length}>
-              {PROMPT_LENGTH_LABELS[length]}
             </SegmentedControl.Option>
           ))}
         </SegmentedControl>
@@ -284,16 +289,12 @@ interface WorkspaceToolbarProps {
   onImageResolutionChange: (value: string) => void
   /** Opens the storyboard import file picker. */
   onImport: () => void
-  /** Updates the video prompt length preference. */
-  onPromptLengthChange: (value: string) => void
   /** Updates the selected number of scene rows. */
   onRowsChange: (rows: number) => void
   /** Updates the multi-shot / continuous preference. */
   onShotModeChange: (value: string) => void
   /** Updates whether scene parameters are visible. */
   onShowParametersChange: (showParameters: boolean) => void
-  /** Character cap applied to the assembled Seedance video prompt. */
-  promptLength: PromptLength
   /** Selected number of scene rows. */
   rows: number
   /** Shot mode applied to planning and the Seedance video prompt. */
@@ -314,11 +315,9 @@ function WorkspaceToolbar({
   onImageModelChange,
   onImageResolutionChange,
   onImport,
-  onPromptLengthChange,
   onRowsChange,
   onShotModeChange,
   onShowParametersChange,
-  promptLength,
   rows,
   shotMode,
   showParameters,
@@ -346,12 +345,16 @@ function WorkspaceToolbar({
           onShotModeChange={onShotModeChange}
           shotMode={shotMode}
         />
-        <PromptLengthField
-          onPromptLengthChange={onPromptLengthChange}
-          promptLength={promptLength}
-        />
         <Field>
-          <Field.Label>Parameters</Field.Label>
+          <Tooltip>
+            <Tooltip.Trigger asChild>
+              <Field.Label className="inline-flex items-center">
+                <SFSliderHorizontal3 aria-hidden className="size-3" />
+                <span className="sr-only">Parameters</span>
+              </Field.Label>
+            </Tooltip.Trigger>
+            <Tooltip.Content>Parameters</Tooltip.Content>
+          </Tooltip>
           <Field.Control>
             <Switch
               checked={showParameters}
@@ -360,7 +363,15 @@ function WorkspaceToolbar({
           </Field.Control>
         </Field>
         <Field>
-          <Field.Label>Depth Map</Field.Label>
+          <Tooltip>
+            <Tooltip.Trigger asChild>
+              <Field.Label className="inline-flex items-center">
+                <SFSquare3Layers3d aria-hidden className="size-3" />
+                <span className="sr-only">Depth Map</span>
+              </Field.Label>
+            </Tooltip.Trigger>
+            <Tooltip.Content>Depth Map</Tooltip.Content>
+          </Tooltip>
           <Field.Control>
             <Switch
               checked={depthMapStyle}
@@ -370,10 +381,14 @@ function WorkspaceToolbar({
         </Field>
       </BoardToolbar.Controls>
       <BoardToolbar.Actions>
-        <BoardToolbar.Action onClick={onImport}>
-          <SFArrowUpToLine aria-hidden />
-          Import
-        </BoardToolbar.Action>
+        <Tooltip>
+          <Tooltip.Trigger asChild>
+            <BoardToolbar.Action aria-label="Import" onClick={onImport}>
+              <SFArrowUpToLine aria-hidden />
+            </BoardToolbar.Action>
+          </Tooltip.Trigger>
+          <Tooltip.Content>Import</Tooltip.Content>
+        </Tooltip>
         <WorkspaceExportActions onExportPng={onExportPng} />
         <SoundControl />
         <BoardToolbar.ThemeToggle />

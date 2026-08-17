@@ -26,12 +26,11 @@ export const DEFAULT_AUDIO_TEXT = "natural diegetic ambience, no music."
  * Inputs for {@link formatStage}.
  */
 export interface FormatStageOptions {
-  /** Allocated seconds for this stage, omitted when timestamps are shed. */
+  /**
+   * Allocated seconds for this stage, omitted when there are more scenes
+   * than seconds to allocate (see {@link allocateStageSeconds}).
+   */
   durationSeconds?: number
-  /** Keep camera, lens, movement, and lighting craft. */
-  includeCraft: boolean
-  /** Keep boilerplate audio when the scene is silent. */
-  includeDefaultAudio: boolean
   /** Scene that this stage describes. */
   scene: Scene
   /** Whether the board reads as cuts or one unbroken take. */
@@ -103,13 +102,9 @@ export function allocateStageSeconds(
  * Formats the Audio line for one stage.
  *
  * @param scene - Scene that may hold dialogue and music.
- * @param includeDefaultAudio - Keep the silent-scene boilerplate.
- * @returns The audio line, or an empty string when silent and trimmed.
+ * @returns The audio line, falling back to the silent-scene boilerplate.
  */
-export function formatAudioLine(
-  scene: Scene,
-  includeDefaultAudio: boolean
-): string {
+export function formatAudioLine(scene: Scene): string {
   const dialogue = rewriteComposerHandles(scene.dialogue.trim())
   const music = rewriteComposerHandles(scene.music.trim()).replace(
     /^\(|\)$/g,
@@ -120,7 +115,7 @@ export function formatAudioLine(
   const musicClause = music === "" ? "" : `(${music})`
 
   if (dialogueClause === "" && musicClause === "") {
-    return includeDefaultAudio ? `Audio: ${DEFAULT_AUDIO_TEXT}` : ""
+    return `Audio: ${DEFAULT_AUDIO_TEXT}`
   }
 
   return withSentencePeriod(
@@ -173,20 +168,12 @@ export function formatEndState(action: string, isFirstStage: boolean): string {
 /**
  * Formats one storyboard scene as a Seedance 2.5 stage block.
  *
- * @param options - Scene, stage index, craft/audio toggles, and optional time
- *   budget.
+ * @param options - Scene, stage index, and optional time budget.
  * @returns The formatted `[Stage N]` block.
  */
 export function formatStage(options: FormatStageOptions): string {
-  const {
-    durationSeconds,
-    includeCraft,
-    includeDefaultAudio,
-    scene,
-    shotMode,
-    stageNumber,
-    startSeconds,
-  } = options
+  const { durationSeconds, scene, shotMode, stageNumber, startSeconds } =
+    options
   const isFirstStage = stageNumber === STARTING_STAGE_NUMBER
   const trimmedAction = scene.action.trim()
   const action = formatPromptProse(
@@ -211,18 +198,10 @@ export function formatStage(options: FormatStageOptions): string {
     lines.push(formatTimeRange(startSeconds, durationSeconds))
   }
 
-  if (includeCraft) {
-    lines.push(formatCraftLine(scene))
-  }
-
+  lines.push(formatCraftLine(scene))
   lines.push(`Primary event: ${action}`)
   lines.push(formatEndState(action, isFirstStage))
-
-  const audio = formatAudioLine(scene, includeDefaultAudio)
-
-  if (audio !== "") {
-    lines.push(audio)
-  }
+  lines.push(formatAudioLine(scene))
 
   return lines.join("\n")
 }

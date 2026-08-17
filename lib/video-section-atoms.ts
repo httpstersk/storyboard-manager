@@ -8,10 +8,6 @@ import { selectAtom } from "jotai/utils"
 
 import { depthMapStyleAtom } from "@/lib/depth-map-style-settings"
 import {
-  PROMPT_LENGTH_MAX_CHARS,
-  promptLengthAtom,
-} from "@/lib/prompt-length-settings"
-import {
   type SeedanceNote,
   buildSeedanceVideoPrompt,
 } from "@/lib/seedance-video-prompt"
@@ -104,7 +100,6 @@ export const videoPromptSourceAtom = atom<VideoPromptSource>(
 /** Derived Seedance 2.5 prompt that updates whenever the source changes. */
 export const seedanceVideoPromptAtom = atom((get) => {
   const depthMapStyle = get(depthMapStyleAtom)
-  const promptLength = get(promptLengthAtom)
   const shotMode = get(shotModeAtom)
   const source = get(videoPromptSourceAtom)
 
@@ -114,7 +109,6 @@ export const seedanceVideoPromptAtom = atom((get) => {
     durationSeconds: resolveSeedanceDurationSeconds(
       totalRuntimeSeconds(source.scenes)
     ),
-    maxLength: PROMPT_LENGTH_MAX_CHARS[promptLength],
     shotMode,
   })
 })

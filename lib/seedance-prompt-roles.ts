@@ -49,8 +49,6 @@ export interface FormatSubjectBindingsOptions {
   fallbackStem: string
   /** How many stills this group contributes, already slot-capped. */
   imageCount: number
-  /** Keep free-text appearance or set-design notes on each mapping. */
-  includeNotesProse: boolean
   /** Whether these stills are characters or locations. */
   kind: SeedanceSubjectKind
   /** Written composer notes for this group. */
@@ -81,8 +79,6 @@ export interface FormatMaintainConsistencyOptions {
   characterNotes: SeedanceNote[]
   /** Whether @Image1 is a depth-map blockout. */
   depthMapStyle: boolean
-  /** Keep the drift-guard sentence on the style lock. */
-  includeStyleReinforcement: boolean
   /** Whether the board reads as cuts or one unbroken take. */
   shotMode: ShotMode
   /** Optional textual visual-style guidance. */
@@ -134,19 +130,13 @@ export function formatGridRole(options: FormatGridRoleOptions): string {
 /**
  * Formats the [Maintain Consistency] body, including the trailing style lock.
  *
- * @param options - Character names, depth-map flag, style toggles, shot mode.
+ * @param options - Character names, depth-map flag, and shot mode.
  * @returns The consistency paragraph.
  */
 export function formatMaintainConsistency(
   options: FormatMaintainConsistencyOptions
 ): string {
-  const {
-    characterNotes,
-    depthMapStyle,
-    includeStyleReinforcement,
-    shotMode,
-    visualStyle,
-  } = options
+  const { characterNotes, depthMapStyle, shotMode, visualStyle } = options
   const names = filledNotes(characterNotes)
     .map((note) => formatSubjectToken(note.name, ""))
     .filter((token) => token !== "<>")
@@ -158,11 +148,7 @@ export function formatMaintainConsistency(
     shotMode === "voyeuristic"
       ? " Keep the camera unseen, subjects unaware, and complete the zoom cycle at every location."
       : ""
-  const style = formatStyleLock({
-    depthMapStyle,
-    includeStyleReinforcement,
-    visualStyle,
-  })
+  const style = formatStyleLock({ depthMapStyle, visualStyle })
 
   return style === ""
     ? `${identity}${voyeuristic}`
@@ -178,14 +164,7 @@ export function formatMaintainConsistency(
 export function formatSubjectBindings(
   options: FormatSubjectBindingsOptions
 ): string {
-  const {
-    fallbackStem,
-    imageCount,
-    includeNotesProse,
-    kind,
-    shotMode,
-    startIndex,
-  } = options
+  const { fallbackStem, imageCount, kind, shotMode, startIndex } = options
   const notes = filledNotes(options.notes)
   const use = subjectUseClause(kind)
   const lines: string[] = []
@@ -198,7 +177,6 @@ export function formatSubjectBindings(
     lines.push(
       formatSingleSubjectManyImages({
         imageCount,
-        includeNotesProse,
         note: notes[0],
         startIndex,
         token: formatSubjectToken(notes[0].name, `${fallbackStem} 1`),
@@ -211,7 +189,6 @@ export function formatSubjectBindings(
     for (let index = 0; index < paired; index += 1) {
       lines.push(
         formatPairedBinding({
-          includeNotesProse,
           note: notes[index],
           startIndex: startIndex + index,
           token: formatSubjectToken(
@@ -245,7 +222,6 @@ export function formatSubjectBindings(
       lines.push(
         formatUnboundNote({
           fallbackStem,
-          includeNotesProse,
           kind,
           note: notes[index],
           ordinal: index + 1,
@@ -296,7 +272,6 @@ function formatAdditionalViews(options: {
 /**
  * Formats one note paired with one still.
  *
- * @param includeNotesProse - Whether to append written notes.
  * @param note - Composer note for this subject.
  * @param startIndex - `@Image` index of the paired still.
  * @param token - `<Name>` token for the subject.
@@ -304,17 +279,16 @@ function formatAdditionalViews(options: {
  * @returns One mapping sentence.
  */
 function formatPairedBinding(options: {
-  includeNotesProse: boolean
   note: SeedanceNote
   startIndex: number
   token: string
   use: string
 }): string {
-  const { includeNotesProse, note, startIndex, token, use } = options
+  const { note, startIndex, token, use } = options
   const base = `${token} corresponds to ${formatImageToken(startIndex)}. ${use}`
   const noteText = note.notes.trim()
 
-  if (!includeNotesProse || noteText === "") {
+  if (noteText === "") {
     return base
   }
 
@@ -325,7 +299,6 @@ function formatPairedBinding(options: {
  * Formats many stills as views of a single named subject.
  *
  * @param imageCount - Number of stills that define this subject.
- * @param includeNotesProse - Whether to append written notes.
  * @param note - The single composer note.
  * @param startIndex - `@Image` index of the first still.
  * @param token - `<Name>` token for the subject.
@@ -334,19 +307,17 @@ function formatPairedBinding(options: {
  */
 function formatSingleSubjectManyImages(options: {
   imageCount: number
-  includeNotesProse: boolean
   note: SeedanceNote
   startIndex: number
   token: string
   use: string
 }): string {
-  const { imageCount, includeNotesProse, note, startIndex, token, use } =
-    options
+  const { imageCount, note, startIndex, token, use } = options
   const lastIndex = startIndex + imageCount - 1
   const base = `All ${formatImageToken(startIndex)} through ${formatImageToken(lastIndex)} define one ${token}. The output must contain only one ${token} throughout. ${use}`
   const noteText = note.notes.trim()
 
-  if (!includeNotesProse || noteText === "") {
+  if (noteText === "") {
     return base
   }
 
@@ -355,29 +326,22 @@ function formatSingleSubjectManyImages(options: {
 
 /**
  * Formats the visual-style lock that closes the consistency block. The
- * style sentence itself is never shed by budget reduction — only the
- * trailing drift-guard sentence is optional — so the final video prompt
- * always names the intended look when one was supplied.
+ * final video prompt always names the intended look when one was supplied,
+ * followed by a drift-guard sentence.
  *
  * @param depthMapStyle - Whether @Image1 is a depth-map blockout.
- * @param includeStyleReinforcement - Keep the drift-guard sentence.
  * @param visualStyle - Optional textual visual-style guidance.
  * @returns The style sentence, or empty when no style was supplied and not a depth map.
  */
 function formatStyleLock(options: {
   depthMapStyle: boolean
-  includeStyleReinforcement: boolean
   visualStyle: string
 }): string {
-  const { depthMapStyle, includeStyleReinforcement, visualStyle } = options
+  const { depthMapStyle, visualStyle } = options
   const trimmed = visualStyle.trim()
 
   if (trimmed !== "") {
-    const lock = `The final video uses ${formatPromptProse(trimmed)}`
-
-    return includeStyleReinforcement
-      ? `${lock} Preserve this medium, palette, lighting language, and image-making treatment across every stage. Do not drift toward a different look.`
-      : lock
+    return `The final video uses ${formatPromptProse(trimmed)} Preserve this medium, palette, lighting language, and image-making treatment across every stage. Do not drift toward a different look.`
   }
 
   if (depthMapStyle) {
@@ -391,7 +355,6 @@ function formatStyleLock(options: {
  * Formats a named subject that has notes but no attached still.
  *
  * @param fallbackStem - Label stem when the note has no handle.
- * @param includeNotesProse - Whether to quote the written notes.
  * @param kind - Character or environment group.
  * @param note - Composer note without an image.
  * @param ordinal - 1-based index in the group.
@@ -399,16 +362,15 @@ function formatStyleLock(options: {
  */
 function formatUnboundNote(options: {
   fallbackStem: string
-  includeNotesProse: boolean
   kind: SeedanceSubjectKind
   note: SeedanceNote
   ordinal: number
 }): string {
-  const { fallbackStem, includeNotesProse, kind, note, ordinal } = options
+  const { fallbackStem, kind, note, ordinal } = options
   const token = formatSubjectToken(note.name, `${fallbackStem} ${ordinal}`)
   const noteText = note.notes.trim()
 
-  if (includeNotesProse && noteText !== "") {
+  if (noteText !== "") {
     return `${token} has no attached still. Use only the written notes: ${formatPromptProse(noteText)}`
   }
 
