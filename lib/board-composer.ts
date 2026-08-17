@@ -1,11 +1,13 @@
 /**
  * Per-board prompt composer draft: written characters, environments,
- * continuity notes, uploaded reference images, and visual style scoped to
- * one storyboard.
+ * manually authored scenes, uploaded reference images, and visual style
+ * scoped to one storyboard.
  *
- * Characters and environments share one shape — an `@handle` plus free-form
- * continuity notes — so this module owns a single {@link ComposerNote} type
- * with kind-agnostic helpers. The composer UI, workspace reducer,
+ * Characters, environments, and manual scenes share one shape — an
+ * `@handle` plus free-form text — so this module owns a single
+ * {@link ComposerNote} type with kind-agnostic helpers. Manual scenes only
+ * use the `notes` field; they have no `@handle` of their own, so `name`
+ * always stays empty for that group. The composer UI, workspace reducer,
  * validation, and persistence layers all read from here.
  */
 
@@ -60,6 +62,13 @@ export interface BoardComposerDraft {
    * at least one (possibly empty) row.
    */
   environmentNotes: ComposerNote[]
+  /**
+   * Manually authored scene beats, always at least one (possibly empty)
+   * row. Only the row's `notes` field is used — a scene has no `@handle`.
+   * When any row is filled, generation uses these beats verbatim instead
+   * of planning its own scene breakdown.
+   */
+  sceneNotes: ComposerNote[]
   /** Uploaded visual-style reference images. */
   styleImageReferences: File[]
   /** Optional textual visual-style description. */

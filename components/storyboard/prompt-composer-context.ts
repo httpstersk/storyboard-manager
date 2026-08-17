@@ -35,6 +35,12 @@ export interface PromptComposerContextValue {
    * slower response is dropped instead of overwriting it.
    */
   analyzeStyleImages: (files: File[]) => void
+  /**
+   * Opens a native file picker without collapsing the composer. OS dialogs
+   * steal focus; without this, blur would unmount the input before the
+   * selection completes.
+   */
+  beginFilePicker: (input: HTMLInputElement | null) => void
   /** Written characters and their reference uploads. */
   characters: ComposerNoteGroup
   /** Written environments (locations, buildings) and their uploads. */

@@ -6,6 +6,16 @@ const EASE_OUT = [0.23, 1, 0.32, 1] as const
 /** Standard spring for medium-distance layout movement and panel shifts. */
 const SPRING_LAYOUT = { bounce: 0.1, duration: 0.35, type: "spring" } as const
 
+/**
+ * Same-family spring as `SPRING_LAYOUT` for the composer shell's corner
+ * radius, sharing its bounce so both properties read as one physical system.
+ * Starts at the same instant as `SPRING_LAYOUT` (no delay -- a delayed start
+ * reads as a frozen-then-snapped, robotic beat) but runs longer, so the
+ * corners are still gently rounding out for a moment after the box's size
+ * has settled, landing as a continuous final flourish.
+ */
+const SPRING_RADIUS_TRAIL = { bounce: 0.1, duration: 0.5, type: "spring" } as const
+
 /** Snappy low-bounce spring for shared-element and thumb transitions. */
 const SPRING_SNAPPY = { bounce: 0.15, duration: 0.3, type: "spring" } as const
 /** Fast fade used for compact helper UI and ephemeral status lines. */
@@ -24,6 +34,7 @@ export {
   EASE_IN_OUT,
   EASE_OUT,
   SPRING_LAYOUT,
+  SPRING_RADIUS_TRAIL,
   SPRING_SNAPPY,
   TRANSITION_FADE_FAST,
   TRANSITION_FADE_STANDARD,

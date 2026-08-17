@@ -6,6 +6,7 @@ import * as React from "react"
 
 import { PromptComposerActions } from "@/components/storyboard/prompt-composer-actions"
 import { PromptComposerAttachments } from "@/components/storyboard/prompt-composer-attachments"
+import { createFilePickerSession } from "@/components/storyboard/prompt-composer-file-picker"
 import {
   type ComposerNoteGroup,
   composerReducer,
@@ -32,7 +33,11 @@ import { depthMapStyleAtom } from "@/lib/depth-map-style-settings"
 import { allocateStoryboardReferenceSlots } from "@/lib/generation"
 import { imageModelAtom } from "@/lib/image-model-settings"
 import { imageResolutionAtom } from "@/lib/image-resolution-settings"
-import { SPRING_LAYOUT, TRANSITION_FADE_FAST } from "@/lib/motion"
+import {
+  SPRING_LAYOUT,
+  SPRING_RADIUS_TRAIL,
+  TRANSITION_FADE_FAST,
+} from "@/lib/motion"
 import { shotModeAtom } from "@/lib/shot-mode-settings"
 import { cn } from "@/lib/utils"
 import { allocateSeedanceReferenceSlots } from "@/lib/video-generation"
@@ -184,6 +189,7 @@ function PromptComposerRoot({
   // Identifies the most recent style-image analysis request so a slower,
   // superseded upload's response can never overwrite a newer one's result.
   const analysisRequestIdRef = React.useRef(0)
+  const filePickerSessionRef = React.useRef(createFilePickerSession())
 
   // Sync character/environment/style data into video + edit atoms. Keyed off
   // the per-board draft, so switching boards re-syncs to the new selection.
@@ -412,6 +418,9 @@ function PromptComposerRoot({
 
   const contextValue: PromptComposerContextValue = {
     analyzeStyleImages,
+    beginFilePicker: (input) => {
+      filePickerSessionRef.current.begin(input)
+    },
     characters: buildNoteGroup(
       {
         imageReferences: draft.characterImageReferences,
@@ -488,13 +497,17 @@ function PromptComposerRoot({
           className
         )}
         onBlurCapture={(event) => {
+          if (filePickerSessionRef.current.isOpen()) {
+            return
+          }
+
           if (!event.currentTarget.contains(event.relatedTarget)) {
             onActiveChange?.(false)
           }
         }}
         onFocusCapture={() => onActiveChange?.(true)}
         role="group"
-        transition={SPRING_LAYOUT}
+        transition={{ ...SPRING_LAYOUT, borderRadius: SPRING_RADIUS_TRAIL }}
         {...props}
       >
         <div
