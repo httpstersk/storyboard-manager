@@ -10,6 +10,11 @@ import {
   downloadPngDataUrl,
   parseBoardFile,
 } from "@/lib/board-io"
+import {
+  characterModeAtom,
+  isCharacterMode,
+  type CharacterMode,
+} from "@/lib/character-mode-settings"
 import { requestStoryboardGeneration } from "@/lib/generate-storyboard-client"
 import { type StoryboardGenerationRequest } from "@/lib/generation"
 import { depthMapStyleAtom } from "@/lib/depth-map-style-settings"
@@ -69,12 +74,14 @@ interface StoryboardWorkspaceModel {
    * omitted. Shared by toolbar export and video generation.
    */
   captureGridPng: () => Promise<string>
+  characterMode: CharacterMode
   deleteRequestBoard: Board | null
   depthMapStyle: boolean
   dispatch: React.Dispatch<WorkspaceAction>
   editingIndex: number
   editingScene: Scene | null
   gridRef: React.RefObject<HTMLElement | null>
+  handleCharacterModeChange: (value: string) => void
   handleColumnsChange: (columns: number) => void
   handleComposerActiveChange: (isComposerActive: boolean) => void
   handleDepthMapStyleChange: (depthMapStyle: boolean) => void
@@ -111,6 +118,7 @@ interface StoryboardWorkspaceModel {
 
 /** Owns workspace state, persistence, and action handlers. */
 function useStoryboardWorkspaceModel(): StoryboardWorkspaceModel {
+  const [characterMode, setCharacterMode] = useAtom(characterModeAtom)
   const [depthMapStyle, setDepthMapStyle] = useAtom(depthMapStyleAtom)
   const [imageModel, setImageModel] = useAtom(imageModelAtom)
   const [imageResolution, setImageResolution] = useAtom(imageResolutionAtom)
@@ -241,6 +249,12 @@ function useStoryboardWorkspaceModel(): StoryboardWorkspaceModel {
   const deleteRequestBoard =
     state.boards.find((board) => board.id === state.deleteRequestBoardId) ??
     null
+
+  const handleCharacterModeChange = (value: string) => {
+    if (isCharacterMode(value)) {
+      setCharacterMode(value)
+    }
+  }
 
   const handleColumnsChange = (columns: number) => {
     const preset = snapColumnChange(columns, state.rows)
@@ -428,12 +442,14 @@ function useStoryboardWorkspaceModel(): StoryboardWorkspaceModel {
     canNavigatePreviousScene,
     captureFilledOnly,
     captureGridPng,
+    characterMode,
     deleteRequestBoard,
     depthMapStyle,
     dispatch,
     editingIndex,
     editingScene,
     gridRef,
+    handleCharacterModeChange,
     handleColumnsChange,
     handleComposerActiveChange,
     handleDepthMapStyleChange,

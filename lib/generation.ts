@@ -5,6 +5,10 @@ import {
   MAX_COMPOSER_SHEETS,
   MAX_VISUAL_STYLE_LENGTH,
 } from "@/lib/board-composer"
+import {
+  CHARACTER_MODES,
+  type CharacterMode,
+} from "@/lib/character-mode-settings"
 import { isImageDataUrl } from "@/lib/image-data"
 import {
   IMAGE_MODELS,
@@ -77,6 +81,9 @@ export const dataUrlSchema = z
     "Reference images must be PNG or JPEG data URLs."
   )
 
+/** Runtime schema for the multiple / isolated character mode preference. */
+export const characterModeSchema = z.enum(CHARACTER_MODES).default("multiple")
+
 /** Runtime schema for the image model preference. */
 export const imageModelSchema = z.enum(IMAGE_MODELS).default("nano-banana-pro")
 
@@ -95,6 +102,7 @@ const composerSheetsSchema = z
 export const storyboardGenerationRequestSchema = z
   .object({
     characterImageRefs: z.array(dataUrlSchema).max(MAX_IMAGE_REFERENCES),
+    characterMode: characterModeSchema,
     characterSheets: composerSheetsSchema,
     depthMapStyle: z.boolean().default(false),
     environmentImageRefs: z.array(dataUrlSchema).max(MAX_IMAGE_REFERENCES),
@@ -213,6 +221,7 @@ export const sceneImageEditResponseSchema = z.object({
 /** Client request submitted by the prompt composer. */
 export interface StoryboardGenerationRequest {
   characterImageRefs: string[]
+  characterMode: CharacterMode
   characterSheets: string[]
   depthMapStyle: boolean
   environmentImageRefs: string[]
@@ -333,10 +342,14 @@ export function actionNamesHandle(action: string, handle: string): boolean {
 /**
  * Appends each missing `@handle` to the shortest scene action so a finished
  * plan always names the full cast. Last resort after planning and repair.
+ *
+ * In isolated mode, appending would put a second named character in that
+ * beat, so the target scene's action is replaced with a solo line instead.
  */
 export function foldMissingHandlesIntoScenes<T extends { action: string }>(
   scenes: T[],
-  characterHandles: string[]
+  characterHandles: string[],
+  characterMode: CharacterMode
 ): T[] {
   const nextScenes = scenes.map((scene) => ({ ...scene }))
 
@@ -344,7 +357,10 @@ export function foldMissingHandlesIntoScenes<T extends { action: string }>(
     const target = nextScenes.reduce((shortest, scene) =>
       scene.action.length <= shortest.action.length ? scene : shortest
     )
-    target.action = appendHandleToAction(target.action, handle)
+    target.action =
+      characterMode === "isolated"
+        ? soloActionForHandle(handle)
+        : appendHandleToAction(target.action, handle)
   }
 
   return nextScenes
@@ -402,6 +418,15 @@ function appendHandleToAction(action: string, handle: string): string {
 /** Escapes `value` so it can be used as a literal in a `RegExp`. */
 function escapeRegExp(value: string): string {
   return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")
+}
+
+/**
+ * Deterministic solo beat for a scene reassigned to a missing character in
+ * isolated mode, so the last-resort fallback never adds a second named
+ * character to that scene.
+ */
+function soloActionForHandle(handle: string): string {
+  return `${handle} takes center stage alone in the frame.`
 }
 
 /** Strips trailing whitespace and clause punctuation. */

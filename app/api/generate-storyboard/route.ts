@@ -4,10 +4,9 @@ import { generateImage, generateText, Output } from "ai"
 import { readFile } from "fs/promises"
 import path from "path"
 
-import {
-  resolveFalApiKey,
-} from "@/lib/api-route-config"
+import { resolveFalApiKey } from "@/lib/api-route-config"
 import { extractHandlesFromSheets } from "@/lib/board-composer"
+import { type CharacterMode } from "@/lib/character-mode-settings"
 import { DEPTH_MAP_STYLE_PROMPT } from "@/lib/depth-map-style-settings"
 import {
   foldMissingHandlesIntoScenes,
@@ -32,17 +31,32 @@ export const maxDuration = 300
 /** Ensures sharp and the provider SDK run in a full Node.js environment. */
 export const runtime = "nodejs"
 
-/** Director persona and the craft rules that hold in every shot mode. */
-const DIRECTOR_SYSTEM_PROMPT = `You are a veteran storyboard director. Your boards are judged on followability, not completeness: a reader must grasp the story from the frames alone, in order, at a glance.
+/**
+ * Director persona and the craft rules that hold in every shot mode.
+ * The cast-composition bullets flip between allowing several named
+ * characters in one beat and isolating exactly one per beat.
+ */
+function buildDirectorCraftRules(characterMode: CharacterMode): string {
+  const soloSubjectRule =
+    characterMode === "isolated"
+      ? "The primary subject is the only named character in the frame — never add a second named character to the same beat; give any other character their own separate scene."
+      : "Other named characters may be present in the frame (over-the-shoulder, opposite, background) when the story requires them, named by @handle."
+  const bindOtherCharacters =
+    characterMode === "isolated"
+      ? ""
+      : " Name any other characters in the frame by @handle too."
+
+  return `You are a veteran storyboard director. Your boards are judged on followability, not completeness: a reader must grasp the story from the frames alone, in order, at a glance.
 
 Craft rules, applied to every plan:
-- One beat per scene. Each action is a single concise clause with exactly one primary subject performing one action that ends on a visible state (where people, props, and the camera sit when the beat completes). Other named characters may be present in the frame (over-the-shoulder, opposite, background) when the story requires them, named by @handle. No compound actions, no montage descriptions.
+- One beat per scene. Each action is a single concise clause with exactly one primary subject performing one action that ends on a visible state (where people, props, and the camera sit when the beat completes). ${soloSubjectRule} No compound actions, no montage descriptions.
 - Compose deliberately. At most 2 scenes in the whole board may place the subject dead-center. Spread the rest across rule-of-thirds placements, negative space, foreground occlusion, over-the-shoulder framings, and low or high angles.
 - Pace with intent. The whole board totals 4 to 30 seconds so it can play as one Seedance 2.5 clip. Scene durations form a rhythm: longer establishing and emotional beats, shorter action and reaction beats.
 - Cover the full cast. When character material exists, every named @handle appears in at least one scene; they all play a part in the story. Do not drop a character because they have fewer beats.
-- Bind characters by @handle. When character material exists, actions name the primary subject with their @handle (e.g. @XYZ) and re-bind them with concrete identifiers (wardrobe, hair, silhouette), never bare pronouns. Name any other characters in the frame by @handle too.
+- Bind characters by @handle. When character material exists, actions name the primary subject with their @handle (e.g. @XYZ) and re-bind them with concrete identifiers (wardrobe, hair, silhouette), never bare pronouns.${bindOtherCharacters}
 - Bind locations by @handle. When environment material exists, stage the beats inside those locations and name them with their @handle (e.g. @XYZ), re-binding with concrete identifiers (architecture, materials, set dressing) rather than a vague place noun. Say which part of the location each beat occupies — a specific corner, threshold, elevation, or approach — so consecutive beats set in one @handle never all describe the same view of it.
 - Respect visual style. When a written style and/or style reference images are declared, plan lighting, mood, and action language that fit that medium. Do not assume photoreal live-action when the style is illustration, animation, painterly, or any other non-photoreal treatment.`
+}
 
 /** Cut grammar rules that only apply to the selected shot mode. */
 const DIRECTOR_SHOT_MODE_RULES: Record<ShotMode, string> = {
@@ -132,6 +146,7 @@ export async function POST(request: Request): Promise<Response> {
 
     const {
       characterImageRefs,
+      characterMode,
       characterSheets,
       depthMapStyle,
       environmentImageRefs,
@@ -164,6 +179,7 @@ export async function POST(request: Request): Promise<Response> {
       }),
       prompt: buildPlanningPrompt({
         characterImageCount: characterImageRefs.length,
+        characterMode,
         characterSheets,
         depthMapStyle,
         environmentImageCount: environmentImageRefs.length,
@@ -173,14 +189,18 @@ export async function POST(request: Request): Promise<Response> {
         styleImageCount: effectiveStyleImageRefs.length,
         visualStyle: effectiveVisualStyle,
       }),
-      system: buildDirectorSystemPrompt(shotMode),
+      system: buildDirectorSystemPrompt(characterMode, shotMode),
     })
 
     if (planned === undefined) {
       throw new Error("The planner returned no structured storyboard plan.")
     }
 
-    const plan = await ensurePlanCoversCharacters(characterHandles, planned)
+    const plan = await ensurePlanCoversCharacters(
+      characterHandles,
+      characterMode,
+      planned
+    )
 
     const layout = layoutForSceneCount(plan.scenes.length)
     const layoutPlaceholder = await readLayoutPlaceholder(layout)
@@ -188,6 +208,7 @@ export async function POST(request: Request): Promise<Response> {
     const allReferenceImages = [layoutPlaceholder, ...referenceImages]
     const compositePrompt = buildCompositePrompt({
       characterImageCount: characterImageRefs.length,
+      characterMode,
       characterSheets,
       columns: layout.columns,
       depthMapStyle,
@@ -257,6 +278,8 @@ interface PlanningFieldGuidance {
 interface PlanningPromptOptions {
   /** Number of character reference images supplied for the renderer. */
   characterImageCount: number
+  /** Whether scenes may name several characters or only one. */
+  characterMode: CharacterMode
   /** Written character continuity sheets. */
   characterSheets: string[]
   /** When true, plan framing for a depth-map contact sheet. */
@@ -280,20 +303,29 @@ interface PlanningPromptOptions {
  * appear, without changing scene count or craft fields.
  */
 function buildCastRepairPrompt(
+  characterMode: CharacterMode,
   missingHandles: string[],
   plan: StoryboardPlan
 ): string {
+  const sharingInstruction =
+    characterMode === "isolated"
+      ? "Every scene must keep exactly one named character. Reassign an existing scene to a missing character rather than adding them beside that scene's current subject."
+      : "Other named characters may share a frame with the primary subject."
+
   return `The following storyboard plan omitted named characters that must appear in at least one scene action: ${missingHandles.join(", ")}.
 
-Revise only scene actions (and dialogue if needed) so each omitted @handle appears in at least one action. Keep the same title, the same number of scenes, and every craft field (shot, camera, lens, movement, lighting, timeSeconds). Each action stays at most 140 characters. Other named characters may share a frame with the primary subject.
+Revise only scene actions (and dialogue if needed) so each omitted @handle appears in at least one action. Keep the same title, the same number of scenes, and every craft field (shot, camera, lens, movement, lighting, timeSeconds). Each action stays at most 140 characters. ${sharingInstruction}
 
 Current plan:
 ${JSON.stringify(plan)}`
 }
 
 /** Combines the shared director persona with the selected shot mode's rules. */
-function buildDirectorSystemPrompt(shotMode: ShotMode): string {
-  return `${DIRECTOR_SYSTEM_PROMPT}
+function buildDirectorSystemPrompt(
+  characterMode: CharacterMode,
+  shotMode: ShotMode
+): string {
+  return `${buildDirectorCraftRules(characterMode)}
 
 ${DIRECTOR_SHOT_MODE_RULES[shotMode]}`
 }
@@ -301,6 +333,7 @@ ${DIRECTOR_SHOT_MODE_RULES[shotMode]}`
 /** Builds the structured scene-planning brief sent to OpenAI. */
 function buildPlanningPrompt({
   characterImageCount,
+  characterMode,
   characterSheets,
   depthMapStyle,
   environmentImageCount,
@@ -313,6 +346,7 @@ function buildPlanningPrompt({
   const characterHandles = extractHandlesFromSheets(characterSheets)
   const writtenCharacterContext = buildWrittenCharacterContext(
     characterHandles,
+    characterMode,
     characterSheets
   )
   const visualCharacterContext =
@@ -336,13 +370,21 @@ function buildPlanningPrompt({
     trimmedVisualStyle
   )
   const fieldGuidance = PLANNING_FIELD_GUIDANCE[shotMode]
+  const castCountGuidance =
+    characterMode === "isolated"
+      ? "Because isolate mode gives each character their own dedicated scene, choose a count at least as large as the named cast, capped at 12."
+      : "Prefer a count at least as large as the named cast so each character can play a part, capped at 12."
+  const actionSharingClause =
+    characterMode === "isolated"
+      ? " No other named character may share the frame; give them their own scene."
+      : " Other named characters may share the frame when the story requires them."
 
   return `${PLANNING_SHOT_MODE_BRIEFS[shotMode]}
 
-Choose a scene count that fills an entire grid: 4 (2×2), 6 (3×2), 9 (3×3), or 12 (4×3). A short logline should use 4 or 6 beats; a full storyline should use 9 or 12. Prefer a count at least as large as the named cast so each character can play a part, capped at 12. Every cell is a story beat — do not leave unused cells. Pace the whole board so the sum of timeSeconds is between 4 and 30.
+Choose a scene count that fills an entire grid: 4 (2×2), 6 (3×2), 9 (3×3), or 12 (4×3). A short logline should use 4 or 6 beats; a full storyline should use 9 or 12. ${castCountGuidance} Every cell is a story beat — do not leave unused cells. Pace the whole board so the sum of timeSeconds is between 4 and 30.
 
 For every scene:
-- action: one concise, drawable visual beat with exactly one primary subject action that ends on a visible state (140 characters maximum). Other named characters may share the frame when the story requires them.
+- action: one concise, drawable visual beat with exactly one primary subject action that ends on a visible state (140 characters maximum).${actionSharingClause}
 - dialogue: only essential spoken context, otherwise an empty string
 - ${fieldGuidance.shot}
 - camera: the camera body whose character suits the beat
@@ -427,6 +469,7 @@ function buildPlanningVisualStyleContext(
  */
 function buildWrittenCharacterContext(
   characterHandles: string[],
+  characterMode: CharacterMode,
   characterSheets: string[]
 ): string {
   if (characterSheets.length === 0) {
@@ -437,8 +480,12 @@ function buildWrittenCharacterContext(
     characterHandles.length === 0
       ? "every described character plays a part in the story and must appear in at least one scene"
       : `every named character plays a part in the story and must appear in at least one scene (${characterHandles.join(", ")})`
+  const otherCharactersInstruction =
+    characterMode === "isolated"
+      ? ""
+      : " Name any other characters in the same frame by @handle too."
 
-  return `Character sheets — ${coverage}. Name the primary subject of each beat with their matching @handle (e.g. @XYZ) and re-bind them with concrete identifiers (wardrobe, hair, silhouette), never pronouns. Name any other characters in the same frame by @handle too:\n${characterSheets.join(
+  return `Character sheets — ${coverage}. Name the primary subject of each beat with their matching @handle (e.g. @XYZ) and re-bind them with concrete identifiers (wardrobe, hair, silhouette), never pronouns.${otherCharactersInstruction}\n${characterSheets.join(
     "\n\n---\n\n"
   )}`
 }
@@ -449,6 +496,7 @@ function buildWrittenCharacterContext(
  */
 async function ensurePlanCoversCharacters(
   characterHandles: string[],
+  characterMode: CharacterMode,
   plan: StoryboardPlan
 ): Promise<StoryboardPlan> {
   const missingHandles = missingCharacterHandles(plan.scenes, characterHandles)
@@ -469,7 +517,7 @@ async function ensurePlanCoversCharacters(
         name: "storyboard_plan",
         schema: storyboardPlanSchema,
       }),
-      prompt: buildCastRepairPrompt(missingHandles, plan),
+      prompt: buildCastRepairPrompt(characterMode, missingHandles, plan),
       system:
         "You are a storyboard director repairing a plan so every named character appears.",
     })
@@ -483,6 +531,10 @@ async function ensurePlanCoversCharacters(
 
   return {
     ...nextPlan,
-    scenes: foldMissingHandlesIntoScenes(nextPlan.scenes, characterHandles),
+    scenes: foldMissingHandlesIntoScenes(
+      nextPlan.scenes,
+      characterHandles,
+      characterMode
+    ),
   }
 }

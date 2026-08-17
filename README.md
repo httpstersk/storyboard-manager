@@ -44,6 +44,7 @@ Each scene card supports granular industry-standard parameters:
 ### 🎞️ AI Storyboard Generation
 
 - **Story Planning**: Submit a logline or full storyline with optional character sheets and visual references. OpenAI converts it into a dynamic sequence of cinematic beats.
+- **Character Framing**: Toggle in the toolbar between letting several named characters share a scene (`Multiple`) or isolating exactly one named character per beat (`Isolated`).
 - **Composite Generation**: The selected image model (Nano Banana Pro or Seedream 5 Pro) on fal.ai creates one ordered contact sheet; the server normalizes 1px cell gaps and slices the sheet into individual 16:9 scene frames.
 - **Non-destructive Boards**: Every generation creates and selects a new storyboard, preserving existing work.
 

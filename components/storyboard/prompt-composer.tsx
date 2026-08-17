@@ -27,6 +27,7 @@ import {
   nextComposerNoteId,
   serializeComposerNotes,
 } from "@/lib/board-composer"
+import { characterModeAtom } from "@/lib/character-mode-settings"
 import { depthMapStyleAtom } from "@/lib/depth-map-style-settings"
 import { allocateStoryboardReferenceSlots } from "@/lib/generation"
 import { imageModelAtom } from "@/lib/image-model-settings"
@@ -85,7 +86,10 @@ function buildNoteGroup(
       }
 
       onDraftChange?.(
-        patchNotes([...notes, createEmptyComposerNote(nextComposerNoteId(notes))])
+        patchNotes([
+          ...notes,
+          createEmptyComposerNote(nextComposerNoteId(notes)),
+        ])
       )
     },
     imageReferences,
@@ -150,6 +154,7 @@ function PromptComposerRoot({
   onSubmit,
   ...props
 }: PromptComposerRootProps) {
+  const characterMode = useAtomValue(characterModeAtom)
   const depthMapStyle = useAtomValue(depthMapStyleAtom)
   const imageModel = useAtomValue(imageModelAtom)
   const imageResolution = useAtomValue(imageResolutionAtom)
@@ -333,6 +338,7 @@ function PromptComposerRoot({
         // so the composer frees up for the next prompt immediately.
         onSubmit({
           characterImageRefs: characterImageRefs.slice(0, slots.characterCount),
+          characterMode,
           characterSheets: serializeComposerNotes(draft.characterNotes),
           depthMapStyle,
           environmentImageRefs: environmentImageRefs.slice(
@@ -429,7 +435,7 @@ function PromptComposerRoot({
           "group/composer mx-auto w-full max-w-3xl shrink-0 transition-[box-shadow] duration-200 ease-out focus-within:ring-2 focus-within:ring-ring motion-reduce:transition-none",
           isImageEdit
             ? "flex flex-wrap items-center gap-1.5 rounded-full bg-surface-inset py-1 pl-1 shadow-popover"
-            : "max-h-[min(28rem,calc(100svh-8rem))] overflow-y-auto rounded-3xl bg-surface-panel shadow-modal scrollbar-none",
+            : "scrollbar-none max-h-[min(28rem,calc(100svh-8rem))] overflow-y-auto rounded-3xl bg-surface-panel shadow-modal",
           className
         )}
         onBlurCapture={(event) => {

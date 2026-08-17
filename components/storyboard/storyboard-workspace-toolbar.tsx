@@ -6,6 +6,7 @@ import {
   SFArrowUpToLine,
   SFCpu,
   SFFilm,
+  SFPersonCropRectangle,
   SFRectangleSplit1x2,
   SFRectangleSplit2x1,
   SFSliderHorizontal3,
@@ -22,6 +23,11 @@ import { Stepper } from "@/components/ui/stepper"
 import { Switch } from "@/components/ui/switch"
 import { Tooltip } from "@/components/ui/tooltip"
 import { exportBoardJson } from "@/lib/board-io"
+import {
+  CHARACTER_MODE_LABELS,
+  CHARACTER_MODES,
+  type CharacterMode,
+} from "@/lib/character-mode-settings"
 import {
   IMAGE_MODEL_CONFIGS,
   IMAGE_MODELS,
@@ -92,7 +98,7 @@ function GridSteppers({
         <Tooltip>
           <Tooltip.Trigger asChild>
             <Field.Label className="inline-flex items-center">
-              <SFRectangleSplit1x2 aria-hidden className="size-3" />
+              <SFRectangleSplit1x2 aria-hidden className="size-3.5" />
               <span className="sr-only">Rows</span>
             </Field.Label>
           </Tooltip.Trigger>
@@ -116,7 +122,7 @@ function GridSteppers({
         <Tooltip>
           <Tooltip.Trigger asChild>
             <Field.Label className="inline-flex items-center">
-              <SFRectangleSplit2x1 aria-hidden className="size-3" />
+              <SFRectangleSplit2x1 aria-hidden className="size-3.5" />
               <span className="sr-only">Columns</span>
             </Field.Label>
           </Tooltip.Trigger>
@@ -157,7 +163,7 @@ function ImageModelField({
       <Tooltip>
         <Tooltip.Trigger asChild>
           <Field.Label className="inline-flex items-center">
-            <SFCpu aria-hidden className="size-3" />
+            <SFCpu aria-hidden className="size-3.5" />
             <span className="sr-only">Model</span>
           </Field.Label>
         </Tooltip.Trigger>
@@ -245,7 +251,7 @@ function ShotModeField({ onShotModeChange, shotMode }: ShotModeFieldProps) {
       <Tooltip>
         <Tooltip.Trigger asChild>
           <Field.Label className="inline-flex items-center">
-            <SFFilm aria-hidden className="size-3" />
+            <SFFilm aria-hidden className="size-3.5" />
             <span className="sr-only">Shots</span>
           </Field.Label>
         </Tooltip.Trigger>
@@ -268,7 +274,49 @@ function ShotModeField({ onShotModeChange, shotMode }: ShotModeFieldProps) {
   )
 }
 
+interface CharacterModeFieldProps {
+  /** Currently selected character mode. */
+  characterMode: CharacterMode
+  /** Updates the multiple / isolated character preference. */
+  onCharacterModeChange: (value: string) => void
+}
+
+/** Character mode switcher deciding whether named characters may share a scene. */
+function CharacterModeField({
+  characterMode,
+  onCharacterModeChange,
+}: CharacterModeFieldProps) {
+  return (
+    <Field>
+      <Tooltip>
+        <Tooltip.Trigger asChild>
+          <Field.Label className="inline-flex items-center">
+            <SFPersonCropRectangle aria-hidden className="size-3.5" />
+            <span className="sr-only">Characters</span>
+          </Field.Label>
+        </Tooltip.Trigger>
+        <Tooltip.Content>Characters</Tooltip.Content>
+      </Tooltip>
+      <Field.Control>
+        <SegmentedControl
+          label="Character mode"
+          onValueChange={onCharacterModeChange}
+          value={characterMode}
+        >
+          {CHARACTER_MODES.map((mode) => (
+            <SegmentedControl.Option key={mode} value={mode}>
+              {CHARACTER_MODE_LABELS[mode]}
+            </SegmentedControl.Option>
+          ))}
+        </SegmentedControl>
+      </Field.Control>
+    </Field>
+  )
+}
+
 interface WorkspaceToolbarProps {
+  /** Currently selected character mode. */
+  characterMode: CharacterMode
   /** Selected number of scene columns. */
   columns: number
   /** Whether generation locks to grayscale linear depth maps. */
@@ -277,6 +325,8 @@ interface WorkspaceToolbarProps {
   imageModel: ImageModel
   /** Output resolution selected for generation and editing. */
   imageResolution: ImageResolution
+  /** Updates the multiple / isolated character preference. */
+  onCharacterModeChange: (value: string) => void
   /** Updates the selected number of scene columns. */
   onColumnsChange: (columns: number) => void
   /** Updates whether depth-map style generation is enabled. */
@@ -305,10 +355,12 @@ interface WorkspaceToolbarProps {
 
 /** Persistent toolbar shell that skips selected-board-only updates. */
 function WorkspaceToolbar({
+  characterMode,
   columns,
   depthMapStyle,
   imageModel,
   imageResolution,
+  onCharacterModeChange,
   onColumnsChange,
   onDepthMapStyleChange,
   onExportPng,
@@ -324,7 +376,7 @@ function WorkspaceToolbar({
 }: WorkspaceToolbarProps) {
   return (
     <BoardToolbar>
-      <BoardToolbar.Brand name="Boooards" version="v1.6" />
+      <BoardToolbar.Brand name="Boooards" />
       <BoardToolbar.Controls>
         <GridSteppers
           columns={columns}
@@ -345,11 +397,15 @@ function WorkspaceToolbar({
           onShotModeChange={onShotModeChange}
           shotMode={shotMode}
         />
+        <CharacterModeField
+          characterMode={characterMode}
+          onCharacterModeChange={onCharacterModeChange}
+        />
         <Field>
           <Tooltip>
             <Tooltip.Trigger asChild>
               <Field.Label className="inline-flex items-center">
-                <SFSliderHorizontal3 aria-hidden className="size-3" />
+                <SFSliderHorizontal3 aria-hidden className="size-3.5" />
                 <span className="sr-only">Parameters</span>
               </Field.Label>
             </Tooltip.Trigger>
@@ -366,7 +422,7 @@ function WorkspaceToolbar({
           <Tooltip>
             <Tooltip.Trigger asChild>
               <Field.Label className="inline-flex items-center">
-                <SFSquare3Layers3d aria-hidden className="size-3" />
+                <SFSquare3Layers3d aria-hidden className="size-3.5" />
                 <span className="sr-only">Depth Map</span>
               </Field.Label>
             </Tooltip.Trigger>

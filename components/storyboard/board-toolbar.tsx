@@ -23,14 +23,11 @@ import { cn } from "@/lib/utils"
  * </BoardToolbar>
  * ```
  */
-function BoardToolbar({
-  className,
-  ...props
-}: React.ComponentProps<"header">) {
+function BoardToolbar({ className, ...props }: React.ComponentProps<"header">) {
   return (
     <header
       className={cn(
-        "flex min-h-12 h-auto shrink-0 flex-wrap items-center justify-between gap-x-6 gap-y-3 px-1 py-3 lg:h-12 lg:py-0",
+        "flex h-auto min-h-12 shrink-0 flex-wrap items-center justify-between gap-x-6 gap-y-3 px-1 py-3 lg:h-12 lg:py-0",
         className
       )}
       {...props}
@@ -43,20 +40,13 @@ interface BoardToolbarBrandProps {
   className?: string
   /** Product name. */
   name: string
-  /** Version label shown next to the name. */
-  version: string
 }
 
 /** Product name and version of the {@link BoardToolbar}. */
-function BoardToolbarBrand({
-  className,
-  name,
-  version,
-}: BoardToolbarBrandProps) {
+function BoardToolbarBrand({ className, name }: BoardToolbarBrandProps) {
   return (
     <div className={cn("flex shrink-0 items-baseline gap-1.5", className)}>
       <span className="text-heading font-medium text-ink-strong">{name}</span>
-      <span className="text-caption text-ink-muted">{version}</span>
     </div>
   )
 }
@@ -84,24 +74,25 @@ function BoardToolbarActions({
 }: React.ComponentProps<"div">) {
   return (
     <div
-      className={cn("flex w-full flex-wrap items-center gap-2 lg:w-auto lg:shrink-0", className)}
+      className={cn(
+        "flex w-full flex-wrap items-center gap-2 lg:w-auto lg:shrink-0",
+        className
+      )}
       {...props}
     />
   )
 }
 
 const boardToolbarActionVariants = cva(
-  "flex h-7 items-center gap-1.5 rounded-full px-3 text-caption font-medium outline-none transition-[color,background-color,transform] duration-150 ease-out active:scale-[0.97] focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1 focus-visible:ring-offset-surface-app [&_svg]:size-2.75 [&_svg]:shrink-0",
+  "flex h-7 items-center gap-1.5 rounded-full px-3 text-caption font-medium transition-[color,background-color,transform] duration-150 ease-out outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1 focus-visible:ring-offset-surface-app active:scale-[0.97] [&_svg]:size-2.75 [&_svg]:shrink-0",
   {
     defaultVariants: {
       variant: "default",
     },
     variants: {
       variant: {
-        default:
-          "bg-surface-inset text-ink hover:text-ink-strong",
-        emphasis:
-          "bg-emphasis text-emphasis-foreground hover:bg-emphasis/85",
+        default: "bg-surface-inset text-ink hover:text-ink-strong",
+        emphasis: "bg-emphasis text-emphasis-foreground hover:bg-emphasis/85",
       },
     },
   }
@@ -109,8 +100,9 @@ const boardToolbarActionVariants = cva(
 
 /** Props for {@link BoardToolbarAction}. */
 interface BoardToolbarActionProps
-  extends React.ComponentProps<"button">,
-  VariantProps<typeof boardToolbarActionVariants> { }
+  extends
+    React.ComponentProps<"button">,
+    VariantProps<typeof boardToolbarActionVariants> {}
 
 /** A pill action button inside {@link BoardToolbarActions}. */
 function BoardToolbarAction({
@@ -128,7 +120,7 @@ function BoardToolbarAction({
   )
 }
 
-const emptySubscribe = () => () => { }
+const emptySubscribe = () => () => {}
 
 /**
  * Light/dark theme switcher. Active-segment styling is driven by CSS

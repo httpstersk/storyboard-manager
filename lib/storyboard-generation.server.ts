@@ -1,5 +1,6 @@
 import sharp from "sharp"
 
+import { type CharacterMode } from "@/lib/character-mode-settings"
 import { DEPTH_MAP_STYLE_PROMPT } from "@/lib/depth-map-style-settings"
 import { type StoryboardLayout } from "@/lib/generation"
 import {
@@ -44,6 +45,8 @@ const SUPPORTED_ASPECT_RATIOS = [
 interface CompositePromptOptions {
   /** Number of leading input images that define character identity. */
   characterImageCount: number
+  /** Whether scenes may name several characters or only one. */
+  characterMode: CharacterMode
   /** Character continuity instructions supplied by the user. */
   characterSheets: string[]
   /** Number of cells across the composite. */
@@ -155,6 +158,7 @@ const SHOT_MODE_SEQUENCE_DIRECTIONS: Record<ShotMode, string> = {
  */
 export function buildCompositePrompt({
   characterImageCount,
+  characterMode,
   characterSheets,
   columns,
   depthMapStyle = false,
@@ -190,7 +194,11 @@ export function buildCompositePrompt({
     visualStyle: effectiveVisualStyle,
   })
   const continuity = [
-    buildCharacterContinuity(characterImageCount, characterSheets),
+    buildCharacterContinuity(
+      characterImageCount,
+      characterMode,
+      characterSheets
+    ),
     buildEnvironmentContinuity({
       environmentImageCount,
       environmentSheets,
@@ -362,6 +370,7 @@ export function buildVisualStyleSection({
  */
 function buildCharacterContinuity(
   characterImageCount: number,
+  characterMode: CharacterMode,
   characterSheets: string[]
 ): string {
   if (characterImageCount === 0 && characterSheets.length === 0) {
@@ -382,8 +391,12 @@ function buildCharacterContinuity(
     characterImageCount === 0
       ? ""
       : " Depict every supplied character reference in at least one cell."
+  const isolationRule =
+    characterMode === "isolated"
+      ? " Depict exactly one named character in every cell — never render two named characters together in the same frame."
+      : ""
 
-  return `Maintain the supplied character designs exactly across every frame. Re-assert each character's identity inside every cell they appear in — same face, hair, wardrobe, and silhouette.${castCoverage}${imageCoverage}${sheets}`
+  return `Maintain the supplied character designs exactly across every frame. Re-assert each character's identity inside every cell they appear in — same face, hair, wardrobe, and silhouette.${castCoverage}${imageCoverage}${isolationRule}${sheets}`
 }
 
 interface EnvironmentContinuityOptions {
@@ -479,8 +492,7 @@ function buildReferenceDirections({
     return "No reference images were supplied."
   }
 
-  const directions =
-    layoutDescription === undefined ? [] : [layoutDescription]
+  const directions = layoutDescription === undefined ? [] : [layoutDescription]
   // Layout placeholder occupies slot 1 when present; user images follow.
   let slot = layoutDescription === undefined ? 0 : 1
 
@@ -560,8 +572,7 @@ export function chooseCompositeImageSize(
   resolution: ImageResolution
 ): { height: number; width: number } {
   const targetRatio = (columns * FRAME_WIDTH) / (rows * FRAME_HEIGHT)
-  const isMinimumBudget =
-    clampResolution("seedream-5-pro", resolution) === "1K"
+  const isMinimumBudget = clampResolution("seedream-5-pro", resolution) === "1K"
   const pixelBudget = isMinimumBudget
     ? SEEDREAM_TOTAL_PIXEL_BOUNDS.min
     : SEEDREAM_TOTAL_PIXEL_BOUNDS.max
