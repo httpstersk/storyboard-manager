@@ -81,8 +81,6 @@ export interface FormatMaintainConsistencyOptions {
   characterNotes: SeedanceNote[]
   /** Whether @Image1 is a depth-map blockout. */
   depthMapStyle: boolean
-  /** Keep the written visual-style sentence. */
-  includeStyleLock: boolean
   /** Keep the drift-guard sentence on the style lock. */
   includeStyleReinforcement: boolean
   /** Whether the board reads as cuts or one unbroken take. */
@@ -145,7 +143,6 @@ export function formatMaintainConsistency(
   const {
     characterNotes,
     depthMapStyle,
-    includeStyleLock,
     includeStyleReinforcement,
     shotMode,
     visualStyle,
@@ -163,7 +160,6 @@ export function formatMaintainConsistency(
       : ""
   const style = formatStyleLock({
     depthMapStyle,
-    includeStyleLock,
     includeStyleReinforcement,
     visualStyle,
   })
@@ -358,29 +354,25 @@ function formatSingleSubjectManyImages(options: {
 }
 
 /**
- * Formats the visual-style lock that closes the consistency block.
+ * Formats the visual-style lock that closes the consistency block. The
+ * style sentence itself is never shed by budget reduction — only the
+ * trailing drift-guard sentence is optional — so the final video prompt
+ * always names the intended look when one was supplied.
  *
  * @param depthMapStyle - Whether @Image1 is a depth-map blockout.
- * @param includeStyleLock - Keep the written visual-style sentence.
  * @param includeStyleReinforcement - Keep the drift-guard sentence.
  * @param visualStyle - Optional textual visual-style guidance.
- * @returns The style sentence, or empty when shed and not a depth map.
+ * @returns The style sentence, or empty when no style was supplied and not a depth map.
  */
 function formatStyleLock(options: {
   depthMapStyle: boolean
-  includeStyleLock: boolean
   includeStyleReinforcement: boolean
   visualStyle: string
 }): string {
-  const {
-    depthMapStyle,
-    includeStyleLock,
-    includeStyleReinforcement,
-    visualStyle,
-  } = options
+  const { depthMapStyle, includeStyleReinforcement, visualStyle } = options
   const trimmed = visualStyle.trim()
 
-  if (includeStyleLock && trimmed !== "") {
+  if (trimmed !== "") {
     const lock = `The final video uses ${formatPromptProse(trimmed)}`
 
     return includeStyleReinforcement

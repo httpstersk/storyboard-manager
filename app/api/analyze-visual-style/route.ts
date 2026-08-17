@@ -1,11 +1,12 @@
 import { openai } from "@ai-sdk/openai"
-import { generateText } from "ai"
+import { type FilePart, generateText } from "ai"
 
 import { MAX_VISUAL_STYLE_LENGTH } from "@/lib/board-composer"
 import {
   visualStyleAnalysisRequestSchema,
   visualStyleAnalysisResponseSchema,
 } from "@/lib/generation"
+import { getImageDataUrlMediaType } from "@/lib/image-data"
 
 /** Vision analysis is short; allow generous headroom on supported hosts. */
 export const maxDuration = 120
@@ -27,6 +28,23 @@ Output rules:
 
 Example of the expected form and density:
 Shot on a Leica M6 35mm camera, Kodak Tri-X 400 black-and-white film pushed to ISO 1600, 85mm lens at f/2.0, 1/250s shutter, studio conditions, extremely high contrast, deep crushed shadows, bright specular highlights, minimal grain, printed with hard Grade 4-5 contrast filter.`
+
+/**
+ * Maps a validated JPEG or PNG data URL onto an AI SDK file part.
+ */
+function toImageFilePart(dataUrl: string): FilePart {
+  const mediaType = getImageDataUrlMediaType(dataUrl)
+
+  if (mediaType === null) {
+    throw new Error("Style reference is not a JPEG or PNG data URL.")
+  }
+
+  return {
+    data: dataUrl.slice(dataUrl.indexOf(",") + 1),
+    mediaType,
+    type: "file",
+  }
+}
 
 /**
  * Analyses uploaded style reference images with an OpenAI vision model and
@@ -62,10 +80,7 @@ export async function POST(request: Request): Promise<Response> {
               text: "Analyse the shared visual style of the following reference image(s) and describe how to recreate their look.",
               type: "text",
             },
-            ...styleImageRefs.map((image) => ({
-              image,
-              type: "image" as const,
-            })),
+            ...styleImageRefs.map(toImageFilePart),
           ],
           role: "user",
         },

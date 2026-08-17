@@ -29,8 +29,10 @@ export interface ComposerNoteGroup {
 
 export interface PromptComposerContextValue {
   /**
-   * Analyses uploaded style reference images and fills the visual-style
-   * field with the result, but only while that field is empty.
+   * Analyses uploaded style reference images and replaces the visual-style
+   * field with the result, discarding any prior text (typed or analysed).
+   * If a newer upload's analysis is requested first, an older upload's
+   * slower response is dropped instead of overwriting it.
    */
   analyzeStyleImages: (files: File[]) => void
   /** Written characters and their reference uploads. */

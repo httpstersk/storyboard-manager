@@ -5,6 +5,7 @@
 import { z } from "zod"
 
 import { dataUrlSchema } from "@/lib/generation"
+import { PNG_DATA_URL_MIME_TYPES, isImageDataUrl } from "@/lib/image-data"
 
 /**
  * Minimum clip length Seedance 2.5 accepts, in seconds.
@@ -89,7 +90,7 @@ const storyboardPngDataUrlSchema = z
   .string()
   .max(MAX_STORYBOARD_PNG_DATA_URL_LENGTH)
   .refine(
-    (value) => /^data:image\/png;base64,[a-z0-9+/=\s]+$/i.test(value),
+    (value) => isImageDataUrl(value, PNG_DATA_URL_MIME_TYPES),
     "Storyboard capture must be a PNG data URL."
   )
 

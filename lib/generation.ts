@@ -5,6 +5,7 @@ import {
   MAX_COMPOSER_SHEETS,
   MAX_VISUAL_STYLE_LENGTH,
 } from "@/lib/board-composer"
+import { isImageDataUrl } from "@/lib/image-data"
 import {
   IMAGE_MODELS,
   IMAGE_RESOLUTIONS,
@@ -72,7 +73,7 @@ export const dataUrlSchema = z
   .string()
   .max(MAX_DATA_URL_LENGTH)
   .refine(
-    (value) => /^data:image\/(?:jpeg|png);base64,[a-z0-9+/=\s]+$/i.test(value),
+    (value) => isImageDataUrl(value),
     "Reference images must be PNG or JPEG data URLs."
   )
 

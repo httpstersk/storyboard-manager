@@ -163,17 +163,15 @@ function PromptComposerRoot({
     INITIAL_COMPOSER_STATE
   )
   const [isSubmitting, startSubmitTransition] = React.useTransition()
-  // Latest visual-style value, read inside the async analysis callback so a
-  // late response never clobbers text the user typed while it was in flight.
-  const visualStyleRef = React.useRef(draft.visualStyle)
+  // Identifies the most recent style-image analysis request so a slower,
+  // superseded upload's response can never overwrite a newer one's result.
+  const analysisRequestIdRef = React.useRef(0)
 
   // Sync character/environment/style data into video + edit atoms. Keyed off
   // the per-board draft, so switching boards re-syncs to the new selection.
   // NOTE: The companion sync for `scenes` lives in VideoSectionRoot.
   // Each component owns its own slice; neither should overwrite the other.
   React.useEffect(() => {
-    visualStyleRef.current = draft.visualStyle
-
     if (mode === "image-edit") {
       return
     }
@@ -216,14 +214,11 @@ function PromptComposerRoot({
   }
 
   const analyzeStyleImages = (files: File[]) => {
-    if (
-      mode === "image-edit" ||
-      files.length === 0 ||
-      state.isAnalyzingVisualStyle ||
-      visualStyleRef.current.trim() !== ""
-    ) {
+    if (mode === "image-edit" || files.length === 0) {
       return
     }
+
+    const requestId = ++analysisRequestIdRef.current
 
     dispatch({ isVisualStyleOpen: true, type: "setVisualStyleOpen" })
     dispatch({ isAnalyzingVisualStyle: true, type: "setAnalyzingVisualStyle" })
@@ -237,23 +232,28 @@ function PromptComposerRoot({
           styleImageRefs,
         })
 
-        // Re-check: the user may have typed while the request was in flight.
-        if (visualStyleRef.current.trim() === "") {
+        // A newer upload may have started its own analysis since this one
+        // began; only the latest request may replace the field.
+        if (analysisRequestIdRef.current === requestId) {
           onDraftChange?.({ visualStyle })
         }
       } catch (analysisError) {
-        dispatch({
-          error:
-            analysisError instanceof Error
-              ? analysisError.message
-              : "The style images could not be analysed.",
-          type: "setError",
-        })
+        if (analysisRequestIdRef.current === requestId) {
+          dispatch({
+            error:
+              analysisError instanceof Error
+                ? analysisError.message
+                : "The style images could not be analysed.",
+            type: "setError",
+          })
+        }
       } finally {
-        dispatch({
-          isAnalyzingVisualStyle: false,
-          type: "setAnalyzingVisualStyle",
-        })
+        if (analysisRequestIdRef.current === requestId) {
+          dispatch({
+            isAnalyzingVisualStyle: false,
+            type: "setAnalyzingVisualStyle",
+          })
+        }
       }
     })()
   }
