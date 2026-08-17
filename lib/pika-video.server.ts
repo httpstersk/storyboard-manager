@@ -5,7 +5,11 @@
 
 import { z } from "zod"
 
-import { awaitPikaJob, submitPikaJob, uploadPikaImage } from "@/lib/pika-client.server"
+import {
+  awaitPikaJob,
+  submitPikaJob,
+  uploadPikaImage,
+} from "@/lib/pika-client.server"
 import { type VideoGenerationRequest } from "@/lib/video-generation"
 
 /** Pika model path for Seedance 2.5 reference-to-video. */
@@ -30,8 +34,14 @@ export async function generateVideoWithPika(
   request: VideoGenerationRequest,
   apiKey: string
 ): Promise<string> {
-  const { characterImageRefs, duration, environmentImageRefs, prompt, storyboardImage } =
-    request
+  const {
+    characterImageRefs,
+    duration,
+    environmentImageRefs,
+    prompt,
+    resolution,
+    storyboardImage,
+  } = request
   // Order is load-bearing: mirrors the fal route so the prompt's @ImageN
   // bindings stay aligned — storyboard contact sheet, then character refs,
   // then environment refs.
@@ -49,7 +59,7 @@ export async function generateVideoWithPika(
       image_urls: imageUrls,
       prompt,
       ratio: "16:9",
-      resolution: "720p",
+      resolution,
       watermark: false,
     }
   )

@@ -81,10 +81,14 @@ export const MAX_SEEDANCE_VIDEO_PROMPT_LENGTH = 20_000
 export const SEEDANCE_REFERENCE_TO_VIDEO_MODEL_ID =
   "bytedance/seedance-2.5/reference-to-video" as const
 
+/** Output resolutions offered by the Video resolution segmented control. */
+export const VIDEO_RESOLUTIONS = ["480p", "720p", "1080p"] as const
+
+/** Selected Seedance output resolution for video generation. */
+export type VideoResolution = (typeof VIDEO_RESOLUTIONS)[number]
+
 /** PNG data URLs for storyboard capture may exceed the reference upload cap. */
-const MAX_STORYBOARD_PNG_DATA_URL_LENGTH = Math.ceil(
-  25 * 1024 * 1024 * 1.4
-)
+const MAX_STORYBOARD_PNG_DATA_URL_LENGTH = Math.ceil(25 * 1024 * 1024 * 1.4)
 
 const storyboardPngDataUrlSchema = z
   .string()
@@ -95,6 +99,9 @@ const storyboardPngDataUrlSchema = z
   )
 
 const seedanceDurationSchema = z.enum(SEEDANCE_DURATION_OPTIONS)
+
+/** Runtime schema for the 480p / 720p / 1080p video resolution preference. */
+export const videoResolutionSchema = z.enum(VIDEO_RESOLUTIONS).default("720p")
 
 /** Runtime schema for requests entering the video generation API. */
 export const videoGenerationRequestSchema = z
@@ -107,6 +114,7 @@ export const videoGenerationRequestSchema = z
       .array(dataUrlSchema)
       .max(MAX_SEEDANCE_ATTACHED_IMAGES),
     prompt: z.string().trim().min(1).max(MAX_SEEDANCE_VIDEO_PROMPT_LENGTH),
+    resolution: videoResolutionSchema,
     storyboardImage: storyboardPngDataUrlSchema,
   })
   .refine(
@@ -130,6 +138,7 @@ export interface VideoGenerationRequest {
   duration: SeedanceDuration
   environmentImageRefs: string[]
   prompt: string
+  resolution: VideoResolution
   storyboardImage: string
 }
 
@@ -168,6 +177,11 @@ export function allocateSeedanceReferenceSlots(
       MAX_SEEDANCE_ATTACHED_IMAGES - characters
     ),
   }
+}
+
+/** Type guard for values emitted by the Video resolution segmented control. */
+export function isVideoResolution(value: string): value is VideoResolution {
+  return (VIDEO_RESOLUTIONS as readonly string[]).includes(value)
 }
 
 /**

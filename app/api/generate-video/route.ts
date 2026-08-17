@@ -3,7 +3,10 @@ import { fal } from "@fal-ai/client"
 import { resolveFalApiKey, resolvePikaApiKey } from "@/lib/api-route-config"
 import { dataUrlToBlob } from "@/lib/image-data"
 import { generateVideoWithPika } from "@/lib/pika-video.server"
-import { ProviderNoOutputError, runWithProviderFallback } from "@/lib/provider-fallback"
+import {
+  ProviderNoOutputError,
+  runWithProviderFallback,
+} from "@/lib/provider-fallback"
 import {
   SEEDANCE_REFERENCE_TO_VIDEO_MODEL_ID,
   type VideoGenerationRequest,
@@ -40,8 +43,14 @@ async function generateVideoWithFal(
 ): Promise<string> {
   fal.config({ credentials: falKey })
 
-  const { characterImageRefs, duration, environmentImageRefs, prompt, storyboardImage } =
-    request
+  const {
+    characterImageRefs,
+    duration,
+    environmentImageRefs,
+    prompt,
+    resolution,
+    storyboardImage,
+  } = request
   // Order is load-bearing: the prompt's @ImageN bindings assume the
   // contact sheet, then character refs, then environment refs.
   const imageUrls = await Promise.all([
@@ -56,7 +65,7 @@ async function generateVideoWithFal(
       generate_audio: true,
       image_urls: imageUrls,
       prompt,
-      resolution: "720p",
+      resolution,
     },
   })
   const videoUrl =

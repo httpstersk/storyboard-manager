@@ -14,6 +14,7 @@ import {
   allocateSeedanceReferenceSlots,
   resolveSeedanceDuration,
 } from "@/lib/video-generation"
+import { videoResolutionAtom } from "@/lib/video-resolution-settings"
 import {
   completeBoardVideoGeneration,
   composerCharacterImageFilesAtom,
@@ -134,13 +135,16 @@ function VideoSectionPlayer({
   ...props
 }: React.ComponentProps<"div">) {
   const { boardId } = useVideoSection()
-  const boardVideoAtom = React.useMemo(() => makeBoardVideoAtom(boardId), [boardId])
+  const boardVideoAtom = React.useMemo(
+    () => makeBoardVideoAtom(boardId),
+    [boardId]
+  )
   const { isGenerating, videoUrl } = useAtomValue(boardVideoAtom)
 
   return (
     <div
       className={cn(
-        "aspect-video relative overflow-hidden rounded-xl bg-surface-inset",
+        "relative aspect-video overflow-hidden rounded-xl bg-surface-inset",
         className
       )}
       {...props}
@@ -181,11 +185,15 @@ function VideoSectionPrompt({
     null
   )
   /** Stable per-board derived atom — only re-renders when this board changes. */
-  const boardVideoAtom = React.useMemo(() => makeBoardVideoAtom(boardId), [boardId])
+  const boardVideoAtom = React.useMemo(
+    () => makeBoardVideoAtom(boardId),
+    [boardId]
+  )
   const { error, isGenerating } = useAtomValue(boardVideoAtom)
   const setVideoByBoardId = useSetAtom(videoGenerationByBoardIdAtom)
   const prompt = useAtomValue(seedanceVideoPromptAtom)
   const source = useAtomValue(videoPromptSourceAtom)
+  const videoResolution = useAtomValue(videoResolutionAtom)
   /** Caches data-URL conversions so the same File is never re-read twice. */
   const referenceImageCacheRef = React.useRef<WeakMap<File, string>>(
     new WeakMap()
@@ -244,6 +252,7 @@ function VideoSectionPrompt({
       totalRuntimeSeconds(source.scenes)
     )
     const generationPrompt = prompt
+    const generationResolution = videoResolution
     // Same allocation the prompt's @ImageN bindings were built from, so the
     // uploaded image order always matches the text.
     const slots = allocateSeedanceReferenceSlots(
@@ -286,6 +295,7 @@ function VideoSectionPrompt({
           duration: generationDuration,
           environmentImageRefs,
           prompt: generationPrompt,
+          resolution: generationResolution,
           storyboardImage,
         })
 

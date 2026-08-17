@@ -51,14 +51,12 @@ function StoryboardWorkspace() {
     captureGridPng,
     characterMode,
     deleteRequestBoard,
-    depthMapStyle,
     dispatch,
     editingIndex,
     editingScene,
     handleCharacterModeChange,
     handleColumnsChange,
     handleComposerActiveChange,
-    handleDepthMapStyleChange,
     handleEditScene,
     handleExportPng,
     handleGenerateStoryboard,
@@ -73,6 +71,7 @@ function StoryboardWorkspace() {
     handleShowParametersChange,
     handleUpdateBoardComposer,
     handleUpdateScene,
+    handleVideoResolutionChange,
     imageModel,
     imageResolution,
     importInputRef,
@@ -83,6 +82,7 @@ function StoryboardWorkspace() {
     selectedBoard,
     shotMode,
     state,
+    videoResolution,
     visibleBoards,
     visibleScenes,
   } = useStoryboardWorkspaceModel()
@@ -106,12 +106,10 @@ function StoryboardWorkspace() {
           <WorkspaceToolbar
             characterMode={characterMode}
             columns={state.columns}
-            depthMapStyle={depthMapStyle}
             imageModel={imageModel}
             imageResolution={imageResolution}
             onCharacterModeChange={handleCharacterModeChange}
             onColumnsChange={handleColumnsChange}
-            onDepthMapStyleChange={handleDepthMapStyleChange}
             onExportPng={handleExportPng}
             onImageModelChange={handleImageModelChange}
             onImageResolutionChange={handleImageResolutionChange}
@@ -119,9 +117,11 @@ function StoryboardWorkspace() {
             onRowsChange={handleRowsChange}
             onShotModeChange={handleShotModeChange}
             onShowParametersChange={handleShowParametersChange}
+            onVideoResolutionChange={handleVideoResolutionChange}
             rows={state.rows}
             shotMode={shotMode}
             showParameters={state.showParameters}
+            videoResolution={videoResolution}
           />
         </SelectedBoardContext.Provider>
         <input

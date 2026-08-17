@@ -57,6 +57,8 @@ import {
   type WorkspaceState,
   workspaceReducer,
 } from "@/lib/storyboard-workspace-state"
+import { isVideoResolution, type VideoResolution } from "@/lib/video-generation"
+import { videoResolutionAtom } from "@/lib/video-resolution-settings"
 
 interface StoryboardWorkspaceModel {
   /**
@@ -101,6 +103,7 @@ interface StoryboardWorkspaceModel {
   handleShowParametersChange: (showParameters: boolean) => void
   handleUpdateBoardComposer: (patch: Partial<BoardComposerDraft>) => void
   handleUpdateScene: (sceneId: string, patch: Partial<Scene>) => void
+  handleVideoResolutionChange: (value: string) => void
   imageModel: ImageModel
   imageResolution: ImageResolution
   importInputRef: React.RefObject<HTMLInputElement | null>
@@ -112,6 +115,7 @@ interface StoryboardWorkspaceModel {
   selectedBoard: Board
   shotMode: ShotMode
   state: WorkspaceState
+  videoResolution: VideoResolution
   visibleBoards: Board[]
   visibleScenes: Scene[]
 }
@@ -123,6 +127,7 @@ function useStoryboardWorkspaceModel(): StoryboardWorkspaceModel {
   const [imageModel, setImageModel] = useAtom(imageModelAtom)
   const [imageResolution, setImageResolution] = useAtom(imageResolutionAtom)
   const [shotMode, setShotMode] = useAtom(shotModeAtom)
+  const [videoResolution, setVideoResolution] = useAtom(videoResolutionAtom)
   const [state, dispatch] = React.useReducer(
     workspaceReducer,
     undefined,
@@ -333,6 +338,12 @@ function useStoryboardWorkspaceModel(): StoryboardWorkspaceModel {
     dispatch({ patch, sceneId, type: "updateScene" })
   }
 
+  const handleVideoResolutionChange = (value: string) => {
+    if (isVideoResolution(value)) {
+      setVideoResolution(value)
+    }
+  }
+
   const handleImportFile = async (file: File) => {
     const result = parseBoardFile(await file.text(), createBoardId())
 
@@ -467,6 +478,7 @@ function useStoryboardWorkspaceModel(): StoryboardWorkspaceModel {
     handleShowParametersChange,
     handleUpdateBoardComposer,
     handleUpdateScene,
+    handleVideoResolutionChange,
     imageModel,
     imageResolution,
     importInputRef,
@@ -477,6 +489,7 @@ function useStoryboardWorkspaceModel(): StoryboardWorkspaceModel {
     selectedBoard,
     shotMode,
     state,
+    videoResolution,
     visibleBoards,
     visibleScenes,
   }

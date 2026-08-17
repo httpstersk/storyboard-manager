@@ -7,10 +7,10 @@ import {
   SFCpu,
   SFFilm,
   SFPersonCropRectangle,
+  SFPlayRectangle,
   SFRectangleSplit1x2,
   SFRectangleSplit2x1,
   SFSliderHorizontal3,
-  SFSquare3Layers3d,
 } from "sf-symbols-lib/monochrome"
 import * as React from "react"
 
@@ -41,6 +41,7 @@ import {
   type ShotMode,
 } from "@/lib/shot-mode-settings"
 import { COLUMN_LIMITS, ROW_LIMITS, type Board } from "@/lib/storyboard"
+import { VIDEO_RESOLUTIONS, type VideoResolution } from "@/lib/video-generation"
 import { seedanceVideoPromptAtom } from "@/lib/video-section-atoms"
 
 interface WorkspaceExportActionsProps {
@@ -78,6 +79,37 @@ function WorkspaceExportActions({ onExportPng }: WorkspaceExportActionsProps) {
   )
 }
 
+interface ToolbarLabeledControlProps {
+  /** Control rendered to the right of the icon label. */
+  children: React.ReactNode
+  /** Decorative SF Symbol shown beside the control. */
+  icon: React.ComponentType<{ "aria-hidden"?: boolean; className?: string }>
+  /** Visible tooltip and accessible name for the control. */
+  label: string
+}
+
+/** Icon-labelled Field row shared by the persistent toolbar settings. */
+function ToolbarLabeledControl({
+  children,
+  icon: Icon,
+  label,
+}: ToolbarLabeledControlProps) {
+  return (
+    <Field>
+      <Tooltip>
+        <Tooltip.Trigger asChild>
+          <Field.Label className="inline-flex items-center">
+            <Icon aria-hidden className="size-3.5" />
+            <span className="sr-only">{label}</span>
+          </Field.Label>
+        </Tooltip.Trigger>
+        <Tooltip.Content>{label}</Tooltip.Content>
+      </Tooltip>
+      <Field.Control>{children}</Field.Control>
+    </Field>
+  )
+}
+
 interface GridSteppersProps {
   columns: number
   onColumnsChange: (columns: number) => void
@@ -94,54 +126,32 @@ function GridSteppers({
 }: GridSteppersProps) {
   return (
     <>
-      <Field>
-        <Tooltip>
-          <Tooltip.Trigger asChild>
-            <Field.Label className="inline-flex items-center">
-              <SFRectangleSplit1x2 aria-hidden className="size-3.5" />
-              <span className="sr-only">Rows</span>
-            </Field.Label>
-          </Tooltip.Trigger>
-          <Tooltip.Content>Rows</Tooltip.Content>
-        </Tooltip>
-        <Field.Control>
-          <Stepper
-            label="Rows"
-            max={ROW_LIMITS.max}
-            min={ROW_LIMITS.min}
-            onValueChange={onRowsChange}
-            value={rows}
-          >
-            <Stepper.Decrement />
-            <Stepper.Value className="min-w-3" />
-            <Stepper.Increment />
-          </Stepper>
-        </Field.Control>
-      </Field>
-      <Field>
-        <Tooltip>
-          <Tooltip.Trigger asChild>
-            <Field.Label className="inline-flex items-center">
-              <SFRectangleSplit2x1 aria-hidden className="size-3.5" />
-              <span className="sr-only">Columns</span>
-            </Field.Label>
-          </Tooltip.Trigger>
-          <Tooltip.Content>Columns</Tooltip.Content>
-        </Tooltip>
-        <Field.Control>
-          <Stepper
-            label="Columns"
-            max={COLUMN_LIMITS.max}
-            min={COLUMN_LIMITS.min}
-            onValueChange={onColumnsChange}
-            value={columns}
-          >
-            <Stepper.Decrement />
-            <Stepper.Value className="min-w-3" />
-            <Stepper.Increment />
-          </Stepper>
-        </Field.Control>
-      </Field>
+      <ToolbarLabeledControl icon={SFRectangleSplit1x2} label="Rows">
+        <Stepper
+          label="Rows"
+          max={ROW_LIMITS.max}
+          min={ROW_LIMITS.min}
+          onValueChange={onRowsChange}
+          value={rows}
+        >
+          <Stepper.Decrement />
+          <Stepper.Value className="min-w-3" />
+          <Stepper.Increment />
+        </Stepper>
+      </ToolbarLabeledControl>
+      <ToolbarLabeledControl icon={SFRectangleSplit2x1} label="Columns">
+        <Stepper
+          label="Columns"
+          max={COLUMN_LIMITS.max}
+          min={COLUMN_LIMITS.min}
+          onValueChange={onColumnsChange}
+          value={columns}
+        >
+          <Stepper.Decrement />
+          <Stepper.Value className="min-w-3" />
+          <Stepper.Increment />
+        </Stepper>
+      </ToolbarLabeledControl>
     </>
   )
 }
@@ -159,30 +169,19 @@ function ImageModelField({
   onImageModelChange,
 }: ImageModelFieldProps) {
   return (
-    <Field>
-      <Tooltip>
-        <Tooltip.Trigger asChild>
-          <Field.Label className="inline-flex items-center">
-            <SFCpu aria-hidden className="size-3.5" />
-            <span className="sr-only">Model</span>
-          </Field.Label>
-        </Tooltip.Trigger>
-        <Tooltip.Content>Model</Tooltip.Content>
-      </Tooltip>
-      <Field.Control>
-        <SegmentedControl
-          label="Image model"
-          onValueChange={onImageModelChange}
-          value={imageModel}
-        >
-          {IMAGE_MODELS.map((model) => (
-            <SegmentedControl.Option key={model} value={model}>
-              {IMAGE_MODEL_CONFIGS[model].label}
-            </SegmentedControl.Option>
-          ))}
-        </SegmentedControl>
-      </Field.Control>
-    </Field>
+    <ToolbarLabeledControl icon={SFCpu} label="Model">
+      <SegmentedControl
+        label="Image model"
+        onValueChange={onImageModelChange}
+        value={imageModel}
+      >
+        {IMAGE_MODELS.map((model) => (
+          <SegmentedControl.Option key={model} value={model}>
+            {IMAGE_MODEL_CONFIGS[model].label}
+          </SegmentedControl.Option>
+        ))}
+      </SegmentedControl>
+    </ToolbarLabeledControl>
   )
 }
 
@@ -247,30 +246,48 @@ interface ShotModeFieldProps {
 /** Shot mode switcher deciding whether the board cuts or runs as one take. */
 function ShotModeField({ onShotModeChange, shotMode }: ShotModeFieldProps) {
   return (
-    <Field>
-      <Tooltip>
-        <Tooltip.Trigger asChild>
-          <Field.Label className="inline-flex items-center">
-            <SFFilm aria-hidden className="size-3.5" />
-            <span className="sr-only">Shots</span>
-          </Field.Label>
-        </Tooltip.Trigger>
-        <Tooltip.Content>Shots</Tooltip.Content>
-      </Tooltip>
-      <Field.Control>
-        <SegmentedControl
-          label="Shot mode"
-          onValueChange={onShotModeChange}
-          value={shotMode}
-        >
-          {SHOT_MODES.map((mode) => (
-            <SegmentedControl.Option key={mode} value={mode}>
-              {SHOT_MODE_LABELS[mode]}
-            </SegmentedControl.Option>
-          ))}
-        </SegmentedControl>
-      </Field.Control>
-    </Field>
+    <ToolbarLabeledControl icon={SFFilm} label="Shots">
+      <SegmentedControl
+        label="Shot mode"
+        onValueChange={onShotModeChange}
+        value={shotMode}
+      >
+        {SHOT_MODES.map((mode) => (
+          <SegmentedControl.Option key={mode} value={mode}>
+            {SHOT_MODE_LABELS[mode]}
+          </SegmentedControl.Option>
+        ))}
+      </SegmentedControl>
+    </ToolbarLabeledControl>
+  )
+}
+
+interface VideoResolutionFieldProps {
+  /** Updates the Seedance output resolution preference. */
+  onVideoResolutionChange: (value: string) => void
+  /** Currently selected video output resolution. */
+  videoResolution: VideoResolution
+}
+
+/** Video resolution switcher for Seedance generation. */
+function VideoResolutionField({
+  onVideoResolutionChange,
+  videoResolution,
+}: VideoResolutionFieldProps) {
+  return (
+    <ToolbarLabeledControl icon={SFPlayRectangle} label="Video resolution">
+      <SegmentedControl
+        label="Video resolution"
+        onValueChange={onVideoResolutionChange}
+        value={videoResolution}
+      >
+        {VIDEO_RESOLUTIONS.map((resolution) => (
+          <SegmentedControl.Option key={resolution} value={resolution}>
+            {resolution}
+          </SegmentedControl.Option>
+        ))}
+      </SegmentedControl>
+    </ToolbarLabeledControl>
   )
 }
 
@@ -287,30 +304,19 @@ function CharacterModeField({
   onCharacterModeChange,
 }: CharacterModeFieldProps) {
   return (
-    <Field>
-      <Tooltip>
-        <Tooltip.Trigger asChild>
-          <Field.Label className="inline-flex items-center">
-            <SFPersonCropRectangle aria-hidden className="size-3.5" />
-            <span className="sr-only">Characters</span>
-          </Field.Label>
-        </Tooltip.Trigger>
-        <Tooltip.Content>Characters</Tooltip.Content>
-      </Tooltip>
-      <Field.Control>
-        <SegmentedControl
-          label="Character mode"
-          onValueChange={onCharacterModeChange}
-          value={characterMode}
-        >
-          {CHARACTER_MODES.map((mode) => (
-            <SegmentedControl.Option key={mode} value={mode}>
-              {CHARACTER_MODE_LABELS[mode]}
-            </SegmentedControl.Option>
-          ))}
-        </SegmentedControl>
-      </Field.Control>
-    </Field>
+    <ToolbarLabeledControl icon={SFPersonCropRectangle} label="Characters">
+      <SegmentedControl
+        label="Character mode"
+        onValueChange={onCharacterModeChange}
+        value={characterMode}
+      >
+        {CHARACTER_MODES.map((mode) => (
+          <SegmentedControl.Option key={mode} value={mode}>
+            {CHARACTER_MODE_LABELS[mode]}
+          </SegmentedControl.Option>
+        ))}
+      </SegmentedControl>
+    </ToolbarLabeledControl>
   )
 }
 
@@ -319,8 +325,6 @@ interface WorkspaceToolbarProps {
   characterMode: CharacterMode
   /** Selected number of scene columns. */
   columns: number
-  /** Whether generation locks to grayscale linear depth maps. */
-  depthMapStyle: boolean
   /** Image generation model selected for new storyboards. */
   imageModel: ImageModel
   /** Output resolution selected for generation and editing. */
@@ -329,8 +333,6 @@ interface WorkspaceToolbarProps {
   onCharacterModeChange: (value: string) => void
   /** Updates the selected number of scene columns. */
   onColumnsChange: (columns: number) => void
-  /** Updates whether depth-map style generation is enabled. */
-  onDepthMapStyleChange: (depthMapStyle: boolean) => void
   /** Exports the selected board's scene grid as a PNG. */
   onExportPng: (board: Board) => Promise<void>
   /** Updates the image generation model. */
@@ -345,24 +347,26 @@ interface WorkspaceToolbarProps {
   onShotModeChange: (value: string) => void
   /** Updates whether scene parameters are visible. */
   onShowParametersChange: (showParameters: boolean) => void
+  /** Updates the Seedance video output resolution preference. */
+  onVideoResolutionChange: (value: string) => void
   /** Selected number of scene rows. */
   rows: number
   /** Shot mode applied to planning and the Seedance video prompt. */
   shotMode: ShotMode
   /** Whether scene parameters are visible. */
   showParameters: boolean
+  /** Seedance output resolution selected for video generation. */
+  videoResolution: VideoResolution
 }
 
 /** Persistent toolbar shell that skips selected-board-only updates. */
 function WorkspaceToolbar({
   characterMode,
   columns,
-  depthMapStyle,
   imageModel,
   imageResolution,
   onCharacterModeChange,
   onColumnsChange,
-  onDepthMapStyleChange,
   onExportPng,
   onImageModelChange,
   onImageResolutionChange,
@@ -370,9 +374,11 @@ function WorkspaceToolbar({
   onRowsChange,
   onShotModeChange,
   onShowParametersChange,
+  onVideoResolutionChange,
   rows,
   shotMode,
   showParameters,
+  videoResolution,
 }: WorkspaceToolbarProps) {
   return (
     <BoardToolbar>
@@ -393,6 +399,10 @@ function WorkspaceToolbar({
           imageResolution={imageResolution}
           onImageResolutionChange={onImageResolutionChange}
         />
+        <VideoResolutionField
+          onVideoResolutionChange={onVideoResolutionChange}
+          videoResolution={videoResolution}
+        />
         <ShotModeField
           onShotModeChange={onShotModeChange}
           shotMode={shotMode}
@@ -401,41 +411,14 @@ function WorkspaceToolbar({
           characterMode={characterMode}
           onCharacterModeChange={onCharacterModeChange}
         />
-        <Field>
-          <Tooltip>
-            <Tooltip.Trigger asChild>
-              <Field.Label className="inline-flex items-center">
-                <SFSliderHorizontal3 aria-hidden className="size-3.5" />
-                <span className="sr-only">Parameters</span>
-              </Field.Label>
-            </Tooltip.Trigger>
-            <Tooltip.Content>Parameters</Tooltip.Content>
-          </Tooltip>
-          <Field.Control>
-            <Switch
-              checked={showParameters}
-              onCheckedChange={onShowParametersChange}
-            />
-          </Field.Control>
-        </Field>
-        <Field>
-          <Tooltip>
-            <Tooltip.Trigger asChild>
-              <Field.Label className="inline-flex items-center">
-                <SFSquare3Layers3d aria-hidden className="size-3.5" />
-                <span className="sr-only">Depth Map</span>
-              </Field.Label>
-            </Tooltip.Trigger>
-            <Tooltip.Content>Depth Map</Tooltip.Content>
-          </Tooltip>
-          <Field.Control>
-            <Switch
-              checked={depthMapStyle}
-              onCheckedChange={onDepthMapStyleChange}
-            />
-          </Field.Control>
-        </Field>
+        <ToolbarLabeledControl icon={SFSliderHorizontal3} label="Parameters">
+          <Switch
+            checked={showParameters}
+            onCheckedChange={onShowParametersChange}
+          />
+        </ToolbarLabeledControl>
       </BoardToolbar.Controls>
+
       <BoardToolbar.Actions>
         <Tooltip>
           <Tooltip.Trigger asChild>
