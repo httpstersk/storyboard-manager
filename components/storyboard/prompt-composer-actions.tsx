@@ -19,12 +19,36 @@ import {
   MAX_SEEDANCE_ATTACHED_IMAGES_ERROR,
 } from "@/lib/video-generation"
 
+/** Props for {@link SubmitButton}. */
+interface SubmitButtonProps {
+  /** Disables the button while generation is unavailable or in flight. */
+  disabled: boolean
+  /** Starts a storyboard generation from the current draft. */
+  onClick: () => void
+}
+
+/** Circular arrow button shared by the compact and expanded action rows. */
+function SubmitButton({ disabled, onClick }: SubmitButtonProps) {
+  return (
+    <button
+      aria-label="Generate storyboard"
+      className="grid size-9 place-items-center rounded-full bg-emphasis text-emphasis-foreground transition-[background-color,transform] duration-150 ease-out outline-none hover:bg-emphasis/85 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1 focus-visible:ring-offset-surface-panel active:scale-[0.94] disabled:cursor-not-allowed disabled:opacity-40"
+      disabled={disabled}
+      onClick={onClick}
+      type="button"
+    >
+      <SFArrowUp aria-hidden className="size-4" />
+    </button>
+  )
+}
+
 /** Attachment affordances and generation submit control. */
 function PromptComposerActions() {
   const {
     analyzeStyleImages,
     characters,
     environments,
+    isCompact,
     isDisabled,
     isVisualStyleOpen,
     mode,
@@ -47,6 +71,17 @@ function PromptComposerActions() {
 
   if (mode === "image-edit") {
     return <PromptComposerImageEditActions />
+  }
+
+  if (isCompact) {
+    return (
+      <div className="flex shrink-0 items-center">
+        <SubmitButton
+          disabled={isDisabled || prompt.trim() === ""}
+          onClick={() => void submit()}
+        />
+      </div>
+    )
   }
 
   const addImageReferences = (
@@ -192,15 +227,10 @@ function PromptComposerActions() {
         />
       </div>
       <div className="flex shrink-0 items-center gap-2">
-        <button
-          aria-label="Generate storyboard"
-          className="grid size-9 place-items-center rounded-full bg-emphasis text-emphasis-foreground transition-[background-color,transform] duration-150 ease-out outline-none hover:bg-emphasis/85 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1 focus-visible:ring-offset-surface-panel active:scale-[0.94] disabled:cursor-not-allowed disabled:opacity-40"
+        <SubmitButton
           disabled={isDisabled || prompt.trim() === ""}
           onClick={() => void submit()}
-          type="button"
-        >
-          <SFArrowUp aria-hidden className="size-4" />
-        </button>
+        />
       </div>
     </div>
   )

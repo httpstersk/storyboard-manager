@@ -126,7 +126,16 @@ export function composerReducer(
 
 export interface PromptComposerRootProps extends Omit<
   React.ComponentProps<"div">,
-  "onSubmit"
+  // The root renders as `m.div`; these drag/animation event handlers are
+  // typed incompatibly between plain DOM props and Motion's own, so they're
+  // excluded rather than passed through untyped.
+  | "onAnimationEnd"
+  | "onAnimationStart"
+  | "onDrag"
+  | "onDragEnd"
+  | "onDragStart"
+  | "onSubmit"
+  | "onTransitionEnd"
 > {
   /** Disables generation and all attachment controls. */
   disabled?: boolean

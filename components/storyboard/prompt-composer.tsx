@@ -32,7 +32,7 @@ import { depthMapStyleAtom } from "@/lib/depth-map-style-settings"
 import { allocateStoryboardReferenceSlots } from "@/lib/generation"
 import { imageModelAtom } from "@/lib/image-model-settings"
 import { imageResolutionAtom } from "@/lib/image-resolution-settings"
-import { TRANSITION_FADE_FAST } from "@/lib/motion"
+import { SPRING_LAYOUT, TRANSITION_FADE_FAST } from "@/lib/motion"
 import { shotModeAtom } from "@/lib/shot-mode-settings"
 import { cn } from "@/lib/utils"
 import { allocateSeedanceReferenceSlots } from "@/lib/video-generation"
@@ -48,6 +48,19 @@ import {
  * Module-level so its identity stays stable across renders.
  */
 const FALLBACK_DRAFT = createEmptyComposerDraft()
+
+/**
+ * Corner radius (px) of the expanded storyboard panel, matching Tailwind's
+ * `rounded-3xl` (`--radius-3xl`). Set via inline style rather than a class
+ * so Motion's layout animation can interpolate it smoothly.
+ */
+const COMPOSER_RADIUS_EXPANDED = 20
+
+/**
+ * Corner radius (px) large enough to render a full pill regardless of the
+ * composer's box dimensions, used for the compact and image-edit chrome.
+ */
+const COMPOSER_RADIUS_PILL = 999
 
 /** Wiring one composer note group to its slice of the per-board draft. */
 interface NoteGroupConfig {
@@ -369,6 +382,33 @@ function PromptComposerRoot({
 
   const isImageEdit = mode === "image-edit"
   const isCompact = !isImageEdit && !isActive
+  const contentRef = React.useRef<HTMLDivElement>(null)
+  const [measuredHeight, setMeasuredHeight] = React.useState<number>()
+
+  // Mirrors the content's real, laid-out height onto the shell so it can
+  // animate a genuine `height` value instead of a transform-based scale --
+  // scaling would visibly stretch the composer's text, since only height
+  // (not width) changes between compact and expanded. Runs for every
+  // content resize (compact/expanded toggle, notes opening, the textarea
+  // auto-growing) rather than just the toggle, so the shell never falls out
+  // of sync with its content.
+  React.useLayoutEffect(() => {
+    if (isImageEdit || contentRef.current === null) {
+      return
+    }
+
+    const element = contentRef.current
+    setMeasuredHeight(element.getBoundingClientRect().height)
+
+    const observer = new ResizeObserver(([entry]) => {
+      if (entry !== undefined) {
+        setMeasuredHeight(entry.target.getBoundingClientRect().height)
+      }
+    })
+    observer.observe(element)
+
+    return () => observer.disconnect()
+  }, [isImageEdit])
 
   const contextValue: PromptComposerContextValue = {
     analyzeStyleImages,
@@ -425,17 +465,26 @@ function PromptComposerRoot({
 
   return (
     <PromptComposerContext.Provider value={contextValue}>
-      <div
+      <m.div
+        animate={{
+          borderRadius:
+            isImageEdit || isCompact
+              ? COMPOSER_RADIUS_PILL
+              : COMPOSER_RADIUS_EXPANDED,
+          height: isImageEdit ? "auto" : (measuredHeight ?? "auto"),
+        }}
         aria-label={
           isImageEdit
             ? "Image edit prompt composer"
             : "Storyboard prompt composer"
         }
         className={cn(
-          "group/composer mx-auto w-full max-w-3xl shrink-0 transition-[box-shadow] duration-200 ease-out focus-within:ring-2 focus-within:ring-ring motion-reduce:transition-none",
+          "group/composer mx-auto w-full max-w-3xl shrink-0 overflow-hidden transition-[box-shadow] duration-200 ease-out focus-within:ring-2 focus-within:ring-ring motion-reduce:transition-none",
           isImageEdit
-            ? "flex flex-wrap items-center gap-1.5 rounded-full bg-surface-inset py-1 pl-1 shadow-popover"
-            : "scrollbar-none max-h-[min(28rem,calc(100svh-8rem))] overflow-y-auto rounded-3xl bg-surface-panel shadow-modal",
+            ? "bg-surface-inset shadow-popover"
+            : isCompact
+              ? "bg-surface-panel shadow-popover"
+              : "bg-surface-panel shadow-modal",
           className
         )}
         onBlurCapture={(event) => {
@@ -445,28 +494,40 @@ function PromptComposerRoot({
         }}
         onFocusCapture={() => onActiveChange?.(true)}
         role="group"
+        transition={SPRING_LAYOUT}
         {...props}
       >
-        {children}
-        <AnimatePresence initial={false}>
-          {state.error !== null ? (
-            <m.p
-              animate={{ opacity: 1, y: 0 }}
-              className={cn(
-                "text-caption text-destructive",
-                isImageEdit ? "w-full basis-full px-3 pb-1.5" : "px-4 pb-3"
-              )}
-              exit={{ opacity: 0, y: -2 }}
-              initial={{ opacity: 0, y: -2 }}
-              key="composer-error"
-              role="alert"
-              transition={TRANSITION_FADE_FAST}
-            >
-              {state.error}
-            </m.p>
-          ) : null}
-        </AnimatePresence>
-      </div>
+        <div
+          className={
+            isImageEdit
+              ? "flex flex-wrap items-center gap-1.5 py-1 pl-1"
+              : isCompact
+                ? "flex items-center gap-2 py-1.5 pr-1.5 pl-4"
+                : "scrollbar-none max-h-[min(28rem,calc(100svh-8rem))] overflow-y-auto"
+          }
+          ref={contentRef}
+        >
+          {children}
+          <AnimatePresence initial={false}>
+            {state.error !== null ? (
+              <m.p
+                animate={{ opacity: 1, y: 0 }}
+                className={cn(
+                  "text-caption text-destructive",
+                  isImageEdit ? "w-full basis-full px-3 pb-1.5" : "px-4 pb-3"
+                )}
+                exit={{ opacity: 0, y: -2 }}
+                initial={{ opacity: 0, y: -2 }}
+                key="composer-error"
+                role="alert"
+                transition={TRANSITION_FADE_FAST}
+              >
+                {state.error}
+              </m.p>
+            ) : null}
+          </AnimatePresence>
+        </div>
+      </m.div>
     </PromptComposerContext.Provider>
   )
 }
