@@ -4,7 +4,7 @@ import { generateImage, generateText, Output } from "ai"
 import { readFile } from "fs/promises"
 import path from "path"
 
-import { resolveFalApiKey } from "@/lib/api-route-config"
+import { resolveFalApiKey, resolvePikaApiKey } from "@/lib/api-route-config"
 import { extractHandlesFromSheets } from "@/lib/board-composer"
 import { type CharacterMode } from "@/lib/character-mode-settings"
 import { DEPTH_MAP_STYLE_PROMPT } from "@/lib/depth-map-style-settings"
@@ -14,10 +14,18 @@ import {
   missingCharacterHandles,
   storyboardGenerationRequestSchema,
   storyboardGenerationResponseSchema,
+  type StoryboardLayout,
   type StoryboardPlan,
   storyboardPlanSchema,
 } from "@/lib/generation"
-import { resolveImageModelId } from "@/lib/image-models"
+import {
+  type ImageModel,
+  type ImageResolution,
+  resolveImageModelId,
+  resolvePikaMaxReferenceImages,
+} from "@/lib/image-models"
+import { generateCompositeWithPika } from "@/lib/pika-image.server"
+import { runWithProviderFallback } from "@/lib/provider-fallback"
 import { type ShotMode } from "@/lib/shot-mode-settings"
 import {
   buildCompositePrompt,
@@ -118,13 +126,97 @@ const PLANNING_SHOT_MODE_BRIEFS: Record<ShotMode, string> = {
 }
 
 /**
+ * Generates the composite storyboard contact sheet, preferring fal when
+ * configured (with a Pika fallback on infrastructure failure) and using
+ * Pika directly when fal has no key at all. Skips the Pika fallback when
+ * the reference-image count exceeds that model's documented Pika cap,
+ * surfacing the original fal error instead of silently dropping trailing
+ * references and desyncing the prompt's REFERENCE IMAGE MAP. At least one
+ * of `falKey` / `pikaKey` is defined — the caller gates on that before
+ * parsing the request.
+ */
+async function generateComposite({
+  allReferenceImages,
+  compositePrompt,
+  falKey,
+  imageModel,
+  layout,
+  pikaKey,
+  resolution,
+}: {
+  allReferenceImages: string[]
+  compositePrompt: string
+  falKey: string | undefined
+  imageModel: ImageModel
+  layout: StoryboardLayout
+  pikaKey: string | undefined
+  resolution: ImageResolution
+}): Promise<Uint8Array> {
+  const generateWithPika = (apiKey: string) =>
+    generateCompositeWithPika({
+      apiKey,
+      imageModel,
+      layout,
+      prompt: compositePrompt,
+      referenceImages: allReferenceImages,
+      resolution,
+    })
+
+  if (falKey === undefined) {
+    if (pikaKey === undefined) {
+      throw new Error("Storyboard generation is not configured.")
+    }
+
+    return generateWithPika(pikaKey)
+  }
+
+  const pikaMaxReferenceImages = resolvePikaMaxReferenceImages(imageModel)
+  const exceedsPikaReferenceBudget =
+    pikaMaxReferenceImages !== undefined &&
+    allReferenceImages.length > pikaMaxReferenceImages
+
+  return runWithProviderFallback({
+    fallback:
+      pikaKey === undefined || exceedsPikaReferenceBudget
+        ? undefined
+        : () => generateWithPika(pikaKey),
+    label: "storyboard composite generation",
+    primary: async () => {
+      // Always use the edit endpoint so the layout placeholder is accepted.
+      const modelId = resolveImageModelId({
+        hasReferenceImages: true,
+        imageModel,
+      })
+      const { image } = await generateImage({
+        model: fal.image(modelId),
+        n: 1,
+        prompt: { images: allReferenceImages, text: compositePrompt },
+        providerOptions: {
+          fal: buildCompositeProviderOptions({
+            imageModel,
+            layout,
+            referenceImageCount: allReferenceImages.length,
+            resolution,
+          }),
+        },
+      })
+
+      return image.uint8Array
+    },
+  })
+}
+
+/**
  * Plans a storyline, generates one contact sheet with the selected image
  * model, then returns its server-sliced scene frames.
  */
 export async function POST(request: Request): Promise<Response> {
+  const falKey = resolveFalApiKey()
+  const pikaKey = resolvePikaApiKey()
+
   if (
     process.env.OPENAI_API_KEY === undefined ||
-    resolveFalApiKey() === undefined
+    (falKey === undefined && pikaKey === undefined)
   ) {
     return Response.json(
       { error: "Storyboard generation is not configured." },
@@ -223,26 +315,17 @@ export async function POST(request: Request): Promise<Response> {
       styleImageCount: effectiveStyleImageRefs.length,
       visualStyle: effectiveVisualStyle,
     })
-    // Always use the edit endpoint so the layout placeholder is accepted.
-    const modelId = resolveImageModelId({
-      hasReferenceImages: true,
+    const compositeBytes = await generateComposite({
+      allReferenceImages,
+      compositePrompt,
+      falKey,
       imageModel,
-    })
-    const { image } = await generateImage({
-      model: fal.image(modelId),
-      n: 1,
-      prompt: { images: allReferenceImages, text: compositePrompt },
-      providerOptions: {
-        fal: buildCompositeProviderOptions({
-          imageModel,
-          layout,
-          referenceImageCount: allReferenceImages.length,
-          resolution,
-        }),
-      },
+      layout,
+      pikaKey,
+      resolution,
     })
     const frames = await normalizeAndSliceComposite(
-      image.uint8Array,
+      compositeBytes,
       layout,
       plan.scenes.length
     )

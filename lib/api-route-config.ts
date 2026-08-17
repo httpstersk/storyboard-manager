@@ -16,3 +16,14 @@
 export function resolveFalApiKey(): string | undefined {
   return process.env.FAL_KEY ?? process.env.FAL_API_KEY
 }
+
+/**
+ * Resolves the Pika API key used as a fallback provider when fal is
+ * unconfigured or fails for an infrastructure reason, and as the sole
+ * provider when only this key is set.
+ *
+ * @returns The resolved key, or `undefined` when `PIKA_API_KEY` is not set.
+ */
+export function resolvePikaApiKey(): string | undefined {
+  return process.env.PIKA_API_KEY
+}

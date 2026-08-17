@@ -83,9 +83,12 @@ Create `.env.local` with the server-only credentials used by storyboard generati
 ```bash
 OPENAI_API_KEY="your-openai-key"
 FAL_KEY="your-fal-key"
+PIKA_API_KEY="your-pika-key"
 ```
 
-`FAL_API_KEY` is also supported in place of `FAL_KEY`. Never expose either key with a `NEXT_PUBLIC_` prefix.
+`FAL_API_KEY` is also supported in place of `FAL_KEY`. Never expose any key with a `NEXT_PUBLIC_` prefix.
+
+`PIKA_API_KEY` is optional. When set alongside `FAL_KEY`, video and image generation run on fal and automatically retry on [Pika](https://dev.pika.art) if fal fails for an infrastructure reason (misconfigured key, rate limit, outage, or timeout) — never on a validation or content rejection, which Pika would reject identically. When `FAL_KEY` is absent, generation runs on Pika directly.
 
 ### Installation
 

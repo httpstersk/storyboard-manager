@@ -26,22 +26,38 @@ export interface ImageModelConfig {
   generateModelId: string
   /** Human-readable name shown in the Model segmented control. */
   label: string
+  /**
+   * Pika endpoint path used as the fallback provider for this model's
+   * image-to-image generation (composite and single-scene edit).
+   */
+  pikaEditPath: string
+  /**
+   * Maximum reference images Pika's endpoint accepts for this model, when
+   * documented. `undefined` when Pika states no explicit cap — the
+   * fallback is attempted regardless and any rejection surfaces normally.
+   */
+  pikaMaxReferenceImages: number | undefined
   /** Output resolutions the model accepts, ordered low to high. */
   supportedResolutions: readonly ImageResolution[]
 }
 
-/** Per-model fal endpoints, display labels, and resolution support. */
+/** Per-model fal endpoints, Pika fallback endpoints, and resolution support. */
 export const IMAGE_MODEL_CONFIGS: Record<ImageModel, ImageModelConfig> = {
   "nano-banana-pro": {
     editModelId: "fal-ai/nano-banana-pro/edit",
     generateModelId: "fal-ai/nano-banana-pro",
     label: "Nano Banana",
+    pikaEditPath: "/v1/media/google/gemini-3-pro-image/image-to-image",
+    pikaMaxReferenceImages: undefined,
     supportedResolutions: ["1K", "2K", "4K"],
   },
   "seedream-5-pro": {
     editModelId: "bytedance/seedream/v5/pro/edit",
     generateModelId: "bytedance/seedream/v5/pro/text-to-image",
     label: "Seedream 5",
+    pikaEditPath: "/v1/media/bytedance/seedream-5.0-pro/image-to-image",
+    // Pika's Seedream 5 Pro editing endpoint documents a hard 10-image cap.
+    pikaMaxReferenceImages: 10,
     // Seedream 5 Pro caps total output pixels at 2048x2048 on fal, so 4K
     // is not offered.
     supportedResolutions: ["1K", "2K"],
@@ -92,4 +108,22 @@ export function resolveImageModelId({
   const config = IMAGE_MODEL_CONFIGS[imageModel]
 
   return hasReferenceImages ? config.editModelId : config.generateModelId
+}
+
+/**
+ * Resolves the Pika endpoint path used as the fallback provider for a
+ * model's image-to-image generation (composite and single-scene edit).
+ */
+export function resolvePikaEditPath(imageModel: ImageModel): string {
+  return IMAGE_MODEL_CONFIGS[imageModel].pikaEditPath
+}
+
+/**
+ * Resolves the maximum reference images Pika's fallback endpoint accepts
+ * for a model, or `undefined` when Pika documents no explicit cap.
+ */
+export function resolvePikaMaxReferenceImages(
+  imageModel: ImageModel
+): number | undefined {
+  return IMAGE_MODEL_CONFIGS[imageModel].pikaMaxReferenceImages
 }
