@@ -68,22 +68,11 @@ export interface BuildSeedanceVideoPromptInput {
 }
 
 /**
- * Hard safety ceiling on the finished prompt's character count. This is not
- * a design target — every section (craft, timestamps, notes prose, style
- * reinforcement, default audio) is always included in full. It exists only
- * to guarantee callers never receive an unbounded string; see
- * {@link buildSeedanceVideoPrompt}.
- */
-export const MAX_SEEDANCE_PROMPT_CHARS = 5_000
-
-/**
  * Assembles a Seedance 2.5 prompt that animates the storyboard contact sheet
  * (@Image1) and locks character identity and location design from @Image2+.
  *
  * Character bindings come first, then environments, matching the order the
- * caller uploads `image_urls`. The prompt always includes every section in
- * full; if the assembled text exceeds {@link MAX_SEEDANCE_PROMPT_CHARS}, it is
- * flat-truncated to that length as a last-resort safety net.
+ * caller uploads `image_urls`. Every section is included in full.
  *
  * @param input - The scenes, character, and environment inputs for the prompt.
  * @returns The fully formatted Seedance reference-to-video prompt string.
@@ -95,11 +84,7 @@ export function buildSeedanceVideoPrompt(
     return ""
   }
 
-  const prompt = assemblePromptSections(input).join(SECTION_SEPARATOR)
-
-  return prompt.length > MAX_SEEDANCE_PROMPT_CHARS
-    ? prompt.slice(0, MAX_SEEDANCE_PROMPT_CHARS)
-    : prompt
+  return assemblePromptSections(input).join(SECTION_SEPARATOR)
 }
 
 /** Separator joining top-level prompt sections. */
