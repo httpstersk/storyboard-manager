@@ -23,7 +23,8 @@ const PIKA_JOB_POLL_INTERVAL_MS = 2_000
 export const PIKA_MAX_IMAGE_UPLOAD_BYTES = 20 * 1024 * 1024
 
 const pikaUploadResponseSchema = z.object({
-  headers: z.record(z.string(), z.string()).optional(),
+  // Nullish per the same explicit-null convention observed on job envelopes.
+  headers: z.record(z.string(), z.string()).nullish(),
   upload_url: z.string().url(),
   url: z.string().url(),
 })
@@ -34,9 +35,12 @@ const pikaJobErrorSchema = z.object({
 })
 
 const pikaJobSchema = z.object({
-  error: pikaJobErrorSchema.optional(),
+  // Pika sends an explicit `null` for these fields rather than omitting
+  // them on a queued/running job, so `.optional()` alone (undefined-only)
+  // rejects the response; `.nullish()` accepts both.
+  error: pikaJobErrorSchema.nullish(),
   id: z.string(),
-  output: z.unknown().optional(),
+  output: z.unknown().nullish(),
   status: z.enum(["queued", "running", "completed", "failed"]),
 })
 
