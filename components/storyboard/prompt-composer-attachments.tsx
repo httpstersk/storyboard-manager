@@ -14,7 +14,6 @@ function PromptComposerAttachments() {
   const {
     characters,
     environments,
-    isCompact,
     mode,
     removeStyleImageReference,
     styleImageReferences,
@@ -22,7 +21,6 @@ function PromptComposerAttachments() {
 
   const hasAttachments =
     mode === "image-edit" ||
-    isCompact ||
     (characters.imageReferences.length === 0 &&
       environments.imageReferences.length === 0 &&
       styleImageReferences.length === 0)

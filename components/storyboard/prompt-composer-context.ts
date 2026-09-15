@@ -49,8 +49,6 @@ export interface PromptComposerContextValue {
   inputId: string
   /** True while style images are being analysed into the visual-style field. */
   isAnalyzingVisualStyle: boolean
-  /** True when the storyboard composer is inactive and rendered as a dense pill. */
-  isCompact: boolean
   isDisabled: boolean
   isSubmitting: boolean
   isVisualStyleOpen: boolean
@@ -130,19 +128,15 @@ export function composerReducer(
   }
 }
 
-export interface PromptComposerRootProps extends Omit<
-  React.ComponentProps<"div">,
-  // The root renders as `m.div`; these drag/animation event handlers are
-  // typed incompatibly between plain DOM props and Motion's own, so they're
-  // excluded rather than passed through untyped.
-  | "onAnimationEnd"
-  | "onAnimationStart"
-  | "onDrag"
-  | "onDragEnd"
-  | "onDragStart"
-  | "onSubmit"
-  | "onTransitionEnd"
-> {
+export interface PromptComposerRootProps {
+  /** `PromptComposer.Input` and, in storyboard mode, `PromptComposer.Attachments`. */
+  children?: React.ReactNode
+  /**
+   * Additional classes merged onto the composer's persistently visible
+   * shell -- the trigger pill in storyboard mode, or the inline row in
+   * image-edit mode.
+   */
+  className?: string
   /** Disables generation and all attachment controls. */
   disabled?: boolean
   /**
@@ -153,15 +147,8 @@ export interface PromptComposerRootProps extends Omit<
   draft?: BoardComposerDraft
   /** Unique HTML id used to connect the primary input with its label. */
   inputId?: string
-  /**
-   * Whether the composer currently holds focus. Storyboard mode uses the
-   * inverse to enter compact (pill) chrome when the user is in main content.
-   */
-  isActive?: boolean
   /** Presents a concise image-editing input without storyboard attachments. */
   mode?: PromptComposerMode
-  /** Reports whether the composer currently holds focus. */
-  onActiveChange?: (isActive: boolean) => void
   /** Applies a partial update to the owning board's composer draft. */
   onDraftChange?: (patch: Partial<BoardComposerDraft>) => void
   /** Sends a validated scene image editing instruction to the dialog. */

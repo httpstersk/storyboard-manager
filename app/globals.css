@@ -1,6 +1,11 @@
 @import "tailwindcss";
 @import "tw-animate-css";
 @import "shadcn/tailwind.css";
+/* Layered into Tailwind's `components` layer: unlayered vendor CSS would
+   outrank every utility class (e.g. `px-4` on <bottom-sheet-header>), while
+   our own unlayered overrides below still win over both. */
+@import "@magic-spells/dialog-panel/css" layer(components);
+@import "@magic-spells/bottom-sheet/css" layer(components);
 
 @custom-variant dark (&:is(.dark *));
 
@@ -103,6 +108,10 @@
        confident ease-out, on-screen movement gets a natural ease-in-out. */
   --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
   --ease-in-out: cubic-bezier(0.77, 0, 0.175, 1);
+  /* iOS sheet presentation curve: leaves at speed and glides to rest without
+       a dead stop. Reserved for bottom-sheet open/close so it matches the
+       native drawer feel rather than the app's snappier ease-out. */
+  --ease-sheet: cubic-bezier(0.32, 0.72, 0, 1);
 }
 
 :root {
@@ -202,6 +211,47 @@
   --surface-panel: #1d1d1d;
   --surface-raised: #383838;
   --surface-thumb: #242424;
+}
+
+/* ─── Prompt composer: bottom-sheet theming ───────────────────────────────── */
+/*
+ * Retunes @magic-spells/bottom-sheet's custom properties to the storyboard
+ * design system. Values reference the app's own tokens (light/dark aware by
+ * inheritance) rather than duplicating them, and the sheet's own content
+ * padding is zeroed out since PromptComposerInput/Actions already carry
+ * their own -- doubling up would misalign them with the composer's other
+ * surfaces (attachments, notes editors).
+ *
+ * The sheet is edge-anchored and full viewport width at every breakpoint,
+ * like a native iOS sheet: no `inset` attribute, so the library keeps the
+ * top-only corner radius, the below-fold bleed for rubber-band drags, and
+ * the footer's safe-area padding.
+ */
+:root {
+  --bs-content-padding: 0px;
+  --bs-content-padding-block: 0px;
+  --bs-footer-background: var(--surface-panel);
+  --bs-footer-padding: 0px;
+  --bs-handle-color: var(--edge-strong);
+  --bs-handle-height: 4px;
+  --bs-handle-width: 36px;
+  --bs-overlay-background: var(--color-scrim);
+  --bs-panel-background: var(--surface-panel);
+  --bs-panel-border-radius: var(--radius-3xl);
+  --bs-panel-box-shadow: var(--shadow-modal);
+  --bs-snap-duration: 380ms;
+  --bs-transition-duration: 500ms;
+  --bs-transition-timing: var(--ease-sheet);
+}
+
+/* The scrim dims only. The library's default backdrop blur has to be
+   re-rasterised on every frame of the slide because the scene grid beneath
+   is full of continuously animating WebGL gradients, which is what made the
+   open/close stutter on phones. `blur(0)` would still force a backdrop root,
+   so the filter is removed outright. */
+dialog-panel:has(bottom-sheet) > dialog::backdrop {
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
 }
 
 /* ─── Scene grid: board-switch view transition ────────────────────────────── */

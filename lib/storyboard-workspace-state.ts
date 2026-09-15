@@ -23,8 +23,6 @@ export interface WorkspaceState {
   generatingBoardIds: string[]
   hydrated: boolean
   ioError: string | null
-  /** Whether the prompt composer currently holds focus. */
-  isComposerActive: boolean
   /** Reference time for relative "edited" labels, refreshed per action. */
   now: number
   query: string
@@ -44,7 +42,6 @@ export type WorkspaceAction =
   | { columns: number; rows: number; type: "setGrid" }
   | { columns: number; type: "setColumns" }
   | { boardId: string | null; type: "setDeleteRequest" }
-  | { isComposerActive: boolean; type: "setComposerActive" }
   | { error: string | null; type: "setIoError" }
   | { query: string; type: "setQuery" }
   | { board: Board; type: "startGeneration" }
@@ -205,8 +202,6 @@ export function workspaceReducer(
       return { ...state, columns: clampInteger(action.columns, COLUMN_LIMITS) }
     case "setDeleteRequest":
       return { ...state, deleteRequestBoardId: action.boardId }
-    case "setComposerActive":
-      return { ...state, isComposerActive: action.isComposerActive }
     case "setEditingScene":
       return { ...state, editingSceneId: action.sceneId }
     case "setIoError":
@@ -275,7 +270,6 @@ export function createInitialWorkspaceState(): WorkspaceState {
     generatingBoardIds: [],
     hydrated: false,
     ioError: null,
-    isComposerActive: false,
     now: board.updatedAt,
     query: "",
     rows: DEFAULT_ROWS,

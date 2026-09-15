@@ -85,7 +85,6 @@ interface StoryboardWorkspaceModel {
   gridRef: React.RefObject<HTMLElement | null>
   handleCharacterModeChange: (value: string) => void
   handleColumnsChange: (columns: number) => void
-  handleComposerActiveChange: (isComposerActive: boolean) => void
   handleDepthMapStyleChange: (depthMapStyle: boolean) => void
   handleEditScene: (sceneId: string) => void
   handleExportPng: (board: Board) => Promise<void>
@@ -264,10 +263,6 @@ function useStoryboardWorkspaceModel(): StoryboardWorkspaceModel {
   const handleColumnsChange = (columns: number) => {
     const preset = snapColumnChange(columns, state.rows)
     dispatch({ columns: preset.columns, rows: preset.rows, type: "setGrid" })
-  }
-
-  const handleComposerActiveChange = (isComposerActive: boolean) => {
-    dispatch({ isComposerActive, type: "setComposerActive" })
   }
 
   const handleDepthMapStyleChange = (nextDepthMapStyle: boolean) => {
@@ -462,7 +457,6 @@ function useStoryboardWorkspaceModel(): StoryboardWorkspaceModel {
     gridRef,
     handleCharacterModeChange,
     handleColumnsChange,
-    handleComposerActiveChange,
     handleDepthMapStyleChange,
     handleEditScene,
     handleExportPng,

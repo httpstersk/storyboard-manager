@@ -46,8 +46,9 @@ interface SubmitButtonProps {
 }
 
 /**
- * Hidden file inputs that stay mounted in compact mode so a native picker
- * can finish selecting after the action pills unmount.
+ * Hidden file inputs rendered alongside the action pills. Kept in the same
+ * component (rather than owned by each pill) so a single picker session can
+ * be tracked in the composer context regardless of which pill opened it.
  */
 function PromptComposerImageInputs({
   characterImageInputRef,
@@ -97,7 +98,7 @@ function PromptComposerImageInputs({
   )
 }
 
-/** Circular arrow button shared by the compact and expanded action rows. */
+/** Circular arrow button shared by the trigger pill and the sheet footer. */
 function SubmitButton({ disabled, onClick }: SubmitButtonProps) {
   return (
     <button
@@ -119,7 +120,6 @@ function PromptComposerActions() {
     beginFilePicker,
     characters,
     environments,
-    isCompact,
     isDisabled,
     isVisualStyleOpen,
     mode,
@@ -222,69 +222,60 @@ function PromptComposerActions() {
 
   return (
     <>
-      {isCompact ? (
-        <div className="flex shrink-0 items-center">
+      <div className="flex items-center justify-between gap-3 px-3 pt-2 pb-3">
+        <div
+          aria-label="Prompt attachments"
+          className="flex min-w-0 flex-wrap items-center gap-1"
+          role="group"
+        >
+          <NotesControl
+            count={characters.notes.filter(isComposerNoteFilled).length}
+            isDisabled={isDisabled}
+            isOpen={characters.isOpen}
+            label="Character Notes"
+            noun="character"
+            onToggle={() => characters.setIsOpen(!characters.isOpen)}
+          />
+          <NotesControl
+            count={environments.notes.filter(isComposerNoteFilled).length}
+            isDisabled={isDisabled}
+            isOpen={environments.isOpen}
+            label="Environment Notes"
+            noun="environment"
+            onToggle={() => environments.setIsOpen(!environments.isOpen)}
+          />
+          <DisclosureControl
+            isDisabled={isDisabled}
+            isOpen={isVisualStyleOpen}
+            label="Visual Note"
+            onToggle={() => setIsVisualStyleOpen(!isVisualStyleOpen)}
+          />
+          <ImageReferenceControl
+            canAdd={canAddIdentityReference}
+            label="Characters"
+            onAdd={() => beginFilePicker(characterImageInputRef.current)}
+          />
+          <ImageReferenceControl
+            canAdd={canAddIdentityReference}
+            label="Environments"
+            onAdd={() => beginFilePicker(environmentImageInputRef.current)}
+          />
+          <ImageReferenceControl
+            canAdd={canAddStyleReference}
+            label="Styles"
+            onAdd={() => beginFilePicker(styleImageInputRef.current)}
+          />
+        </div>
+        <div className="flex shrink-0 items-center gap-2">
           <SubmitButton
             disabled={isDisabled || prompt.trim() === ""}
             onClick={() => void submit()}
           />
         </div>
-      ) : (
-        <div className="sticky bottom-0 z-10 flex items-center justify-between gap-3 bg-surface-panel px-3 pt-2 pb-3">
-          <div
-            aria-label="Prompt attachments"
-            className="flex min-w-0 flex-wrap items-center gap-1"
-            role="group"
-          >
-            <NotesControl
-              count={characters.notes.filter(isComposerNoteFilled).length}
-              isDisabled={isDisabled}
-              isOpen={characters.isOpen}
-              label="Character Notes"
-              noun="character"
-              onToggle={() => characters.setIsOpen(!characters.isOpen)}
-            />
-            <NotesControl
-              count={environments.notes.filter(isComposerNoteFilled).length}
-              isDisabled={isDisabled}
-              isOpen={environments.isOpen}
-              label="Environment Notes"
-              noun="environment"
-              onToggle={() => environments.setIsOpen(!environments.isOpen)}
-            />
-            <DisclosureControl
-              isDisabled={isDisabled}
-              isOpen={isVisualStyleOpen}
-              label="Visual Note"
-              onToggle={() => setIsVisualStyleOpen(!isVisualStyleOpen)}
-            />
-            <ImageReferenceControl
-              canAdd={canAddIdentityReference}
-              label="Characters"
-              onAdd={() => beginFilePicker(characterImageInputRef.current)}
-            />
-            <ImageReferenceControl
-              canAdd={canAddIdentityReference}
-              label="Environments"
-              onAdd={() => beginFilePicker(environmentImageInputRef.current)}
-            />
-            <ImageReferenceControl
-              canAdd={canAddStyleReference}
-              label="Styles"
-              onAdd={() => beginFilePicker(styleImageInputRef.current)}
-            />
-          </div>
-          <div className="flex shrink-0 items-center gap-2">
-            <SubmitButton
-              disabled={isDisabled || prompt.trim() === ""}
-              onClick={() => void submit()}
-            />
-          </div>
-        </div>
-      )}
+      </div>
       {imageInputs}
     </>
   )
 }
 
-export { PromptComposerActions }
+export { PromptComposerActions, SubmitButton }

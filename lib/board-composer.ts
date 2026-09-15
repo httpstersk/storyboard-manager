@@ -76,8 +76,8 @@ export interface BoardComposerDraft {
 }
 
 /**
- * Creates the draft a fresh board starts with: one empty character row and
- * one empty environment row.
+ * Creates the draft a fresh board starts with: one empty character row,
+ * one empty environment row, and one empty manual scene row.
  */
 export function createEmptyComposerDraft(): BoardComposerDraft {
   return {
@@ -85,6 +85,7 @@ export function createEmptyComposerDraft(): BoardComposerDraft {
     characterNotes: [createEmptyComposerNote()],
     environmentImageReferences: [],
     environmentNotes: [createEmptyComposerNote()],
+    sceneNotes: [createEmptyComposerNote()],
     styleImageReferences: [],
     visualStyle: "",
   }

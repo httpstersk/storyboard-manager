@@ -83,7 +83,6 @@ function PromptComposerInput() {
     characters,
     environments,
     inputId,
-    isCompact,
     isDisabled,
     isVisualStyleOpen,
     mentionOptions,
@@ -154,11 +153,7 @@ function PromptComposerInput() {
   }
 
   return (
-    <div
-      className={
-        isImageEdit || isCompact ? "flex min-w-0 flex-1" : "relative grid"
-      }
-    >
+    <div className={isImageEdit ? "flex min-w-0 flex-1" : "relative grid"}>
       <label className="sr-only" htmlFor={inputId}>
         {isImageEdit
           ? "Describe the image changes"
@@ -176,9 +171,7 @@ function PromptComposerInput() {
           "w-full resize-none bg-transparent text-body text-ink-strong outline-none placeholder:text-ink-faint disabled:cursor-not-allowed disabled:opacity-60",
           isImageEdit
             ? "field-sizing-content max-h-28 min-h-8 px-3 py-1.5"
-            : isCompact
-              ? "h-9 truncate px-4 py-1.5"
-              : "field-sizing-content max-h-44 min-h-14 px-4 pt-4 pb-3"
+            : "field-sizing-content max-h-44 min-h-14 px-4 pt-4 pb-3"
         )}
         disabled={isDisabled}
         id={inputId}
@@ -250,7 +243,7 @@ function PromptComposerInput() {
         rows={1}
         value={prompt}
       />
-      {!isCompact && mentionSession !== null ? (
+      {mentionSession !== null ? (
         <MentionList id={mentionListId}>
           {mentionOptions.length === 0 ? (
             <MentionList.Empty>
@@ -273,7 +266,7 @@ function PromptComposerInput() {
         </MentionList>
       ) : null}
       <AnimatePresence initial={false}>
-        {!isCompact && characters.isOpen ? (
+        {characters.isOpen ? (
           <m.div
             animate={{ opacity: 1, scaleY: 1 }}
             className="overflow-hidden"
@@ -295,7 +288,7 @@ function PromptComposerInput() {
         ) : null}
       </AnimatePresence>
       <AnimatePresence initial={false}>
-        {!isCompact && environments.isOpen ? (
+        {environments.isOpen ? (
           <m.div
             animate={{ opacity: 1, scaleY: 1 }}
             className="overflow-hidden"
@@ -317,7 +310,7 @@ function PromptComposerInput() {
         ) : null}
       </AnimatePresence>
       <AnimatePresence initial={false}>
-        {!isImageEdit && !isCompact && isVisualStyleOpen ? (
+        {!isImageEdit && isVisualStyleOpen ? (
           <m.div
             animate={{ opacity: 1, scaleY: 1 }}
             className="overflow-hidden"

@@ -10,10 +10,7 @@ import { EditSceneDialog } from "@/components/storyboard/edit-scene-dialog"
 import { SceneGrid } from "@/components/storyboard/scene-grid"
 import { DeleteBoardConfirmDialog } from "@/components/storyboard/storyboard-workspace-delete-dialog"
 import { SelectedBoardContext } from "@/components/storyboard/storyboard-workspace-selected-board-context"
-import {
-  SIDEBAR_CONTENT_TRANSITION,
-  StoryboardWorkspaceSidebarOverlay,
-} from "@/components/storyboard/storyboard-workspace-sidebar-overlay"
+import { StoryboardWorkspaceSidebarOverlay } from "@/components/storyboard/storyboard-workspace-sidebar-overlay"
 import { WorkspacePromptComposer } from "@/components/storyboard/storyboard-workspace-prompt-composer"
 import { WorkspaceToolbar } from "@/components/storyboard/storyboard-workspace-toolbar"
 import { useStoryboardWorkspaceModel } from "@/components/storyboard/use-storyboard-workspace-model"
@@ -56,7 +53,6 @@ function StoryboardWorkspace() {
     editingScene,
     handleCharacterModeChange,
     handleColumnsChange,
-    handleComposerActiveChange,
     handleEditScene,
     handleExportPng,
     handleGenerateStoryboard,
@@ -176,8 +172,6 @@ function StoryboardWorkspace() {
         <div className="absolute inset-x-0 bottom-10 z-50 mx-auto w-full max-w-3xl px-4">
           <WorkspacePromptComposer
             draft={selectedBoard.composer}
-            isActive={state.isComposerActive}
-            onActiveChange={handleComposerActiveChange}
             onDraftChange={handleUpdateBoardComposer}
             onSubmit={handleGenerateStoryboard}
           />
@@ -196,22 +190,6 @@ function StoryboardWorkspace() {
           </BoardStatusBar.Autosave>
         </BoardStatusBar>
       </main>
-      <AnimatePresence>
-        {state.isComposerActive ? (
-          <m.div
-            animate={{ opacity: 1 }}
-            aria-hidden
-            className="absolute inset-0 z-40 bg-scrim backdrop-blur-sm"
-            exit={{ opacity: 0 }}
-            initial={{ opacity: 0 }}
-            key="composer-backdrop"
-            onClick={() =>
-              dispatch({ isComposerActive: false, type: "setComposerActive" })
-            }
-            transition={SIDEBAR_CONTENT_TRANSITION}
-          />
-        ) : null}
-      </AnimatePresence>
       <StoryboardWorkspaceSidebarOverlay
         boards={state.boards}
         generatingBoardIds={state.generatingBoardIds}

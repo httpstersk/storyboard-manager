@@ -104,7 +104,6 @@ function EditSceneImagePromptRoot({
                 onImageEditSubmit={handleImageEditSubmit}
               >
                 <PromptComposer.Input />
-                <PromptComposer.Actions />
               </PromptComposer.Root>
             </m.div>
           ) : (
